@@ -57,8 +57,9 @@ still performing the live OEREB fetch (shown as byte count).
 - `research/swiss_phase_lifecycle_matrix.json` — Swiss/SIA-oriented phase lifecycle matrix with
   small/medium/large variants.
 - `research/pilot_source_registry.json` — prioritized NOMOS-compatible source registry for CH/VD/Lausanne.
+- `research/project_knowledge_regime.json` — context-first vs hybrid-index vs project-RAG decision model.
 - `validate_research.py` — stdlib validator for the research backbone.
-- `selfcheck.py` — offline smoke test of the pure logic, no network (`python pilot/selfcheck.py`, 35 checks).
+- `selfcheck.py` — offline smoke test of the pure logic, no network (`python pilot/selfcheck.py`, 37 checks).
 - `registry/federal.json`, `registry/canton_vd.json` — shared CH core + VD cantonal layer (refs verified from a live OEREB extract).
 - `lausanne/`, `pully/` — per-commune ingested rulesets (`rpga_zones.json`) + `INGESTION.md` (sources, in-force status, gaps).
   Lausanne is **geometric/IUS**; Pully is **IOS 20 %** — the same engine absorbs both styles (run `selector.py` to see it).
@@ -88,9 +89,11 @@ that validator and the output trust contract in the offline smoke suite. GitHub 
 `python pilot/validate_permit.py` and `python pilot/validate_compliance.py` validate the phase-33 permit and
 compliance contracts described in [`../docs/permit/vd-camac-permit-completeness.md`](../docs/permit/vd-camac-permit-completeness.md)
 and [`../docs/compliance/phase33-compliance-gates.md`](../docs/compliance/phase33-compliance-gates.md).
-`python pilot/validate_research.py` validates the Swiss phase lifecycle matrix and pilot source registry
+`python pilot/validate_research.py` validates the Swiss phase lifecycle matrix, pilot source registry, and
+project knowledge regime
 described in [`../docs/research/swiss-phase-lifecycle-matrix.md`](../docs/research/swiss-phase-lifecycle-matrix.md)
-and [`../docs/research/pilot-source-registry.md`](../docs/research/pilot-source-registry.md).
+[`../docs/research/pilot-source-registry.md`](../docs/research/pilot-source-registry.md), and
+[`../docs/architecture/project-knowledge-regime.md`](../docs/architecture/project-knowledge-regime.md).
 
 ## The gap this closes
 

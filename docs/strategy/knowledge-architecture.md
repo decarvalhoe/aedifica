@@ -66,10 +66,16 @@ Two regimes, chosen on **economics**, not dogma:
 | **Small** | **Context-first (repo-like)** — the agent "lives in" the project folder and reasons over its files directly, like a coding agent in a Git working directory. No heavy pre-built index. | Cheap, simple, immediate; indexing overhead isn't justified for a villa/transformation. |
 | **Large** | **Dedicated project RAG/DB** — a real indexed memory across many documents, versions, consultants. | Volume justifies the cost; cross-document retrieval becomes essential. |
 
-> **Open question to validate:** is a per-project RAG worth it for small projects, or is *context* enough? The
-> analogy the owner drew: a CLI coding agent doesn't pre-index a small repo — it works in-context. Aedifica's
-> agent could likewise "live in" an architecture-project folder. Decide the **size/volume threshold** where a
-> project graduates from *context* to *RAG* — and confirm it's economically sound.
+**Decision (#25):** small projects default to **context-first**. The agent "lives in" the project folder and
+uses files + manifest + decision ledger directly. Escalate only when the economics justify it:
+
+- `hybrid_index` when one medium threshold is crossed and the same information is queried repeatedly;
+- `project_rag_db` when at least two large thresholds are crossed, or public procurement / formal BIM governance
+  requires persistent evidence.
+
+The validated threshold model lives in
+[`../architecture/project-knowledge-regime.md`](../architecture/project-knowledge-regime.md) and
+`pilot/research/project_knowledge_regime.json`.
 
 ## Two-RAG model, restated with this refinement
 
@@ -99,4 +105,5 @@ checklists. (Carries forward NOMOS Archi's separation rule.)
   architecture above.
 - New issue: **"Seed 3-level pilot corpus: Federal + Vaud + Ville de Lausanne"** (the hybrid cold-start seed).
 - Reframe #7 (RAG project + RAG général) to the **three-corpus + project-regime** model here.
-- New issue: **"Project knowledge regime: context-first vs RAG threshold"** (economic decision + design).
+- #25 is now the **project knowledge regime** decision: context-first by default for small projects, with
+  validated thresholds for hybrid index and project RAG/DB escalation.

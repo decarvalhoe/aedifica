@@ -124,6 +124,7 @@ print("Research backbone")
 research_report = validate_research.validate_all()
 phase_items = [item for item in research_report.items if item["kind"] == "phase_matrix"]
 source_items = [item for item in research_report.items if item["kind"] == "source_registry"]
+knowledge_items = [item for item in research_report.items if item["kind"] == "project_knowledge_regime"]
 check("research assets validate", not research_report.errors)
 check(
     "phase lifecycle covers required phases",
@@ -132,6 +133,14 @@ check(
 check(
     "source registry covers required tiers",
     any(validate_research.REQUIRED_SOURCE_TIERS.issubset(set(item["tiers"])) for item in source_items),
+)
+check(
+    "project knowledge defaults to context-first",
+    any(item["default_regime"] == "context_first" for item in knowledge_items),
+)
+check(
+    "project knowledge defines escalation regimes",
+    any(validate_research.REQUIRED_KNOWLEDGE_REGIMES.issubset(set(item["regimes"])) for item in knowledge_items),
 )
 
 print("-" * 48)

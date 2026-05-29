@@ -1,0 +1,97 @@
+{
+  "schema_version": "1.0",
+  "regime_id": "AEDIFICA-PROJECT-KNOWLEDGE-REGIME-V0",
+  "title": "Project knowledge regime decision model",
+  "default_regime": "context_first",
+  "source_version": {
+    "source_status": "product_economic_decision",
+    "decided_at": "2026-05-29",
+    "review_due": "2026-08-29",
+    "notes": "Thresholds are product defaults for pilot work; tune with real office document counts and retrieval logs."
+  },
+  "regimes": {
+    "context_first": {
+      "description": "Agent works directly inside the project folder, like a coding agent in a small repo.",
+      "default_for": ["small_project", "early_intake", "low_document_volume"],
+      "storage": "files + explicit context manifest + decision ledger",
+      "retrieval": "direct file reads, manifest search, targeted extraction",
+      "economics": "no index build/refresh cost; best for fast feasibility and small mandates",
+      "maximum_guideline": {
+        "documents": 80,
+        "active_participants": 8,
+        "duration_months": 6,
+        "model_snapshots": 3,
+        "total_size_mb": 250
+      }
+    },
+    "hybrid_index": {
+      "description": "Keep the project folder as source of truth, add a lightweight index for selected documents.",
+      "default_for": ["medium_project", "permit_to_tender", "recurring_cross_document_questions"],
+      "storage": "files + manifest + extracted metadata/index + decision ledger",
+      "retrieval": "selector first, then indexed project snippets with file/hash references",
+      "economics": "index only stable/high-value subsets instead of all project noise",
+      "minimum_triggers": {
+        "documents": 80,
+        "active_participants": 8,
+        "duration_months": 6,
+        "model_snapshots": 3,
+        "total_size_mb": 250
+      }
+    },
+    "project_rag_db": {
+      "description": "Dedicated project retrieval/database memory for large, long, multi-actor projects.",
+      "default_for": ["large_project", "multi_year_project", "formal_bim_or_public_procurement"],
+      "storage": "versioned evidence store + vector/index layer + structured graph + decision ledger",
+      "retrieval": "scoped project RAG/DB with source hashes, versions, phase and actor filters",
+      "economics": "higher setup cost justified by retrieval frequency, coordination risk, and long project memory",
+      "minimum_triggers": {
+        "documents": 300,
+        "active_participants": 20,
+        "duration_months": 12,
+        "model_snapshots": 10,
+        "total_size_mb": 1000
+      }
+    }
+  },
+  "graduation_rules": [
+    {
+      "rule_id": "DEFAULT-SMALL-CONTEXT",
+      "target_regime": "context_first",
+      "condition": "Use by default for villas, small transformations, early feasibility, or any project below hybrid triggers.",
+      "rationale": "Indexing overhead is not justified; direct context is cheaper and easier to audit."
+    },
+    {
+      "rule_id": "ONE-HYBRID-TRIGGER",
+      "target_regime": "hybrid_index",
+      "condition": "Escalate when one hybrid threshold is crossed and the same information is queried repeatedly.",
+      "rationale": "A lightweight index pays off once repeated retrieval starts costing more than index upkeep."
+    },
+    {
+      "rule_id": "TWO-RAG-TRIGGERS",
+      "target_regime": "project_rag_db",
+      "condition": "Escalate when at least two RAG thresholds are crossed, or when public procurement/formal BIM governance requires long-lived evidence.",
+      "rationale": "Large coordination risk justifies a persistent project memory layer."
+    },
+    {
+      "rule_id": "NEVER-MIX-SILENTLY",
+      "target_regime": "all",
+      "condition": "Project facts, regulatory facts, and general knowledge must keep separate source IDs and trust states.",
+      "rationale": "Prevents project assumptions from being rendered as reusable regulation."
+    }
+  ],
+  "review_gates": [
+    "phase_0_intake",
+    "phase_31_before_concept_freeze",
+    "phase_33_before_permit_filing",
+    "phase_41_before_tender",
+    "phase_52_before_site_start"
+  ],
+  "open_metrics_to_collect": [
+    "document_count_by_phase",
+    "number_of_repeated_cross_document_questions",
+    "minutes_spent_finding_latest_document",
+    "number_of_active_participants",
+    "model_snapshot_count",
+    "retrieval_failures_or_stale_answers"
+  ]
+}

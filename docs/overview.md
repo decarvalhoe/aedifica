@@ -54,6 +54,7 @@ Références de construction:
 [`nomos/nomos-archi-schema-v0.md`](nomos/nomos-archi-schema-v0.md),
 [`nomos/phase-aware-constraint-matrix.md`](nomos/phase-aware-constraint-matrix.md),
 [`architecture/trust-contract-and-ledger.md`](architecture/trust-contract-and-ledger.md),
+[`architecture/project-knowledge-regime.md`](architecture/project-knowledge-regime.md),
 [`research/swiss-phase-lifecycle-matrix.md`](research/swiss-phase-lifecycle-matrix.md),
 [`research/pilot-source-registry.md`](research/pilot-source-registry.md),
 [`permit/vd-camac-permit-completeness.md`](permit/vd-camac-permit-completeness.md),
@@ -100,7 +101,7 @@ Code Python (stdlib), ancré sur les **API publiques gratuites** suisses, pouss�
 | `validate_compliance.py` | gates phase 33 énergie/incendie/accessibilité/structure + BIM contractuel | ✅ |
 | `validate_research.py` | validation matrice phases SIA + registre sources pilote | ✅ |
 | `trust.py` | footer/contrat de rendu non-autoritaire partagé par les sorties pilote | ✅ |
-| `selfcheck.py` | tests hors-ligne | ✅ 35/35 |
+| `selfcheck.py` | tests hors-ligne | ✅ 37/37 |
 
 **Preuve réelle** (parcelle Place de la Palud, Lausanne, nº 10072) : Zone centrale 15 LAT · DS III ·
 alignements · LATC/LAT — en quelques secondes, **sans maquette ni identifiant**. Validé aussi sur Pully.
@@ -140,7 +141,7 @@ fil Archicad) ; pilote **Vaud / Lausanne** ; cold-start **hybride** (ingestion �
 1. Adjacence de voisinage réelle + ombres sur la volumétrie réelle (radar).
 2. Passage à l'échelle : plus de communes (ingestion à la demande).
 3. Formaliser le **moteur neutre + packs** (ADR [#22](https://github.com/decarvalhoe/aedifica/issues/22)).
-4. Prochain bloc produit : régime de connaissance projet ([#25](https://github.com/decarvalhoe/aedifica/issues/25))
+4. Prochain bloc produit : mémoire projet continue ([#31](https://github.com/decarvalhoe/aedifica/issues/31))
    puis copilote **honoraires/coûts**
    ([#29](https://github.com/decarvalhoe/aedifica/issues/29)/[#30](https://github.com/decarvalhoe/aedifica/issues/30)).
 
@@ -154,6 +155,7 @@ fil Archicad) ; pilote **Vaud / Lausanne** ; cold-start **hybride** (ingestion �
 | Le métier d'architecte (réel, SIA) | [`strategy/architect-reality.md`](strategy/architect-reality.md) |
 | La pile réglementaire suisse | [`strategy/swiss-regulatory-stack.md`](strategy/swiss-regulatory-stack.md) |
 | L'architecture de connaissance | [`strategy/knowledge-architecture.md`](strategy/knowledge-architecture.md) |
+| Le régime de connaissance projet | [`architecture/project-knowledge-regime.md`](architecture/project-knowledge-regime.md) |
 | La valeur phase par phase | [`strategy/phase-value-catalog.md`](strategy/phase-value-catalog.md) |
 | La matrice phase par phase validée | [`research/swiss-phase-lifecycle-matrix.md`](research/swiss-phase-lifecycle-matrix.md) |
 | Le registre de sources pilote | [`research/pilot-source-registry.md`](research/pilot-source-registry.md) |
