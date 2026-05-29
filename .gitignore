@@ -8,6 +8,9 @@ Thumbs.db
 # Ingested source corpus (large binaries; re-downloadable from official URLs — see pilot/lausanne/INGESTION.md)
 sources/
 
+# Generated fiches (run `python pilot/fiche.py` to regenerate)
+pilot/out/
+
 # Python
 __pycache__/
 .pytest_cache/

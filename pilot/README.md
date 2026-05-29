@@ -44,6 +44,8 @@ still performing the live OEREB fetch (shown as byte count).
 
 - `mvp1_demo.py` — the end-to-end demonstrator (commune-aware: Lausanne, Pully).
 - `oereb.py` — robust VD OEREB/RDPPF parser; works for **any VD parcel** (`python pilot/oereb.py <EGRID>`).
+- `opposition_radar.py` — MVP2 opposition/recours-risk radar (`python pilot/opposition_radar.py [addr] [height_m]`).
+- `fiche.py` — printable **A4 HTML fiche** per parcel combining constraints + envelope + radar (`python pilot/fiche.py [addr] [height_m]` → `pilot/out/`).
 - `selector.py` — the **regulatory route**: composes Federal + canton + commune layers (`python pilot/selector.py`).
 - `registry/federal.json`, `registry/canton_vd.json` — shared CH core + VD cantonal layer (refs verified from a live OEREB extract).
 - `lausanne/`, `pully/` — per-commune ingested rulesets (`rpga_zones.json`) + `INGESTION.md` (sources, in-force status, gaps).
