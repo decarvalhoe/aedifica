@@ -27,6 +27,7 @@ except Exception:
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import oereb            # noqa: E402
 import mvp1_demo as demo  # noqa: E402  (reuse geocode/identify/area/zone matching)
+import trust            # noqa: E402
 
 _LEVEL = {"faible": 1, "modéré": 2, "élevé": 3}
 _ICON = {"faible": "·", "modéré": "▲", "élevé": "■"}
@@ -160,7 +161,8 @@ def render(r):
         print(f"        mitigation: {g['mitigation']}")
     print("-" * 72)
     print("Indicatif — fondé sur parcelle/zone/voisinage; le résultat réel dépend du projet et d'un")
-    print("examen juridique. Préparation sourcée, jamais une autorité (cf. contrat de preuve).")
+    print("examen juridique.")
+    trust.print_footer("fr")
     print("=" * 72)
 
 

@@ -51,8 +51,11 @@ One strong validation track is **Swiss Auto-BIM for small and mid-sized offices*
 - `docs/strategy/`: strategy deep-dive — challenge & brainstorm, architect reality, Swiss regulatory stack, knowledge architecture, decisions, Lausanne PoC.
 - `docs/research/`: Swiss architecture lifecycle, phase-agentic matrix, sources.
 - `docs/architecture/`: target system architecture + first universal API/MCP surface.
+- `docs/architecture/adr-0001-neutral-engine-and-jurisdiction-packs.md`: accepted ADR for the neutral engine + jurisdiction-pack split.
+- `docs/architecture/trust-contract-and-ledger.md`: claim provenance, decision ledger, and professional-responsibility contract.
 - `docs/architecture/jurisdiction-pack-contract.md`: versioned regulatory-pack contract + CI validation rules.
 - `docs/nomos/nomos-archi.md`: NOMOS adaptation for architecture.
+- `docs/nomos/nomos-archi-schema-v0.md`: initial canonical-unit schema for sources, rules, constraints, decisions, evidence, checks, and actions.
 - `docs/specs/mvp1-parcel-constraints-intake.md`: implementation-ready MVP1 spec.
 - `docs/mvp-roadmap.md`: staged MVP plan.
 - `docs/review/foundations-audit.md`: living corrections tracker.

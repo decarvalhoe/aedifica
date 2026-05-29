@@ -21,6 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import oereb              # noqa: E402
 import mvp1_demo as demo  # noqa: E402
 import opposition_radar as radar  # noqa: E402
+import trust              # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "out")
@@ -106,6 +107,7 @@ def render(query, height=None):
     zone_line = esc(d["zname"]) + (f' &nbsp;<span class="mut">(art. {esc(prov.get("article"))} · conf. {esc(prov.get("confidence"))})</span>' if d["zname"] else "")
     if d["zname"] and d["how"] == "keyword":
         zone_line += ' <span class="warn">(appariement approximatif)</span>'
+    trust_footer = "<br>".join(esc(line) for line in trust.render_footer("fr").splitlines())
     html_doc = f"""<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
 <title>Aedifica — Fiche parcelle {esc(o.get('parcel'))} ({esc(o.get('commune'))})</title>
 <style>
@@ -155,7 +157,7 @@ def render(query, height=None):
   </div>
  </div>
 
- <footer><b>Préparation sourcée, jamais une autorité — l'architecte décide.</b>
+ <footer><b>{trust_footer}</b>
   Contraintes via swisstopo + cadastre RDPPF VD (live) ; enveloppe via le règlement communal ingéré
   ({esc((zp.get('provenance') or {}).get('url',''))[:70]}…) ; radar indicatif (heuristique).
   Aedifica · pilote Lausanne/VD · {today}.</footer>

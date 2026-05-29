@@ -27,6 +27,7 @@ except Exception:
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import oereb  # noqa: E402  (local module in pilot/)
+import trust  # noqa: E402
 
 GEOADMIN = "https://api3.geo.admin.ch/rest/services"
 VD_OEREB = "https://www.rdppf.vd.ch/ws/RdppfSVC.svc"
@@ -273,7 +274,8 @@ def main():
     print("INCONNUES / DÉCISIONS REQUISES")
     print("      · Indices/hauteurs non exposés en open data CH -> ingestion du règlement (couche commune).")
     print("      · Servitudes (registre foncier) à vérifier manuellement (accès restreint).")
-    print("      · Le présent document est une PRÉPARATION sourcée, jamais une autorité: l'architecte décide.")
+    for line in trust.render_footer("fr").splitlines():
+        print(f"      · {line}")
     print("=" * 72)
     return 0
 

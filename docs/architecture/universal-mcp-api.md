@@ -4,6 +4,11 @@ This document sketches the first common action surface for agentic architecture 
 
 The goal is not to expose every software command one-to-one. The goal is to expose stable architectural workflow commands that can be implemented by different adapters, including BIM tools, document systems, IFC/Speckle, permit dossier workflows, and construction-management systems.
 
+This API belongs behind the neutral-engine boundary defined in
+[`adr-0001-neutral-engine-and-jurisdiction-packs.md`](adr-0001-neutral-engine-and-jurisdiction-packs.md). Mutating
+commands must follow the ledger and approval contract in
+[`trust-contract-and-ledger.md`](trust-contract-and-ledger.md).
+
 ## Transport
 
 Initial candidates:
@@ -20,6 +25,12 @@ Initial candidates:
 - Commands should be grouped into transactions when the target software supports undo.
 - Logs must include actor, source, command, target elements, before/after summaries, and result.
 - Critical actions require approval.
+
+Minimum command lifecycle:
+
+```text
+intent -> inspect -> dry-run plan -> evidence snapshot -> human approval -> execute -> verify -> ledger entry
+```
 
 ## Initial Command Groups
 

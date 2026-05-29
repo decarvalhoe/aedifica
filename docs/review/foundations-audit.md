@@ -33,7 +33,7 @@
 | B1 | **No `LICENSE`.** Concept docs are unlicensed; ambiguous for any future contributor/code. | Choose and add a license (or an explicit "all rights reserved" notice for now). | DECIDE |
 | B2 | **No `CONTRIBUTING.md`, issue/PR templates, `CODEOWNERS`.** The repo is meant to receive code and structured issues. | Add `.github/` templates + a short CONTRIBUTING once the workflow is set. | OPEN |
 | B3 | **No language policy.** Vision docs are in English; backlog/issues are in French. | Decide a convention (proposal: English for durable docs/code to support internationalization; French OK for issues/discussion). | DECIDE |
-| B4 | **No technical-stack decision record.** `#6` (NOMOS schema), `#7` (RAG), `#12` (API/MCP) will all stall without one. | Open an ADR/decision issue for stack (language, storage, RAG, canonical-unit format). | OPEN |
+| B4 | **No technical-stack decision record.** `#6` (NOMOS schema), `#7` (RAG), `#12` (API/MCP) will all stall without one. | ADR added for the neutral engine + jurisdiction-pack split; storage/RAG implementation choices remain future work. | DONE 2026-05-29 (`docs/architecture/adr-0001-neutral-engine-and-jurisdiction-packs.md`) |
 
 ## C. Documentation consistency
 
@@ -58,7 +58,7 @@ vision/issues. Each is a candidate new issue (to be confirmed by the deep-dive).
 | D4 | **Contracts & liability (SIA 102/118, RC, garanties)** | The architect is legally liable; an AI proposing regulatory reads needs a crisp trust/disclaimer stance. | OPEN |
 | D5 | **Energy / sustainability (CECB/GEAK, MoPEC/MuKEn, SIA 380/1, Minergie)** | Mandatory cantonal energy compliance; currently absent. | OPEN |
 | D6 | **Multilingualism FR/DE/IT** | Canonical rules must be language-neutral with localized renderings; not addressed. | OPEN |
-| D7 | **Generalizable core vs Swiss "jurisdiction pack" architecture** | The user explicitly wants an internationalizable system anchored in CH; no issue/doc captures this separation. | OPEN |
+| D7 | **Generalizable core vs Swiss "jurisdiction pack" architecture** | Captured in ADR-0001: neutral engine, jurisdiction packs, SIA phase model as pack data, adapters behind a shared lifecycle. | DONE 2026-05-29 |
 | D8 | **Regulatory-corpus data-acquisition strategy** | ~2100 communes each with their own RCCZ/PGA — the real bottleneck for NOMOS; no strategy issue. | OPEN |
 | D9 | **Business model / "who pays" & pricing** | Determines which wedge to build first; absent. | OPEN |
 | D10 | **Competitive landscape** | Messerli/Sorba/Abacus, Archilyse, PlanRadar, CRB/NPK, etc. — no positioning issue. | OPEN |
@@ -75,3 +75,4 @@ vision/issues. Each is a candidate new issue (to be confirmed by the deep-dive).
 
 - 2026-05-29 — Initial audit created from foundation review (commit `fa7a7b8`).
 - 2026-05-29 — Added C4 (BIM framing outdated / SIA 2051 withdrawn) and C5 (Auto-BIM vs target BIM-maturity) after fresh sourced research; linked C2 to the verified SIA phase table. See [`../strategy/`](../strategy/).
+- 2026-05-29 — Added ADR-0001, NOMOS schema v0, and trust ledger contract; marked B4 and D7 done.

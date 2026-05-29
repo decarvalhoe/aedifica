@@ -2,6 +2,9 @@
 
 NOMOS Archi adapts the canonical-first method to architecture projects.
 
+The concrete initial schema is maintained in
+[`nomos-archi-schema-v0.md`](nomos-archi-schema-v0.md). This page gives the conceptual overview.
+
 ## Purpose
 
 Architecture agents need a trusted project context. They cannot safely infer regulatory, technical, or contractual truth from prompts alone.
@@ -110,3 +113,6 @@ Agents using NOMOS Archi must:
 - Log every model action with before/after evidence.
 - Escalate conflicts between sources.
 - Identify whether a check can be automated, semi-automated, or only reviewed by a human.
+
+See also [`../architecture/trust-contract-and-ledger.md`](../architecture/trust-contract-and-ledger.md) for the
+claim states, decision ledger, and evidence rules that protect professional responsibility.
