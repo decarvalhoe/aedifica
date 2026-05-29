@@ -4,6 +4,8 @@ Aedifica is the codename for **ArchiOS Suisse**: an agentic architecture operati
 
 The long-term objective is to support the full architectural process, from initial constraints and project knowledge to design decisions, BIM, technical drawings, deliverables, building permits, tendering, execution, handover, and construction management.
 
+> **Start here:** [`docs/overview.md`](docs/overview.md) — the up-to-date global plan (vision, approach, roadmap, and what already works).
+
 ## Working Vision
 
 Aedifica treats architecture as a constraint-led, evidence-based workflow:
@@ -43,17 +45,24 @@ One strong validation track is **Swiss Auto-BIM for small and mid-sized offices*
 
 ## Repository Map
 
+- **[`docs/overview.md`](docs/overview.md): up-to-date global plan — start here.**
 - `docs/vision.md`: full product framing.
 - `docs/product/holistic-assistance.md`: end-to-end architect assistance model.
-- `docs/research/swiss-architecture-process.md`: Swiss architecture lifecycle and phase matrix.
-- `docs/research/phase-agentic-matrix.md`: detailed phase-by-phase intervention matrix.
-- `docs/architecture/agentic-archios.md`: target system architecture.
-- `docs/architecture/universal-mcp-api.md`: first common API/MCP surface.
+- `docs/strategy/`: strategy deep-dive — challenge & brainstorm, architect reality, Swiss regulatory stack, knowledge architecture, decisions, Lausanne PoC.
+- `docs/research/`: Swiss architecture lifecycle, phase-agentic matrix, sources.
+- `docs/architecture/`: target system architecture + first universal API/MCP surface.
 - `docs/nomos/nomos-archi.md`: NOMOS adaptation for architecture.
+- `docs/specs/mvp1-parcel-constraints-intake.md`: implementation-ready MVP1 spec.
 - `docs/mvp-roadmap.md`: staged MVP plan.
+- `docs/review/foundations-audit.md`: living corrections tracker.
+- `docs/pitch/aedifica-one-pager.html`: visual one-pager (FR).
 - `docs/backlog/initial-issues.md`: initial issue list mirrored into GitHub Issues.
-- `docs/research/sources.md`: initial source references.
+- **[`pilot/`](pilot/): runnable MVP1/MVP2 pilot — parcel→constraints+envelope, opposition radar, regulatory-route selector (Lausanne + Pully).**
 
 ## Current Status
 
-Concept and research foundation. No production implementation yet.
+Concept + strategy + a **working pilot**. A strategy deep-dive ([`docs/strategy/`](docs/strategy/)) reframed the
+product around **registry-anchored regulatory/project intelligence** (neutral engine + Swiss jurisdiction packs),
+and a runnable pilot ([`pilot/`](pilot/)) demonstrates **MVP1** (parcel → sourced constraints + buildable envelope)
+and an **MVP2 opposition-risk radar** on real Vaud parcels (Lausanne + Pully) via free public Swiss APIs.
+See **[`docs/overview.md`](docs/overview.md)** for the up-to-date global plan. Not production-ready (prototypes; re-verify sources).
