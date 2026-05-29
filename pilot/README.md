@@ -59,7 +59,9 @@ still performing the live OEREB fetch (shown as byte count).
 - `research/pilot_source_registry.json` — prioritized NOMOS-compatible source registry for CH/VD/Lausanne.
 - `research/project_knowledge_regime.json` — context-first vs hybrid-index vs project-RAG decision model.
 - `validate_research.py` — stdlib validator for the research backbone.
-- `selfcheck.py` — offline smoke test of the pure logic, no network (`python pilot/selfcheck.py`, 37 checks).
+- `memory/demo_project_memory.json` — cross-phase project memory fixture with provenance-backed demo queries.
+- `validate_memory.py` — stdlib validator and query demo for project memory.
+- `selfcheck.py` — offline smoke test of the pure logic, no network (`python pilot/selfcheck.py`, 40 checks).
 - `registry/federal.json`, `registry/canton_vd.json` — shared CH core + VD cantonal layer (refs verified from a live OEREB extract).
 - `lausanne/`, `pully/` — per-commune ingested rulesets (`rpga_zones.json`) + `INGESTION.md` (sources, in-force status, gaps).
   Lausanne is **geometric/IUS**; Pully is **IOS 20 %** — the same engine absorbs both styles (run `selector.py` to see it).
@@ -73,6 +75,7 @@ python pilot/validate_matrix.py
 python pilot/validate_permit.py
 python pilot/validate_compliance.py
 python pilot/validate_research.py
+python pilot/validate_memory.py
 ```
 Adding a commune = drop a `<slug>/rpga_zones.json`. Adding a country = add a federal/canton/commune layer set;
 the selector logic is unchanged (see docs/strategy/knowledge-architecture.md).
@@ -94,6 +97,8 @@ project knowledge regime
 described in [`../docs/research/swiss-phase-lifecycle-matrix.md`](../docs/research/swiss-phase-lifecycle-matrix.md)
 [`../docs/research/pilot-source-registry.md`](../docs/research/pilot-source-registry.md), and
 [`../docs/architecture/project-knowledge-regime.md`](../docs/architecture/project-knowledge-regime.md).
+`python pilot/validate_memory.py` validates the cross-phase memory contract described in
+[`../docs/architecture/project-memory-contract.md`](../docs/architecture/project-memory-contract.md).
 
 ## The gap this closes
 

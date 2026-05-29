@@ -25,6 +25,7 @@ import validate_matrix   # noqa: E402
 import validate_permit   # noqa: E402
 import validate_compliance  # noqa: E402
 import validate_research  # noqa: E402
+import validate_memory  # noqa: E402
 import trust             # noqa: E402
 
 _n = _fail = 0
@@ -141,6 +142,18 @@ check(
 check(
     "project knowledge defines escalation regimes",
     any(validate_research.REQUIRED_KNOWLEDGE_REGIMES.issubset(set(item["regimes"])) for item in knowledge_items),
+)
+
+print("Project memory")
+memory_report = validate_memory.validate_all()
+check("project memory validates", not memory_report.errors)
+check(
+    "project memory answers demo queries",
+    all(item["answered_queries"] == item["query_count"] for item in memory_report.items),
+)
+check(
+    "project memory spans permit-to-site phases",
+    any({"0", "31", "33", "41", "52"}.issubset(set(item["phase_codes"])) for item in memory_report.items),
 )
 
 print("-" * 48)

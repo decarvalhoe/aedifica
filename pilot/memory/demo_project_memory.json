@@ -1,0 +1,221 @@
+{
+  "schema_version": "1.0",
+  "memory_id": "MEMORY-DEMO-LAUSANNE-PALUD",
+  "project_id": "DEMO-LAUSANNE-PALUD",
+  "title": "Demo cross-phase memory for Lausanne parcel 10072",
+  "knowledge_regime": "context_first",
+  "source_version": {
+    "source_status": "demo_fixture",
+    "created_at": "2026-05-29",
+    "review_due": "2026-08-29"
+  },
+  "records": [
+    {
+      "memory_id": "MEM-SRC-RDPPF-001",
+      "record_type": "source_evidence",
+      "phase_code": "0",
+      "title": "RDPPF extract captured for EGRID CH915772367853",
+      "summary": "Parcel source evidence captured during intake; establishes zone, noise DS and restriction themes.",
+      "claim_state": "sourced",
+      "status": "active",
+      "source_refs": [
+        {
+          "source_id": "VD-RDPPF-OEREB",
+          "locator": "EGRID CH915772367853",
+          "valid_as_of": "2026-05-29",
+          "confidence": "high"
+        }
+      ],
+      "evidence_refs": [
+        {
+          "evidence_id": "EVID-OEREB-CH915772367853-2026-05-29",
+          "kind": "api_extract",
+          "file_ref": "project://evidence/oereb_CH915772367853.json"
+        }
+      ],
+      "links": []
+    },
+    {
+      "memory_id": "MEM-DEC-31-001",
+      "record_type": "decision",
+      "phase_code": "31",
+      "title": "Use Centre historique envelope with contiguous-context warning",
+      "summary": "Architect accepts Centre historique as the working communal zone but keeps contiguous built context as a manual check.",
+      "claim_state": "decision",
+      "status": "approved",
+      "source_refs": [
+        {
+          "source_id": "LSN-RPGA",
+          "locator": "Centre historique, Art. 83-94",
+          "valid_as_of": "2026-05-29",
+          "confidence": "high"
+        }
+      ],
+      "evidence_refs": [
+        {
+          "evidence_id": "EVID-OEREB-CH915772367853-2026-05-29",
+          "kind": "api_extract",
+          "file_ref": "project://evidence/oereb_CH915772367853.json"
+        }
+      ],
+      "links": ["MEM-SRC-RDPPF-001"]
+    },
+    {
+      "memory_id": "MEM-MODEL-V3",
+      "record_type": "model_version",
+      "phase_code": "32",
+      "title": "Model snapshot v3 before permit coordination",
+      "summary": "Project model v3 freezes phase 32 geometry before phase 33 evidence updates.",
+      "claim_state": "evidence",
+      "status": "active",
+      "model_version": "v3",
+      "source_refs": [
+        {
+          "source_id": "PROJECT-DOCUMENTS",
+          "locator": "model snapshot v3",
+          "valid_as_of": "2026-05-29",
+          "confidence": "medium"
+        }
+      ],
+      "evidence_refs": [
+        {
+          "evidence_id": "EVID-MODEL-V3",
+          "kind": "model_snapshot",
+          "file_ref": "project://models/model_v3.ifc"
+        }
+      ],
+      "links": ["MEM-DEC-31-001"]
+    },
+    {
+      "memory_id": "MEM-CHANGE-V4-ENERGY",
+      "record_type": "change",
+      "phase_code": "33",
+      "title": "Energy evidence changes model from v3 to v4",
+      "summary": "Energy form and SIA 380/1 evidence require the envelope assumptions to be rechecked before permit filing.",
+      "claim_state": "sourced",
+      "status": "pending_human_review",
+      "from_version": "v3",
+      "to_version": "v4",
+      "source_refs": [
+        {
+          "source_id": "VD-ENERGY-FORMS",
+          "locator": "Authorization-request energy forms",
+          "valid_as_of": "2026-05-29",
+          "confidence": "high"
+        }
+      ],
+      "evidence_refs": [
+        {
+          "evidence_id": "EVID-ENERGY-FORM-DRAFT",
+          "kind": "project_document",
+          "file_ref": "project://documents/energy_form_draft.pdf"
+        }
+      ],
+      "links": ["MEM-MODEL-V3", "MEM-DEC-31-001"]
+    },
+    {
+      "memory_id": "MEM-CAMAC-FIRE-OPEN",
+      "record_type": "authority_correspondence",
+      "phase_code": "33",
+      "title": "Fire-safety evidence still missing before filing",
+      "summary": "The permit readiness checklist cannot mark the dossier ready because fire-safety evidence is missing.",
+      "claim_state": "sourced",
+      "status": "open",
+      "source_refs": [
+        {
+          "source_id": "ECA-FIRE-PERMIT",
+          "locator": "Procedure permis de construire",
+          "valid_as_of": "2026-05-29",
+          "confidence": "high"
+        }
+      ],
+      "evidence_refs": [
+        {
+          "evidence_id": "EVID-PERMIT-CHECK-001",
+          "kind": "permit_check_report",
+          "file_ref": "project://reports/permit_completeness_draft.json"
+        }
+      ],
+      "links": ["MEM-CHANGE-V4-ENERGY"]
+    },
+    {
+      "memory_id": "MEM-HANDOFF-41-001",
+      "record_type": "handoff",
+      "phase_code": "41",
+      "title": "Permit evidence must carry into tender assumptions",
+      "summary": "Energy and fire conditions from phase 33 are marked for tender assumptions and specialist lot boundaries.",
+      "claim_state": "decision",
+      "status": "active",
+      "source_refs": [
+        {
+          "source_id": "PROJECT-BRIEF",
+          "locator": "phase 41 tender assumptions",
+          "valid_as_of": "2026-05-29",
+          "confidence": "medium"
+        }
+      ],
+      "evidence_refs": [
+        {
+          "evidence_id": "EVID-TENDER-ASSUMPTIONS-DRAFT",
+          "kind": "project_document",
+          "file_ref": "project://documents/tender_assumptions.md"
+        }
+      ],
+      "links": ["MEM-CHANGE-V4-ENERGY", "MEM-CAMAC-FIRE-OPEN"]
+    },
+    {
+      "memory_id": "MEM-SITE-52-001",
+      "record_type": "site_issue",
+      "phase_code": "52",
+      "title": "Site check must confirm permit fire condition before execution",
+      "summary": "The open fire-safety evidence is carried to site-start readiness until the specialist evidence is approved.",
+      "claim_state": "sourced",
+      "status": "open",
+      "source_refs": [
+        {
+          "source_id": "ECA-FIRE-PERMIT",
+          "locator": "Condition carryover from phase 33",
+          "valid_as_of": "2026-05-29",
+          "confidence": "medium"
+        }
+      ],
+      "evidence_refs": [
+        {
+          "evidence_id": "EVID-SITE-READINESS-DRAFT",
+          "kind": "site_readiness_check",
+          "file_ref": "project://reports/site_readiness_draft.json"
+        }
+      ],
+      "links": ["MEM-CAMAC-FIRE-OPEN", "MEM-HANDOFF-41-001"]
+    }
+  ],
+  "queries": [
+    {
+      "query_id": "Q-CHANGES-SINCE-V3",
+      "question": "What changed since model v3?",
+      "intent": "changes_since_version",
+      "parameters": {
+        "version": "v3"
+      },
+      "expected_record_ids": ["MEM-CHANGE-V4-ENERGY"]
+    },
+    {
+      "query_id": "Q-SOURCE-FIRE",
+      "question": "Which source justifies the missing fire-safety evidence?",
+      "intent": "source_for_claim",
+      "parameters": {
+        "source_id": "ECA-FIRE-PERMIT"
+      },
+      "expected_record_ids": ["MEM-CAMAC-FIRE-OPEN", "MEM-SITE-52-001"]
+    },
+    {
+      "query_id": "Q-UNDECIDED-BEFORE-PERMIT",
+      "question": "What is still undecided before permit filing?",
+      "intent": "open_items_by_phase",
+      "parameters": {
+        "phase_code": "33"
+      },
+      "expected_record_ids": ["MEM-CHANGE-V4-ENERGY", "MEM-CAMAC-FIRE-OPEN"]
+    }
+  ]
+}
