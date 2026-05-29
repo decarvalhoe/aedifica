@@ -3,6 +3,10 @@
 Thumbs.db
 *.log
 *.tmp
+.tmp_*
+
+# Ingested source corpus (large binaries; re-downloadable from official URLs — see pilot/lausanne/INGESTION.md)
+sources/
 
 # Python
 __pycache__/

@@ -18,7 +18,7 @@ The system is a preparation/evidence tool, never an authority (trust contract, s
 Usage:  python pilot/mvp1_demo.py ["address or EGRID"]
 Default: Place de la Palud, Lausanne (demo parcel 10072 / EGRID CH915772367853).
 """
-import json, math, os, re, ssl, sys, urllib.parse, urllib.request
+import json, math, os, re, ssl, sys, textwrap, urllib.parse, urllib.request
 
 try:  # show accents/m² correctly on Windows consoles
     sys.stdout.reconfigure(encoding="utf-8")
@@ -157,13 +157,18 @@ def match_zone(rpga, constraints):
     if not rpga:
         return None, None
     zones = rpga.get("zones", {})
-    # Prefer the explicit demo-parcel mapping if present.
+    # Prefer the explicit demo-parcel mapping if present (exact or prefix match on a zone key).
     dz = (rpga.get("demo_parcel_zone") or {}).get("communal_zone")
-    if dz and dz in zones:
-        return dz, zones[dz]
+    if dz:
+        for name in zones:
+            if dz == name or dz.lower().startswith(name.lower()):
+                return name, zones[name]
     z = (constraints.get("zone") or "").lower()
     for name, params in zones.items():
-        if name.lower() in z or any(w in z for w in name.lower().split()):
+        if name.lower() in z:
+            return name, params
+    for name, params in zones.items():  # keyword fallback (skip short stopwords)
+        if any(w in z for w in name.lower().split() if len(w) > 4):
             return name, params
     return None, None
 
@@ -228,23 +233,32 @@ def main():
     elif not zp:
         print(f"[unknown] Zone communale non appariée pour « {c.get('zone','?')} ».")
     else:
-        art = (zp.get("provenance") or {}).get("article", "?")
-        conf = (zp.get("provenance") or {}).get("confidence", "?")
-        print(f"      · zone RPGA    : {zname}  (art. {art}, confiance: {conf})")
+        prov = zp.get("provenance") or {}
+        print(f"      · zone RPGA    : {zname}")
+        print(f"      · source       : {prov.get('article','?')} — confiance {prov.get('confidence','?')}")
         ibus, ius, ios = zp.get("ibus"), zp.get("ius"), zp.get("ios")
         idx = ibus if ibus is not None else ius
         idx_name = "IBUS" if ibus is not None else "IUS"
-        print(f"[RPGA] {idx_name:5}         : {fmt(idx)}")
-        print(f"[RPGA] IOS           : {fmt(ios)}")
-        print(f"[RPGA] Hauteur corniche: {fmt(zp.get('height_corniche_m'),' m')}")
-        print(f"[RPGA] Hauteur faîte  : {fmt(zp.get('height_faite_m'),' m')}")
-        print(f"[RPGA] Niveaux max    : {fmt(zp.get('levels_max'))}")
-        if area and idx is not None:
-            print(f"[calc] SBP max        : {area*idx:,.0f} m²  (= {fmt(area,' m²')} × {idx_name} {fmt(idx)})".replace(",", "'"))
+        if idx is not None:
+            print(f"[RPGA] {idx_name:14}: {idx:g}")
+            if area:
+                print(f"[calc] SBP max       : {area*idx:,.0f} m²  (= {area:,.0f} m² × {idx_name} {idx:g})".replace(",", "'"))
         else:
-            print("[calc] SBP max        : [unknown] (surface ou indice manquant)")
-        if area and ios is not None:
-            print(f"[calc] Emprise max sol: {area*ios:,.0f} m²  (= surface × IOS {fmt(ios)})".replace(",", "'"))
+            print("[RPGA] Indice IUS/IBUS : non fixé — densité régie géométriquement (gabarit)")
+        if ios is not None:
+            print(f"[RPGA] IOS            : {ios:g}")
+            if area:
+                print(f"[calc] Emprise sol max: {area*ios:,.0f} m²".replace(",", "'"))
+        hc = zp.get("height_corniche_m")
+        print(f"[RPGA] Hauteur corniche: {f'{hc:g} m' if hc is not None else 'calée sur le bâti contigu (non métrique, art. 89)'}")
+        if zp.get("levels_max") is not None:
+            print(f"[RPGA] Niveaux max     : {zp.get('levels_max'):g}")
+        if zp.get("setback_min_m") is not None:
+            print(f"[RPGA] Distance limites: {zp.get('setback_min_m'):g} m (min.)")
+        if zp.get("other"):
+            print("[RPGA] Gabarit / règles:")
+            for line in textwrap.wrap(zp["other"], 66):
+                print(f"         {line}")
 
     print("-" * 72)
     print("INCONNUES / DÉCISIONS REQUISES")

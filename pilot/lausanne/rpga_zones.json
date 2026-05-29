@@ -1,0 +1,141 @@
+{
+  "commune": "Lausanne",
+  "ingested_at": "2026-05-29",
+  "document": {
+    "title": "Règlement du Plan général d'affectation (PGA / RPGA)",
+    "version": "Mis en vigueur le 26 juin 2006. Adjonctions ponctuelles postérieures: N°733 'Fauvette' (9.6.2010), N°740 'Bellerive' (27.6.2013), N°749 'La Tuilière' (13.5.2014). Une MPGA générale + un PACom des territoires forains sont en cours d'adoption (enquête 17.4-16.5.2024; préavis 2025/31) mais ne modifient PAS le plan des zones ni les indices par zone du territoire urbain.",
+    "in_force": "2006-06-26 (en vigueur pour le territoire urbain, mai 2026)",
+    "url": "https://www.lausanne.ch/dam/jcr:1d0dddd5-ad74-4bbc-ac15-e0050bd315d3/PGA_reglement.pdf",
+    "note": "Règlement basé sur l'enveloppe géométrique (contiguïté, longueur, profondeur, hauteur de façade, gabarit de toiture) plutôt que sur un indice de surface. IUS chiffré dans 2 zones seulement; IBUS/IOS jamais imposés numériquement."
+  },
+  "zones": {
+    "Centre historique": {
+      "ius": null, "ibus": null, "ios": null,
+      "height_corniche_m": null, "height_faite_m": null, "levels_max": null, "setback_min_m": 0,
+      "other": "Ordre contigu obligatoire (Art. 87). Distance aux limites, longueur des mitoyens et distance entre bâtiments NON fixées (Art. 88.1); la Municipalité peut limiter le volume au-delà de 16,00 m de profondeur (Art. 88.2). Hauteur des façades sur rue plafonnée à celle du bâtiment contigu dont la corniche est la plus haute (Art. 89) — pas de valeur métrique fixe. Gabarit toiture: arc de cercle R=8,00 m (Art. 91). Min. 1/3 SBP en habitation par parcelle (Art. 84.2).",
+      "provenance": {
+        "article": "Chapitre 4.1, Art. 83-94 + Annexe 5",
+        "url": "https://www.lausanne.ch/dam/jcr:1d0dddd5-ad74-4bbc-ac15-e0050bd315d3/PGA_reglement.pdf",
+        "verbatim": "Art. 87: «L'ordre contigu est obligatoire.» Art. 88: «1 La longueur des murs mitoyens, la distance aux limites de propriété et la distance entre les bâtiments ne sont pas fixées. 2 Cependant, la Municipalité peut limiter le volume des constructions dépassant la profondeur de 16,00 mètres.» Art. 89.1: «La hauteur des façades sur rue ne dépassera pas celle du bâtiment contigu dont le milieu de la corniche a l'altitude la plus élevée.»",
+        "confidence": "high"
+      }
+    },
+    "Zone urbaine": {
+      "ius": null, "ibus": null, "ios": null,
+      "height_corniche_m": 17.0, "height_faite_m": null, "levels_max": null, "setback_min_m": 6.0,
+      "other": "Ordre contigu obligatoire (Art. 96). Hauteur des façades selon distance D entre limites des constructions: H=15,50 m si D<18,00 m; H=17,00 m si D>18,00 m (Art. 101.1). Au-delà de 16,00 m de profondeur, hauteur limitée à 14,50 m (Art. 101.4). Murs mitoyens <=16,00 m (Art. 97.1). Façades hors limite des constructions: >=6,00 m des limites de propriété (Art. 98.1). Gabarit toiture: arc R=8,00 m (Art. 102); cages escalier/ascenseur R=9,50 m (Art. 103).",
+      "provenance": {
+        "article": "Chapitre 4.2, Art. 95-103 + Annexe 5",
+        "url": "https://www.lausanne.ch/dam/jcr:1d0dddd5-ad74-4bbc-ac15-e0050bd315d3/PGA_reglement.pdf",
+        "verbatim": "Art. 101.1: «H = 15,50 mètres lorsque D <18,00 mètres, H = 17,00 mètres lorsque D > 18,00 mètres.» Art. 98.1: «Les façades qui ne sont pas sur la limite des constructions sont à une distance minimale de 6,00 mètres des limites de propriété.»",
+        "confidence": "high"
+      }
+    },
+    "Zone mixte de forte densité": {
+      "ius": null, "ibus": null, "ios": null,
+      "height_corniche_m": 14.5, "height_faite_m": null, "levels_max": null, "setback_min_m": 6.0,
+      "other": "Ordre non contigu obligatoire (Art. 105). Distance à la limite >=6,00 m si plus grande dimension en plan <=25,00 m; >=8,00 m si >25,00 m (Art. 106). Distance entre bâtiments sur même propriété = 2x la distance à la limite (Art. 28) -> 12 m ou 16 m. Longueur des bâtiments <=36,00 m (Art. 107). Hauteur des façades <=14,50 m (Art. 108). Gabarit toiture: arc R=8,00 m (Art. 109); cages escalier R=9,50 m (Art. 110).",
+      "provenance": {
+        "article": "Chapitre 4.3, Art. 104-110 + Annexe 5",
+        "url": "https://www.lausanne.ch/dam/jcr:1d0dddd5-ad74-4bbc-ac15-e0050bd315d3/PGA_reglement.pdf",
+        "verbatim": "Art. 108: «La hauteur des façades est limitée à 14,50 mètres.» Art. 107: «La longueur des bâtiments est limitée à 36,00 mètres.» Art. 106: «6,00 mètres au minimum [...]; lorsque la plus grande des dimensions en plan est supérieure à 25,00 mètres, cette distance est de 8,00 mètres au minimum.»",
+        "confidence": "high"
+      }
+    },
+    "Zone mixte de moyenne densité": {
+      "ius": null, "ibus": null, "ios": null,
+      "height_corniche_m": 13.0, "height_faite_m": null, "levels_max": null, "setback_min_m": 6.0,
+      "other": "Ordre non contigu obligatoire (Art. 112). Longueur des bâtiments <=25,00 m (Art. 113). Distance à la limite >=6,00 m (Art. 114); distance entre bâtiments = 12 m (2x via Art. 28). Hauteur des façades <=13,00 m (Art. 115). Gabarit toiture: arc R=5,00 m (Art. 116); cages escalier R=6,50 m (Art. 117).",
+      "provenance": {
+        "article": "Chapitre 4.4, Art. 111-117 + Annexe 5",
+        "url": "https://www.lausanne.ch/dam/jcr:1d0dddd5-ad74-4bbc-ac15-e0050bd315d3/PGA_reglement.pdf",
+        "verbatim": "Art. 115: «La hauteur des façades est limitée à 13,00 mètres.» Art. 113: «La longueur des bâtiments est limitée à 25,00 mètres.»",
+        "confidence": "high"
+      }
+    },
+    "Zone mixte de faible densité": {
+      "ius": 0.5, "ibus": null, "ios": null,
+      "height_corniche_m": null, "height_faite_m": null, "levels_max": 2, "setback_min_m": 5.0,
+      "other": "SEULE zone urbaine avec un IUS chiffré: IUS <=0,50 (Art. 119). Ordre non contigu (Art. 120). Niveaux: 2 étages complets + 1 étage partiel de combles ou attique (Art. 123.1); SBP du dernier niveau <=3/5 du 2e (Art. 123.2). Longueur totale <=30,00 m (Art. 121). Distance à la limite >=5,00 m (Art. 122); entre bâtiments = 10 m. Min. 80% SBP en habitation (Art. 118.2). Max. 3 logements/bâtiment (Art. 124).",
+      "provenance": {
+        "article": "Chapitre 4.5, Art. 118-126 + Annexe 5",
+        "url": "https://www.lausanne.ch/dam/jcr:1d0dddd5-ad74-4bbc-ac15-e0050bd315d3/PGA_reglement.pdf",
+        "verbatim": "Art. 119.1: «L'indice d'utilisation du sol est limité à 0,50.» Art. 123.1: «Le nombre de niveaux est limité à deux étages complets et un étage partiel de combles ou attique.» Art. 121: «La longueur totale d'un bâtiment ne peut excéder 30,00 mètres.»",
+        "confidence": "high"
+      }
+    },
+    "Zone d'utilité publique": {
+      "ius": 2.0, "ibus": null, "ios": null,
+      "height_corniche_m": 17.0, "height_faite_m": null, "levels_max": null, "setback_min_m": 6.0,
+      "other": "IUS <=2,0 (Art. 129). Ordre non contigu; ordre contigu possible (règles Ch. 4.2) si jouxte une zone urbaine — alors Art. 129/131/132 inapplicables (Art. 130). Hauteur des façades <=17,00 m (Art. 131). Distance à la limite = moitié de la hauteur de façade, min. 6,00 m (Art. 132.1). Gabarit toiture: arc R=8,00 m (Art. 133); cages escalier R=9,50 m (Art. 134).",
+      "provenance": {
+        "article": "Chapitre 4.6, Art. 127-135 + Annexe 5",
+        "url": "https://www.lausanne.ch/dam/jcr:1d0dddd5-ad74-4bbc-ac15-e0050bd315d3/PGA_reglement.pdf",
+        "verbatim": "Art. 129: «L'indice d'utilisation du sol est limité à 2,0.» Art. 131: «La hauteur des façades est limitée à 17,00 mètres.» Art. 132.1: «[...] la moitié de la hauteur de la façade [...] avec toutefois un minimum de 6,00 mètres.»",
+        "confidence": "high"
+      }
+    },
+    "Zone ferroviaire": {
+      "ius": null, "ibus": null, "ios": null,
+      "height_corniche_m": null, "height_faite_m": null, "levels_max": null, "setback_min_m": null,
+      "other": "Aucun paramètre communal chiffré. Régie par le droit fédéral (Loi sur les chemins de fer) et cantonal (Loi sur les transports) pour les constructions d'exploitation ferroviaire.",
+      "provenance": {
+        "article": "Chapitre 4.7, Art. 136 + Annexe 5",
+        "url": "https://www.lausanne.ch/dam/jcr:1d0dddd5-ad74-4bbc-ac15-e0050bd315d3/PGA_reglement.pdf",
+        "verbatim": "Art. 136: «La zone ferroviaire [...] est soumise aux dispositions de la Loi fédérale sur les chemins de fer ainsi qu'à la Loi cantonale sur les transports [...]».",
+        "confidence": "high"
+      }
+    },
+    "Zone de parcs et espaces de détente": {
+      "ius": null, "ibus": null, "ios": null,
+      "height_corniche_m": null, "height_faite_m": null, "levels_max": null, "setback_min_m": 5.0,
+      "other": "Zone essentiellement inconstructible: seules petites constructions (édicules, pavillons, kiosques, buvettes, locaux techniques), enterrées/semi-enterrées (Art. 138.1). Bâtiments existants maintenables/transformables/légèrement agrandissables (Art. 138.2). Annexe 5: D min = 5 m, D entre bâtiments = 10 m.",
+      "provenance": {
+        "article": "Chapitre 4.8, Art. 137-139 + Annexe 5",
+        "url": "https://www.lausanne.ch/dam/jcr:1d0dddd5-ad74-4bbc-ac15-e0050bd315d3/PGA_reglement.pdf",
+        "verbatim": "Art. 138.1: «L'édification de petites constructions tels qu'édicules, petits pavillons, kiosques, buvettes, locaux techniques, etc. est admissible. Elles peuvent être enterrées ou semi-enterrées.»",
+        "confidence": "medium"
+      }
+    },
+    "Zone d'équipements sportifs et de loisirs de plein air": {
+      "ius": null, "ibus": null, "ios": null,
+      "height_corniche_m": null, "height_faite_m": null, "levels_max": null, "setback_min_m": 5.0,
+      "other": "Constructions de type vestiaires, tribunes, piscines ouvertes, buvettes, édicules, pavillons, kiosques, locaux techniques (Art. 141.1). Distance à la limite >=5,00 m (Art. 141.2); Annexe 5: D entre bâtiments = 10 m. Constructions enterrées/semi-enterrées admissibles (Art. 143).",
+      "provenance": {
+        "article": "Chapitre 4.9, Art. 140-144 + Annexe 5",
+        "url": "https://www.lausanne.ch/dam/jcr:1d0dddd5-ad74-4bbc-ac15-e0050bd315d3/PGA_reglement.pdf",
+        "verbatim": "Art. 141.2: «La distance entre les constructions et la limite de propriété est de 5,00 mètres au minimum.»",
+        "confidence": "medium"
+      }
+    },
+    "Zone des rives du lac": {
+      "ius": null, "ibus": null, "ios": null,
+      "height_corniche_m": null, "height_faite_m": null, "levels_max": 1, "setback_min_m": null,
+      "other": "Constructibilité très restreinte. Agrandissement <=20% de la SBP existante au 26.6.2006 (Art. 147.a); nouvelles constructions exceptionnelles de type pavillonnaire, 1 niveau, surface au sol <=100,00 m² (Art. 147.c). Bord du lac libre de construction sur 20,00 m depuis le domaine public des eaux (Art. 149.1). Périmètre F (Parc Bourget): inconstructible (Art. 146).",
+      "provenance": {
+        "article": "Chapitre 4.10, Art. 145-152 + Annexe 5",
+        "url": "https://www.lausanne.ch/dam/jcr:1d0dddd5-ad74-4bbc-ac15-e0050bd315d3/PGA_reglement.pdf",
+        "verbatim": "Art. 147.c: «exceptionnellement, de nouvelles constructions de type pavillonnaire, limitées à un niveau et d'une surface au sol n'excédant pas 100,00 mètres carrés.» Art. 149.1: «Le bord du lac est tenu libre de toute construction sur une largeur de 20,00 mètres [...].»",
+        "confidence": "medium"
+      }
+    },
+    "Aire et zone forestières": {
+      "ius": null, "ibus": null, "ios": null,
+      "height_corniche_m": null, "height_faite_m": null, "levels_max": null, "setback_min_m": null,
+      "other": "Listée au Chapitre 4.11 mais sans articles de paramètres dans le corps du règlement; régie par la législation forestière (plans de délimitation des lisières de forêt, pièce 8 du dossier PGA, Art. 3). Aucun paramètre constructif communal.",
+      "provenance": {
+        "article": "Chapitre 4.11; Art. 3 (pièces du dossier)",
+        "url": "https://www.lausanne.ch/dam/jcr:1d0dddd5-ad74-4bbc-ac15-e0050bd315d3/PGA_reglement.pdf",
+        "verbatim": "Sommaire: «Chapitre 4.11 Aire et zone forestières». Page sans articles de paramètres; régime forestier (Art. 3, pièce 8 'Plans de délimitation des lisières de forêt').",
+        "confidence": "low"
+      }
+    }
+  },
+  "demo_parcel_zone": {
+    "parcel": "10072",
+    "communal_zone": "Centre historique",
+    "communal_zone_ref": "Chapitre 4.1, Art. 83-94 du PGA Lausanne 2006",
+    "oereb_mapping": "OEREB/RDPPF désigne la parcelle, sur 100% de sa surface (~412 m²), comme 'Zone centrale 15 LAT (Zone de centre historique)' — type cantonal harmonisé NORMAT code VD 1401. Ce type harmonisé NE fixe AUCUN paramètre constructif (NORMAT n'harmonise que le nom/type/couleur). La désignation communale 'Zone de centre historique' renvoie au 'Centre historique' du règlement (Art. 83-94).",
+    "confidence": "high"
+  }
+}
