@@ -2,6 +2,11 @@
 
 These links anchor the first research direction. They are not a complete legal or standards corpus.
 
+The prioritized pilot source registry is now structured in
+[`pilot-source-registry.md`](pilot-source-registry.md) and validated from
+`pilot/research/pilot_source_registry.json`. This page remains a lightweight link notebook; use the registry
+for NOMOS-compatible source IDs, tiers, phase coverage, validity dates, and allowed use.
+
 ## Swiss Process and Regulation
 
 - SIA 102 annex, architect services and phases: https://testshop.sia.ch/lho%20102/D/DownloadAnhang
@@ -33,4 +38,3 @@ These links anchor the first research direction. They are not a complete legal o
 ## Research Notes
 
 Priority is Swiss validity, not generic architecture inspiration. Every future source should be classified by jurisdiction, phase, reliability, version, and allowed use.
-

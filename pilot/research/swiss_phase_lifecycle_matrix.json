@@ -1,0 +1,408 @@
+{
+  "schema_version": "1.0",
+  "matrix_id": "CH-SIA-LIFECYCLE-MATRIX-V0",
+  "title": "Swiss architecture lifecycle matrix for Aedifica",
+  "source_version": {
+    "source_status": "research_synthesis",
+    "verified_at": "2026-05-29",
+    "review_due": "2026-11-29",
+    "notes": "SIA references are metadata/citation anchors only; paid standards must be checked in the office's licensed corpus before production use."
+  },
+  "source_model": {
+    "basis": "SIA-oriented Swiss practice, extended with Aedifica phase 0 intake.",
+    "references": [
+      {
+        "source_id": "SIA-102-2020",
+        "title": "SIA 102:2020 - Reglement concernant les prestations et honoraires des architectes",
+        "url": "https://shop.sia.ch/normenwerk/architekt/102_2020_f/F/Product/"
+      },
+      {
+        "source_id": "SIA-112-2014",
+        "title": "SIA 112:2014 - Modele de prestations",
+        "url": "https://www.shop.sia.ch/bfe9decc-d1eb-4d73-8834-8e4c55cbc06d/F/DownloadAnhang"
+      }
+    ],
+    "pack_owner": "CH jurisdiction pack"
+  },
+  "project_size_model": {
+    "small": "Villa, transformation, petit immeuble, mandat avec peu de specialistes et BIM souvent absent.",
+    "medium": "Immeuble collectif, public local, renovation complexe, coordination de plusieurs specialistes.",
+    "large": "Programme public/complexe, concours, exigences BIM formelles, reporting et gouvernance renforces."
+  },
+  "phases": [
+    {
+      "phase_code": "0",
+      "phase_label": "Intake pre-SIA",
+      "sia_reference": "Extension Aedifica avant phase SIA 1",
+      "purpose": "Creer le contexte sourcable du projet avant tout dessin engageant.",
+      "activities": [
+        "Collecter parcelle, adresse, programme, budget, delais et documents initiaux.",
+        "Construire la route reglementaire federal + canton + commune + parcelle.",
+        "Lister les inconnues bloquantes et les decisions a obtenir du mandant."
+      ],
+      "actors": ["architecte", "mandant", "administration communale", "geometre si necessaire"],
+      "decisions": ["continuer ou refuser le mandat", "perimetre d'etude", "sources a verifier en premier"],
+      "deliverables": ["source registry", "brief de faisabilite initial", "liste d'inconnues", "journal de decisions"],
+      "risks": ["parcelle mal identifiee", "source communale obsolete", "hypothese reglementaire presentee comme fait"],
+      "source_inputs": ["parcel", "communal", "cantonal", "federal", "project"],
+      "aedifica_outputs": ["regulatory_route", "constraint_matrix_seed", "unknowns_register"],
+      "size_variants": {
+        "small": {
+          "focus": "Repondre vite si le mandat vaut la peine et quelles pieces manquent.",
+          "extra_deliverables": ["fiche A4 parcelle"],
+          "risk_bias": ["budget d'etude trop faible pour verifier toutes les zones grises"]
+        },
+        "medium": {
+          "focus": "Preparer la coordination des specialistes et des autorisations.",
+          "extra_deliverables": ["premier plan de specialistes"],
+          "risk_bias": ["interface programme / contraintes mal cadree"]
+        },
+        "large": {
+          "focus": "Mettre en place gouvernance, donnees et traçabilite des sources.",
+          "extra_deliverables": ["registre d'hypotheses partage"],
+          "risk_bias": ["decision de concours ou procedure publique basee sur donnees incompletes"]
+        }
+      }
+    },
+    {
+      "phase_code": "1",
+      "phase_label": "Planification strategique",
+      "sia_reference": "Phase 1",
+      "purpose": "Clarifier le besoin, les objectifs, l'organisation et la faisabilite generale.",
+      "activities": [
+        "Formuler objectifs du mandant, programme et contraintes de site.",
+        "Comparer scenarios de poursuite: renovation, extension, nouvelle construction, abandon.",
+        "Identifier les mandats de conseil necessaires."
+      ],
+      "actors": ["architecte", "mandant", "economiste si necessaire", "autorites consultatives"],
+      "decisions": ["strategie de projet", "budget cible", "mode de mandat", "go/no-go"],
+      "deliverables": ["analyse des besoins", "strategie", "ordre de grandeur cout/delai", "risques majeurs"],
+      "risks": ["programme incompatible avec parcelle", "budget sous-estime", "parties prenantes absentes"],
+      "source_inputs": ["project", "sia", "parcel", "communal"],
+      "aedifica_outputs": ["strategy_brief", "phase_risk_register", "decision_log"],
+      "size_variants": {
+        "small": {
+          "focus": "Transformer rapidement une intention client en cadrage realiste.",
+          "extra_deliverables": ["checklist mandat"],
+          "risk_bias": ["confusion entre conseil gratuit et mandat"]
+        },
+        "medium": {
+          "focus": "Stabiliser le programme et les honoraires avant variantes.",
+          "extra_deliverables": ["matrice acteurs"],
+          "risk_bias": ["specialistes engages trop tard"]
+        },
+        "large": {
+          "focus": "Aligner gouvernance, financement, achats publics et donnees.",
+          "extra_deliverables": ["plan de gouvernance"],
+          "risk_bias": ["objectifs politiques ou exploitants non arbitres"]
+        }
+      }
+    },
+    {
+      "phase_code": "2",
+      "phase_label": "Etudes preliminaires",
+      "sia_reference": "Phase 2",
+      "purpose": "Tester variantes, procedure et faisabilite avant avant-projet.",
+      "activities": [
+        "Produire variantes de principe et matrices comparatives.",
+        "Evaluer concours, mandat d'etudes paralleles ou procedure directe.",
+        "Approfondir contraintes patrimoniales, environnementales, acces et voisinage."
+      ],
+      "actors": ["architecte", "mandant", "commune", "specialistes initiaux", "jury si concours"],
+      "decisions": ["variante retenue", "procedure de conception", "niveau d'etudes a financer"],
+      "deliverables": ["dossier variantes", "note de faisabilite", "planning de procedure", "hypotheses cout"],
+      "risks": ["mauvaise variante de base", "procedure publique oubliee", "opposition previsible non detectee"],
+      "source_inputs": ["sia", "communal", "cantonal", "federal", "project"],
+      "aedifica_outputs": ["variant_scorecard", "opposition_risk_seed", "phase_2_unknowns"],
+      "size_variants": {
+        "small": {
+          "focus": "Une ou deux variantes lisibles, sans surproduire.",
+          "extra_deliverables": ["comparatif simple"],
+          "risk_bias": ["decision affective sans verifier enveloppe"]
+        },
+        "medium": {
+          "focus": "Comparer surfaces, cout, procedure et contraintes de specialistes.",
+          "extra_deliverables": ["matrice multicritere"],
+          "risk_bias": ["estimation trop grossiere"]
+        },
+        "large": {
+          "focus": "Preparer concours, gouvernance BIM et validation multi-acteurs.",
+          "extra_deliverables": ["programme concours ou MEP"],
+          "risk_bias": ["regles de procedure ou achats publics mal cadres"]
+        }
+      }
+    },
+    {
+      "phase_code": "31",
+      "phase_label": "Avant-projet",
+      "sia_reference": "Phase partielle 31",
+      "purpose": "Transformer la variante retenue en concept architectural verifiable.",
+      "activities": [
+        "Produire plans, coupes, surfaces et volumetrie de principe.",
+        "Controler programme, indices, gabarits, distances et principaux risques.",
+        "Stabiliser les hypotheses de cout et de specialistes."
+      ],
+      "actors": ["architecte", "mandant", "ingenieurs principaux", "economiste", "commune"],
+      "decisions": ["concept retenu", "enveloppe cible", "budget d'avant-projet", "specialistes a mandater"],
+      "deliverables": ["plans avant-projet", "tableau surfaces", "estimation", "rapport de contraintes"],
+      "risks": ["concept hors gabarit", "surface vendue non atteignable", "cout incompatible avec programme"],
+      "source_inputs": ["project", "communal", "cantonal", "parcel", "office"],
+      "aedifica_outputs": ["program_surface_check", "constraint_delta_report", "assumption_log"],
+      "size_variants": {
+        "small": {
+          "focus": "Controler vite surfaces, distances et dossier client.",
+          "extra_deliverables": ["tableau surfaces simplifie"],
+          "risk_bias": ["absence de relevé fiable"]
+        },
+        "medium": {
+          "focus": "Synchroniser architecte, structure, CVSE et couts.",
+          "extra_deliverables": ["matrice coordination specialistes"],
+          "risk_bias": ["interface specialistes non resolue"]
+        },
+        "large": {
+          "focus": "Poser les exigences informationnelles et validations d'ouvrage.",
+          "extra_deliverables": ["exigences BIM/projet preliminaires"],
+          "risk_bias": ["decisions de conception non tracees"]
+        }
+      }
+    },
+    {
+      "phase_code": "32",
+      "phase_label": "Projet de l'ouvrage",
+      "sia_reference": "Phase partielle 32",
+      "purpose": "Coordonner le projet avant l'autorisation et les engagements techniques.",
+      "activities": [
+        "Developper plans, details de principe, coordination specialistes et modeles.",
+        "Verifier compatibilite technique, cout et exigences reglementaires.",
+        "Preparer les pieces qui anticipent le dossier d'autorisation."
+      ],
+      "actors": ["architecte", "ingenieurs", "physicien du batiment", "mandant", "BIM manager si applicable"],
+      "decisions": ["systemes constructifs", "materiaux de principe", "niveau de modelisation", "stratégie permis"],
+      "deliverables": ["plans projet", "rapport de coordination", "estimation consolidee", "pre-check permis"],
+      "risks": ["detail technique incompatible avec autorisation", "BIM impose sans valeur", "coordination tardive"],
+      "source_inputs": ["sia", "office", "project", "cantonal", "communal"],
+      "aedifica_outputs": ["model_information_gap_report", "permit_readiness_preview", "coordination_log"],
+      "size_variants": {
+        "small": {
+          "focus": "Produire un projet suffisant sans lourdeur BIM.",
+          "extra_deliverables": ["liste pieces permis"],
+          "risk_bias": ["specialiste consulte trop tard"]
+        },
+        "medium": {
+          "focus": "Verrouiller coordination technique et cout avant depot.",
+          "extra_deliverables": ["rapport coordination"],
+          "risk_bias": ["ecart modeles/plans"]
+        },
+        "large": {
+          "focus": "Faire converger exigences BIM, lots techniques et validations internes.",
+          "extra_deliverables": ["revue informationnelle"],
+          "risk_bias": ["gouvernance de modele insuffisante"]
+        }
+      }
+    },
+    {
+      "phase_code": "33",
+      "phase_label": "Autorisation",
+      "sia_reference": "Phase partielle 33",
+      "purpose": "Assembler et controler le dossier d'autorisation avant depot.",
+      "activities": [
+        "Compiler formulaires, plans signes, notices, calculs et justificatifs.",
+        "Verifier obligations energie, incendie, accessibilite, structure et annexes cantonales.",
+        "Documenter citations, pieces manquantes et responsabilites."
+      ],
+      "actors": ["architecte", "mandant", "commune", "canton/CAMAC", "specialistes", "voisins pendant enquete"],
+      "decisions": ["deposer ou completer", "demander preavis", "strategie de reponse aux oppositions"],
+      "deliverables": ["dossier de mise a l'enquete", "rapport de completude", "notes de justification", "liste des manquants"],
+      "risks": ["dossier incomplet", "condition cantonale oubliee", "opposition previsible non traitee"],
+      "source_inputs": ["cantonal", "communal", "federal", "parcel", "project"],
+      "aedifica_outputs": ["permit_completeness_report", "compliance_gate_report", "citation_pack"],
+      "size_variants": {
+        "small": {
+          "focus": "Eviter aller-retour administratif et pieces oubliees.",
+          "extra_deliverables": ["checklist depot"],
+          "risk_bias": ["signature ou formulaire manquant"]
+        },
+        "medium": {
+          "focus": "Gerér conditions specialistes et communes sans perdre la tracabilite.",
+          "extra_deliverables": ["matrice pieces/responsables"],
+          "risk_bias": ["justificatifs energie/incendie incomplets"]
+        },
+        "large": {
+          "focus": "Piloter plusieurs autorisations, conditions et oppositions.",
+          "extra_deliverables": ["registre conditions autorite"],
+          "risk_bias": ["risque recours et calendrier sous-estimes"]
+        }
+      }
+    },
+    {
+      "phase_code": "41",
+      "phase_label": "Appel d'offres",
+      "sia_reference": "Phase partielle 41",
+      "purpose": "Transformer le projet autorise en lots, quantites et cahiers de soumission.",
+      "activities": [
+        "Structurer CFC/eCCC, quantites, descriptifs et lots.",
+        "Extraire ou verifier quantites depuis plans/modeles.",
+        "Documenter hypotheses, exclusions et comparabilite des offres."
+      ],
+      "actors": ["architecte", "economiste", "entreprises", "mandant", "specialistes"],
+      "decisions": ["strategie lots", "criteres d'adjudication", "niveau de detail quantites"],
+      "deliverables": ["soumissions", "metres/quantites", "comparatif offres", "registre hypotheses"],
+      "risks": ["quantites incoherentes", "descriptifs non comparables", "conditions permis non reportees"],
+      "source_inputs": ["project", "office", "sia", "permit", "model"],
+      "aedifica_outputs": ["quantity_assumption_log", "tender_draft_checks", "offer_comparison_seed"],
+      "size_variants": {
+        "small": {
+          "focus": "Eviter soumissions artisanales incomparables.",
+          "extra_deliverables": ["liste prix simplifiee"],
+          "risk_bias": ["prestations oubliees"]
+        },
+        "medium": {
+          "focus": "Relier quantites, CFC/eCCC et conditions d'autorisation.",
+          "extra_deliverables": ["matrice lots/conditions"],
+          "risk_bias": ["interface lots mal decrite"]
+        },
+        "large": {
+          "focus": "Industrialiser lots, donnees et validations de marche.",
+          "extra_deliverables": ["audit de coherence soumission"],
+          "risk_bias": ["non-conformite procedure ou achat public"]
+        }
+      }
+    },
+    {
+      "phase_code": "51",
+      "phase_label": "Projet d'execution",
+      "sia_reference": "Phase partielle 51",
+      "purpose": "Produire les plans et details executables, coordonnes et conformes.",
+      "activities": [
+        "Developper plans d'execution, details, reservations et interfaces.",
+        "Verifier coherence dessins/modeles/specifications.",
+        "Reporter conditions de permis, decisions et modifications approuvees."
+      ],
+      "actors": ["architecte", "ingenieurs", "entreprises", "direction travaux", "mandant"],
+      "decisions": ["details constructifs", "substitutions acceptees", "ordre de priorite documents"],
+      "deliverables": ["plans execution", "details", "liste revisions", "rapport coordination"],
+      "risks": ["detail non constructible", "modification non autorisee", "plan obsolete sur chantier"],
+      "source_inputs": ["project", "permit", "office", "model", "contracts"],
+      "aedifica_outputs": ["drawing_set_audit", "condition_tracking", "change_delta_report"],
+      "size_variants": {
+        "small": {
+          "focus": "Maintenir plans et decisions a jour sans lourdeur.",
+          "extra_deliverables": ["registre revisions"],
+          "risk_bias": ["chantier travaille sur mauvaise version"]
+        },
+        "medium": {
+          "focus": "Coordonner interfaces specialistes/entreprises.",
+          "extra_deliverables": ["revue details"],
+          "risk_bias": ["reservation ou percement oublie"]
+        },
+        "large": {
+          "focus": "Auditer coherence multi-modeles et exigences contractuelles.",
+          "extra_deliverables": ["rapport de conformite informationnelle"],
+          "risk_bias": ["changement non trace dans modele central"]
+        }
+      }
+    },
+    {
+      "phase_code": "52",
+      "phase_label": "Execution de l'ouvrage",
+      "sia_reference": "Phase partielle 52",
+      "purpose": "Piloter chantier, qualite, cout, delai, decisions et preuves.",
+      "activities": [
+        "Produire PV, taches, suivi defauts, photos et validations.",
+        "Relier questions chantier aux plans, contrats, conditions et decisions.",
+        "Surveiller couts, delais, avenants et risques."
+      ],
+      "actors": ["direction travaux", "architecte", "entreprises", "mandant", "specialistes"],
+      "decisions": ["validation travaux", "avenants", "corrections de defauts", "arbitrages planning"],
+      "deliverables": ["PV chantier", "liste taches", "registre defauts", "suivi cout/delai"],
+      "risks": ["decision orale perdue", "defaut non ferme", "cout non anticipe", "condition autorite oubliee"],
+      "source_inputs": ["contracts", "project", "permit", "site", "office"],
+      "aedifica_outputs": ["minutes_to_tasks", "defect_tracker", "decision_trace", "condition_carryover"],
+      "size_variants": {
+        "small": {
+          "focus": "Capturer decisions et defauts sans outil lourd.",
+          "extra_deliverables": ["PV leger"],
+          "risk_bias": ["engagement verbal non documente"]
+        },
+        "medium": {
+          "focus": "Relier PV, taches, couts et photos par lot.",
+          "extra_deliverables": ["tableau taches/entreprises"],
+          "risk_bias": ["avenants non anticipes"]
+        },
+        "large": {
+          "focus": "Synchroniser direction travaux, modeles, controle qualite et reporting.",
+          "extra_deliverables": ["tableau de bord chantier"],
+          "risk_bias": ["flux d'informations disperse"]
+        }
+      }
+    },
+    {
+      "phase_code": "53",
+      "phase_label": "Mise en service et achevement",
+      "sia_reference": "Phase partielle 53",
+      "purpose": "Clore le projet, receptionner, transmettre et garder la memoire utile.",
+      "activities": [
+        "Organiser reception, reserves, garanties et dossier de remise.",
+        "Verifier plans as-built, notices, attestations et defauts restants.",
+        "Transformer le projet en memoire exploitable pour l'exploitation."
+      ],
+      "actors": ["architecte", "direction travaux", "mandant", "entreprises", "exploitant"],
+      "decisions": ["reception avec ou sans reserves", "solde final", "responsabilites de garantie"],
+      "deliverables": ["PV reception", "liste reserves", "dossier ouvrage", "decompte final", "as-built"],
+      "risks": ["documents de remise incomplets", "garantie mal suivie", "memoire perdue apres livraison"],
+      "source_inputs": ["contracts", "project", "site", "model", "owner_requirements"],
+      "aedifica_outputs": ["handover_checklist", "warranty_register", "as_built_completeness_report"],
+      "size_variants": {
+        "small": {
+          "focus": "Ne pas perdre garanties et documents essentiels.",
+          "extra_deliverables": ["checklist remise"],
+          "risk_bias": ["dossier final oublie"]
+        },
+        "medium": {
+          "focus": "Structurer remise, garanties, plans et notices par lot.",
+          "extra_deliverables": ["registre garanties"],
+          "risk_bias": ["reserve non fermee"]
+        },
+        "large": {
+          "focus": "Livrer un corpus exploitable par facility management.",
+          "extra_deliverables": ["paquet as-built controle"],
+          "risk_bias": ["as-built non conforme aux exigences d'exploitation"]
+        }
+      }
+    },
+    {
+      "phase_code": "61-63",
+      "phase_label": "Exploitation, conservation, transformation",
+      "sia_reference": "Phases 61/62/63 selon pratique SIA",
+      "purpose": "Garder la memoire du projet vivante pour exploitation, maintenance et transformations futures.",
+      "activities": [
+        "Exploiter dossiers as-built, interventions, consommation et garanties.",
+        "Preparer transformations ou assainissements comme nouveaux projets.",
+        "Actualiser sources, decisions et contraintes lors des changements."
+      ],
+      "actors": ["proprietaire", "exploitant", "architecte", "facility manager", "autorites si transformation"],
+      "decisions": ["strategie entretien", "renovation ou remplacement", "nouveau mandat"],
+      "deliverables": ["registre patrimoine", "historique interventions", "brief transformation", "audit energie"],
+      "risks": ["donnees as-built inutilisables", "obligations energetiques oubliees", "historique decisionnel perdu"],
+      "source_inputs": ["owner_requirements", "project", "operation", "regulatory_updates", "model"],
+      "aedifica_outputs": ["project_memory_reactivation", "renovation_intake", "source_update_alerts"],
+      "size_variants": {
+        "small": {
+          "focus": "Retrouver vite les decisions et garanties pour intervenir.",
+          "extra_deliverables": ["memoire projet compacte"],
+          "risk_bias": ["archives personnelles introuvables"]
+        },
+        "medium": {
+          "focus": "Relier maintenance, travaux futurs et obligations reglementaires.",
+          "extra_deliverables": ["journal interventions"],
+          "risk_bias": ["transformation lancee sans verifier contraintes actualisees"]
+        },
+        "large": {
+          "focus": "Maintenir donnees asset/facility et trajectoires energetiques.",
+          "extra_deliverables": ["registre actifs"],
+          "risk_bias": ["dette informationnelle d'exploitation"]
+        }
+      }
+    }
+  ]
+}

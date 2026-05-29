@@ -42,5 +42,8 @@ jobs:
       - name: Validate compliance gates
         run: python pilot/validate_compliance.py
 
+      - name: Validate research backbone
+        run: python pilot/validate_research.py
+
       - name: Run offline pilot selfcheck
         run: python pilot/selfcheck.py

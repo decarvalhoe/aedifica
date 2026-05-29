@@ -24,6 +24,7 @@ import validate_packs    # noqa: E402
 import validate_matrix   # noqa: E402
 import validate_permit   # noqa: E402
 import validate_compliance  # noqa: E402
+import validate_research  # noqa: E402
 import trust             # noqa: E402
 
 _n = _fail = 0
@@ -118,6 +119,20 @@ print("Phase 33 compliance gates")
 compliance_report = validate_compliance.validate_all()
 check("compliance gates validate", not compliance_report.errors)
 check("compliance gates distinguish legal from contractual", any(item["has_contractual_not_legal"] for item in compliance_report.items))
+
+print("Research backbone")
+research_report = validate_research.validate_all()
+phase_items = [item for item in research_report.items if item["kind"] == "phase_matrix"]
+source_items = [item for item in research_report.items if item["kind"] == "source_registry"]
+check("research assets validate", not research_report.errors)
+check(
+    "phase lifecycle covers required phases",
+    any(validate_research.REQUIRED_PHASES.issubset(set(item["phase_codes"])) for item in phase_items),
+)
+check(
+    "source registry covers required tiers",
+    any(validate_research.REQUIRED_SOURCE_TIERS.issubset(set(item["tiers"])) for item in source_items),
+)
 
 print("-" * 48)
 print(f"{_n - _fail}/{_n} checks passed" + ("" if not _fail else f"  ({_fail} FAILED)"))

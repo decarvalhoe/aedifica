@@ -54,6 +54,8 @@ Références de construction:
 [`nomos/nomos-archi-schema-v0.md`](nomos/nomos-archi-schema-v0.md),
 [`nomos/phase-aware-constraint-matrix.md`](nomos/phase-aware-constraint-matrix.md),
 [`architecture/trust-contract-and-ledger.md`](architecture/trust-contract-and-ledger.md),
+[`research/swiss-phase-lifecycle-matrix.md`](research/swiss-phase-lifecycle-matrix.md),
+[`research/pilot-source-registry.md`](research/pilot-source-registry.md),
 [`permit/vd-camac-permit-completeness.md`](permit/vd-camac-permit-completeness.md),
 [`compliance/phase33-compliance-gates.md`](compliance/phase33-compliance-gates.md).
 
@@ -74,7 +76,7 @@ Cette fragmentation est **le fossé concurrentiel** : aucun outil étranger ne l
 |---|---|---|
 | **MVP0 Foundation** | moteur + schéma NOMOS + packs + contrat de preuve | 🟡 en cours (corpus pilote semé) |
 | **MVP1 Parcelle & Contraintes** | parcelle → contraintes + enveloppe sourcées (sans BIM) | ✅ **prototype fonctionnel** |
-| **MVP2 Permis & Opposition** | radar d'opposition + complétude dossier (phase 33) | 🟡 radar prototype ; dossier à faire |
+| **MVP2 Permis & Opposition** | radar d'opposition + complétude dossier (phase 33) | 🟡 radar + pré-check dossier/compliance prototypes |
 | **MVP3 Honoraires, Coûts & Soumission** | copilote SIA 102 + pont eCCC↔NPK↔CFC | 🔜 |
 | **MVP4 Mémoire & Coordination** | mémoire de projet continue + traçabilité | 🔜 |
 | **Later** | Auto-BIM/Archicad (fil hybride), voice-to-design | 🔜 (fil démo Archicad actif) |
@@ -95,8 +97,9 @@ Code Python (stdlib), ancré sur les **API publiques gratuites** suisses, pouss�
 | `validate_matrix.py` | validation de la matrice phase-aware MVP1 | ✅ |
 | `validate_permit.py` | pre-check de complétude dossier VD/ACTIS-CAMAC avec détection de manquants | ✅ |
 | `validate_compliance.py` | gates phase 33 énergie/incendie/accessibilité/structure + BIM contractuel | ✅ |
+| `validate_research.py` | validation matrice phases SIA + registre sources pilote | ✅ |
 | `trust.py` | footer/contrat de rendu non-autoritaire partagé par les sorties pilote | ✅ |
-| `selfcheck.py` | tests hors-ligne | ✅ 32/32 |
+| `selfcheck.py` | tests hors-ligne | ✅ 35/35 |
 
 **Preuve réelle** (parcelle Place de la Palud, Lausanne, nº 10072) : Zone centrale 15 LAT · DS III ·
 alignements · LATC/LAT — en quelques secondes, **sans maquette ni identifiant**. Validé aussi sur Pully.
@@ -113,6 +116,8 @@ python pilot/selector.py    ·    python pilot/validate_packs.py    ·    python
 
 Un premier contrat de pack versionné est documenté dans
 [`architecture/jurisdiction-pack-contract.md`](architecture/jurisdiction-pack-contract.md) et validé par CI.
+La matrice de cycle suisse et le registre de sources pilote sont également structurés dans `pilot/research/`
+et validés par CI.
 
 ## 9 · Backlog & gouvernance
 
@@ -134,7 +139,9 @@ fil Archicad) ; pilote **Vaud / Lausanne** ; cold-start **hybride** (ingestion �
 1. Adjacence de voisinage réelle + ombres sur la volumétrie réelle (radar).
 2. Passage à l'échelle : plus de communes (ingestion à la demande).
 3. Formaliser le **moteur neutre + packs** (ADR [#22](https://github.com/decarvalhoe/aedifica/issues/22)).
-4. Assistant **complétude de dossier** (CAMAC, [#28](https://github.com/decarvalhoe/aedifica/issues/28)) ; copilote **honoraires/coûts** ([#29](https://github.com/decarvalhoe/aedifica/issues/29)/[#30](https://github.com/decarvalhoe/aedifica/issues/30)).
+4. Spécifier l'assistant permis complet ([#17](https://github.com/decarvalhoe/aedifica/issues/17)) au-dessus des
+   contrats CAMAC/compliance déjà validés ; copilote **honoraires/coûts**
+   ([#29](https://github.com/decarvalhoe/aedifica/issues/29)/[#30](https://github.com/decarvalhoe/aedifica/issues/30)).
 
 ## 12 · Carte des documents (où lire quoi)
 
@@ -147,6 +154,8 @@ fil Archicad) ; pilote **Vaud / Lausanne** ; cold-start **hybride** (ingestion �
 | La pile réglementaire suisse | [`strategy/swiss-regulatory-stack.md`](strategy/swiss-regulatory-stack.md) |
 | L'architecture de connaissance | [`strategy/knowledge-architecture.md`](strategy/knowledge-architecture.md) |
 | La valeur phase par phase | [`strategy/phase-value-catalog.md`](strategy/phase-value-catalog.md) |
+| La matrice phase par phase validée | [`research/swiss-phase-lifecycle-matrix.md`](research/swiss-phase-lifecycle-matrix.md) |
+| Le registre de sources pilote | [`research/pilot-source-registry.md`](research/pilot-source-registry.md) |
 | La spec MVP1 | [`specs/mvp1-parcel-constraints-intake.md`](specs/mvp1-parcel-constraints-intake.md) |
 | La preuve API (Lausanne) | [`strategy/poc-lausanne-parcel.md`](strategy/poc-lausanne-parcel.md) |
 | Le pilote (code) | [`../pilot/README.md`](../pilot/README.md) |

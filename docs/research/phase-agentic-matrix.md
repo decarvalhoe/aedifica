@@ -6,6 +6,11 @@ The implementation-facing handoff format is now defined in
 [`../nomos/phase-aware-constraint-matrix.md`](../nomos/phase-aware-constraint-matrix.md), with a validated
 pilot file at `pilot/constraints/mvp1_lausanne_matrix.json`. The table below remains a research overview.
 
+The detailed Swiss lifecycle matrix for issue #1 is now the validated asset
+[`swiss-phase-lifecycle-matrix.md`](swiss-phase-lifecycle-matrix.md), backed by
+`pilot/research/swiss_phase_lifecycle_matrix.json`. Use that file for phase coverage, actors, decisions,
+deliverables, risks, and small/medium/large project variants.
+
 ## Matrix
 
 | Phase | Documents and decisions | BIM/model data | Regulatory/source inputs | Agentic intervention | Required API/MCP surface | Feasibility |
@@ -36,4 +41,5 @@ Each row should become a deeper research pack:
 
 ## Immediate Next Step
 
-Issue #1 should turn this into a more exhaustive Swiss phase matrix, with explicit small/medium/large project variants and at least one canton/commune pilot.
+The remaining phase work should now enrich individual phase packs with real office examples, not recreate the
+phase backbone.

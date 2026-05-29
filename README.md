@@ -50,6 +50,9 @@ One strong validation track is **Swiss Auto-BIM for small and mid-sized offices*
 - `docs/product/holistic-assistance.md`: end-to-end architect assistance model.
 - `docs/strategy/`: strategy deep-dive — challenge & brainstorm, architect reality, Swiss regulatory stack, knowledge architecture, decisions, Lausanne PoC.
 - `docs/research/`: Swiss architecture lifecycle, phase-agentic matrix, sources.
+- `docs/research/swiss-phase-lifecycle-matrix.md`: validated Swiss/SIA phase lifecycle matrix with
+  small/medium/large project variants.
+- `docs/research/pilot-source-registry.md`: prioritized CH/VD/Lausanne source registry compatible with NOMOS.
 - `docs/architecture/`: target system architecture + first universal API/MCP surface.
 - `docs/architecture/adr-0001-neutral-engine-and-jurisdiction-packs.md`: accepted ADR for the neutral engine + jurisdiction-pack split.
 - `docs/architecture/trust-contract-and-ledger.md`: claim provenance, decision ledger, and professional-responsibility contract.
@@ -73,4 +76,5 @@ product around **registry-anchored regulatory/project intelligence** (neutral en
 and a runnable pilot ([`pilot/`](pilot/)) demonstrates **MVP1** (parcel → sourced constraints + buildable envelope)
 and an **MVP2 opposition-risk radar** on real Vaud parcels (Lausanne + Pully) via free public Swiss APIs.
 See **[`docs/overview.md`](docs/overview.md)** for the up-to-date global plan. The pilot now has an offline
-CI path and a versioned jurisdiction-pack contract, but it is still not production-ready (prototypes; re-verify sources).
+CI path, a versioned jurisdiction-pack contract, a validated Swiss phase matrix, and a prioritized source
+registry, but it is still not production-ready (prototypes; re-verify sources).

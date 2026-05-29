@@ -2,6 +2,11 @@
 
 This document frames the lifecycle Aedifica should model first. It uses the SIA phase structure as the backbone, then extends it with agentic opportunities.
 
+The validated implementation asset for this lifecycle is now
+[`swiss-phase-lifecycle-matrix.md`](swiss-phase-lifecycle-matrix.md), backed by
+`pilot/research/swiss_phase_lifecycle_matrix.json`. That matrix adds actors, decisions, deliverables, risks,
+and small/medium/large project variants for each phase.
+
 ## Reference Backbone
 
 The natural reference model is the Swiss SIA process:
