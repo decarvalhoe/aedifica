@@ -12,6 +12,17 @@ Deliverables:
 - Universal MCP/API sketch.
 - Initial issue backlog.
 
+## Recommended MVP Track
+
+The recommended sequence is:
+
+1. NOMOS Archi Intake.
+2. Auto-BIM / Model Intelligence.
+3. Permit Dossier Assistant.
+4. Direction Travaux Agentique.
+
+Tendering and voice-to-design remain important, but they should follow the first validated project memory and model-intelligence loop.
+
 ## MVP 1: NOMOS Archi Intake
 
 Goal: ingest a Swiss architecture project and produce a traceable constraints brief.
@@ -38,13 +49,13 @@ Success criteria:
 - The output is useful to an architect before drawing starts.
 - Constraints are structured enough to drive later model checks.
 
-## MVP 2: Archicad Auto-BIM
+## MVP 2: Auto-BIM / Model Intelligence
 
-Goal: inspect an Archicad model, detect missing BIM metadata, propose corrections, apply approved updates, and export deliverables.
+Goal: inspect a BIM/model state, detect missing or inconsistent project information, propose corrections, apply approved updates through the available adapter, and export deliverables.
 
 Initial capabilities:
 
-- Connect to Archicad through JSON API, Tapir, or a custom Add-On.
+- Connect first through the most practical project adapter: IFC, Speckle, Archicad JSON/Tapir/Add-On, or another available model source.
 - Extract spaces, elements, attributes, properties, and classifications.
 - Run missing metadata checks.
 - Apply property updates after approval.
@@ -53,9 +64,12 @@ Initial capabilities:
 
 Success criteria:
 
-- Saves measurable time on real Archicad cleanup.
+- Saves measurable time on real model cleanup.
 - Produces better IFC/property completeness than manual baseline.
 - Does not break the model.
+- Keeps a clear before/after audit trail.
+
+Note: Archicad is an excellent first real-world adapter because of the initial user context, but this MVP should validate a general model-intelligence capability.
 
 ## MVP 3: Permit Dossier Assistant
 
@@ -69,21 +83,9 @@ Capabilities:
 - Regulation citation support.
 - Draft notices and justification text.
 
-## MVP 4: Tender and Quantity Workflows
+## MVP 4: Direction Travaux Agentique
 
-Goal: support calls for tender from BIM/model context.
-
-Capabilities:
-
-- Extract quantities.
-- Map quantities to CFC/eCCC or office structure.
-- Draft tender descriptions.
-- Compare offers.
-- Track assumptions and exclusions.
-
-## MVP 5: Construction Management Agent
-
-Goal: support site and execution work.
+Goal: support execution and construction management workflows in a Swiss office context.
 
 Capabilities:
 
@@ -95,7 +97,19 @@ Capabilities:
 - Cost and schedule alerts.
 - Handover dossier.
 
-## MVP 6: Voice-to-Design Workflow
+## Later Track: Tender and Quantity Workflows
+
+Goal: support calls for tender from BIM/model context.
+
+Capabilities:
+
+- Extract quantities.
+- Map quantities to CFC/eCCC or office structure.
+- Draft tender descriptions.
+- Compare offers.
+- Track assumptions and exclusions.
+
+## Later Track: Voice-to-Design Workflow
 
 Goal: let an architect describe controlled design actions orally and route them through safe structured commands.
 
@@ -107,4 +121,3 @@ Capabilities:
 - Dry-run preview.
 - Tool execution through MCP/API.
 - Correction loop.
-

@@ -15,6 +15,8 @@ NOMOS Archi provides:
 - Exception management.
 - Decision records.
 - Phase-aware applicability.
+- Model-aware verification.
+- Human approval gates.
 
 ## Source Types
 
@@ -28,6 +30,34 @@ NOMOS Archi provides:
 | Project | Client brief, program, budget, meetings, decisions |
 | Model | Archicad/Revit/IFC/Speckle snapshots |
 | Execution | Site reports, defects, invoices, approvals, handover docs |
+
+## Two RAG Contexts
+
+Aedifica should separate two retrieval contexts:
+
+### Project RAG
+
+Project-specific memory:
+
+- Client program.
+- Parcel and commune.
+- Project decisions.
+- Model versions.
+- Meeting minutes.
+- Permit documents.
+- Tender and construction records.
+
+### General Swiss Architecture RAG
+
+Reusable knowledge:
+
+- SIA process references.
+- Swiss BIM/openBIM practices.
+- Canonical regulatory patterns.
+- Office method templates.
+- Construction-management workflows.
+
+The agent must never mix these contexts silently. Project-specific facts have priority for the project, while general knowledge can guide structure, interpretation, and checklists.
 
 ## Canonical Unit Types
 
@@ -79,4 +109,4 @@ Agents using NOMOS Archi must:
 - Never silently mutate a model.
 - Log every model action with before/after evidence.
 - Escalate conflicts between sources.
-
+- Identify whether a check can be automated, semi-automated, or only reviewed by a human.

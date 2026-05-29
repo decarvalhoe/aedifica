@@ -1,8 +1,8 @@
 # Universal Architecture MCP/API
 
-This document sketches the first common action surface for agentic architecture tools.
+This document sketches the first common action surface for agentic architecture workflows.
 
-The goal is not to expose every software command one-to-one. The goal is to expose stable architectural commands that can be implemented by different adapters.
+The goal is not to expose every software command one-to-one. The goal is to expose stable architectural workflow commands that can be implemented by different adapters, including BIM tools, document systems, IFC/Speckle, permit dossier workflows, and construction-management systems.
 
 ## Transport
 
@@ -32,6 +32,8 @@ get_current_view
 get_selection
 list_layers_or_attributes
 list_favorites_or_types
+load_project_context
+resolve_phase_deliverables
 ```
 
 ### Model Extraction
@@ -43,6 +45,7 @@ extract_properties
 extract_quantities
 export_model_snapshot
 compare_model_snapshots
+extract_bim_requirements
 ```
 
 ### Model Mutation
@@ -56,12 +59,14 @@ update_parameters
 update_bim_properties
 rename_elements
 classify_elements
+generate_variant
 ```
 
 ### BIM and IFC
 
 ```text
 run_bim_audit
+run_model_check
 apply_property_mapping
 validate_ifc_requirements
 export_ifc
@@ -74,6 +79,7 @@ sync_speckle
 ```text
 publish_layouts
 export_pdf_set
+publish_pdf_set
 export_dwg_set
 generate_schedule
 generate_report
@@ -91,11 +97,31 @@ update_decision_log
 generate_handover_checklist
 ```
 
-## First Adapter Priority
+## Adapter Strategy
 
-1. Archicad inspection and export.
-2. Archicad BIM property updates.
-3. IFC extraction and validation through IfcOpenShell.
-4. Speckle synchronization.
-5. Revit and Rhino adapters after the first Archicad MVP.
+The common API should be designed before any single adapter dominates the product.
 
+Early adapter candidates:
+
+1. Project/document ingestion adapter.
+2. IFC extraction and validation through IfcOpenShell.
+3. Speckle synchronization and version snapshots.
+4. Archicad inspection, export, and BIM property updates.
+5. Revit, Rhino, SketchUp, AutoCAD/BricsCAD, and construction-management adapters.
+
+## Voice-to-Design Contract
+
+Voice should enter the system as intent, not as raw tool commands.
+
+```text
+speech
+  -> transcript
+  -> structured design intent
+  -> dry-run action plan
+  -> visual/model preview
+  -> human approval
+  -> MCP/API execution
+  -> report and diff
+```
+
+This keeps the long-term dream of prompted architectural work compatible with professional responsibility, project context, and model safety.

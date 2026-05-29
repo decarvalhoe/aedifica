@@ -19,8 +19,8 @@ This backlog translates the first product reflections into actionable research a
 
 ## Tool Automation
 
-10. Cartographier les capacites d'automatisation Archicad.
-11. Prototyper un bridge Archicad local via JSON API, Tapir ou Add-On.
+10. Cartographier les capacites d'automatisation BIM/CAD, avec Archicad comme premier adapter potentiel.
+11. Prototyper un premier bridge modele local via IFC, Speckle, Archicad JSON API, Tapir ou Add-On.
 12. Definir l'API/MCP universelle d'architecture.
 13. Evaluer IFC/IfcOpenShell/Speckle comme couche neutre.
 14. Evaluer Revit, Rhino, SketchUp, AutoCAD/BricsCAD comme futurs adapters.
@@ -28,9 +28,9 @@ This backlog translates the first product reflections into actionable research a
 ## MVPs
 
 15. Specifier MVP 1 NOMOS Archi Intake.
-16. Specifier MVP 2 Archicad Auto-BIM.
+16. Specifier MVP 2 Auto-BIM / Model Intelligence.
 17. Specifier MVP 3 Permit Dossier Assistant.
-18. Specifier MVP 4 Tender and Quantity Workflows.
-19. Specifier MVP 5 Construction Management Agent.
-20. Specifier MVP 6 Voice-to-Design Workflow.
-
+18. Specifier le later track Tender and Quantity Workflows.
+19. Specifier MVP 4 Direction Travaux Agentique.
+20. Specifier le later track Voice-to-Design Workflow.
+21. Definir le modele d'assistance holistique de bout en bout pour l'architecte.
