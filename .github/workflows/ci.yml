@@ -36,5 +36,11 @@ jobs:
       - name: Validate phase-aware constraint matrices
         run: python pilot/validate_matrix.py
 
+      - name: Validate permit checklists
+        run: python pilot/validate_permit.py
+
+      - name: Validate compliance gates
+        run: python pilot/validate_compliance.py
+
       - name: Run offline pilot selfcheck
         run: python pilot/selfcheck.py

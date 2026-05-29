@@ -53,7 +53,9 @@ Références de construction:
 [`architecture/adr-0001-neutral-engine-and-jurisdiction-packs.md`](architecture/adr-0001-neutral-engine-and-jurisdiction-packs.md),
 [`nomos/nomos-archi-schema-v0.md`](nomos/nomos-archi-schema-v0.md),
 [`nomos/phase-aware-constraint-matrix.md`](nomos/phase-aware-constraint-matrix.md),
-[`architecture/trust-contract-and-ledger.md`](architecture/trust-contract-and-ledger.md).
+[`architecture/trust-contract-and-ledger.md`](architecture/trust-contract-and-ledger.md),
+[`permit/vd-camac-permit-completeness.md`](permit/vd-camac-permit-completeness.md),
+[`compliance/phase33-compliance-gates.md`](compliance/phase33-compliance-gates.md).
 
 ## 6 · Contexte suisse — 3 niveaux + parcelle
 
@@ -91,8 +93,10 @@ Code Python (stdlib), ancré sur les **API publiques gratuites** suisses, pouss�
 | `fiche.py` | **fiche A4 imprimable** (contraintes + enveloppe + radar) | ✅ |
 | `validate_packs.py` | contrat/versioning des packs réglementaires (stdlib) | ✅ |
 | `validate_matrix.py` | validation de la matrice phase-aware MVP1 | ✅ |
+| `validate_permit.py` | pre-check de complétude dossier VD/ACTIS-CAMAC avec détection de manquants | ✅ |
+| `validate_compliance.py` | gates phase 33 énergie/incendie/accessibilité/structure + BIM contractuel | ✅ |
 | `trust.py` | footer/contrat de rendu non-autoritaire partagé par les sorties pilote | ✅ |
-| `selfcheck.py` | tests hors-ligne | ✅ 28/28 |
+| `selfcheck.py` | tests hors-ligne | ✅ 32/32 |
 
 **Preuve réelle** (parcelle Place de la Palud, Lausanne, nº 10072) : Zone centrale 15 LAT · DS III ·
 alignements · LATC/LAT — en quelques secondes, **sans maquette ni identifiant**. Validé aussi sur Pully.

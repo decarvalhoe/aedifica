@@ -54,6 +54,8 @@ One strong validation track is **Swiss Auto-BIM for small and mid-sized offices*
 - `docs/architecture/adr-0001-neutral-engine-and-jurisdiction-packs.md`: accepted ADR for the neutral engine + jurisdiction-pack split.
 - `docs/architecture/trust-contract-and-ledger.md`: claim provenance, decision ledger, and professional-responsibility contract.
 - `docs/architecture/jurisdiction-pack-contract.md`: versioned regulatory-pack contract + CI validation rules.
+- `docs/permit/vd-camac-permit-completeness.md`: Vaud ACTIS-CAMAC permit dossier completeness contract.
+- `docs/compliance/phase33-compliance-gates.md`: phase-33 compliance gates with binding-vs-contractual typing.
 - `docs/nomos/nomos-archi.md`: NOMOS adaptation for architecture.
 - `docs/nomos/nomos-archi-schema-v0.md`: initial canonical-unit schema for sources, rules, constraints, decisions, evidence, checks, and actions.
 - `docs/nomos/phase-aware-constraint-matrix.md`: phase-aware matrix contract connecting constraints to SIA-phase actions.

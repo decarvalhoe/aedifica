@@ -22,6 +22,8 @@ import opposition_radar as radar  # noqa: E402
 import mvp1_demo as demo  # noqa: E402
 import validate_packs    # noqa: E402
 import validate_matrix   # noqa: E402
+import validate_permit   # noqa: E402
+import validate_compliance  # noqa: E402
 import trust             # noqa: E402
 
 _n = _fail = 0
@@ -106,6 +108,16 @@ matrix_report = validate_matrix.validate_all()
 check("all constraint matrices validate", not matrix_report.errors)
 check("pilot matrix includes authorization phase", any("33" in item["phase_codes"] for item in matrix_report.items))
 check("pilot matrix includes downstream phases", any({"41", "52"}.issubset(set(item["phase_codes"])) for item in matrix_report.items))
+
+print("Permit dossier completeness")
+permit_report = validate_permit.validate_all()
+check("permit checklist validates", not permit_report.errors)
+check("demo dossier reports missing items", any(item["missing_count"] > 0 for item in permit_report.items))
+
+print("Phase 33 compliance gates")
+compliance_report = validate_compliance.validate_all()
+check("compliance gates validate", not compliance_report.errors)
+check("compliance gates distinguish legal from contractual", any(item["has_contractual_not_legal"] for item in compliance_report.items))
 
 print("-" * 48)
 print(f"{_n - _fail}/{_n} checks passed" + ("" if not _fail else f"  ({_fail} FAILED)"))

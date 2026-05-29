@@ -50,7 +50,11 @@ still performing the live OEREB fetch (shown as byte count).
 - `trust.py` — shared non-authority output contract footer and provenance tags.
 - `constraints/mvp1_lausanne_matrix.json` — phase-aware constraint matrix for the Lausanne/VD pilot.
 - `validate_matrix.py` — stdlib validator for the phase-aware matrix.
-- `selfcheck.py` — offline smoke test of the pure logic, no network (`python pilot/selfcheck.py`, 28 checks).
+- `permit/vd_camac_checklist.json` — Vaud ACTIS-CAMAC baseline permit completeness checklist.
+- `permit/demo_missing_dossier.json` — intentionally incomplete demo dossier proving missing-item detection.
+- `compliance/ch_phase33_gates.json` — phase-33 compliance gates with legal/contractual typing.
+- `validate_permit.py`, `validate_compliance.py` — stdlib validators for permit and compliance contracts.
+- `selfcheck.py` — offline smoke test of the pure logic, no network (`python pilot/selfcheck.py`, 32 checks).
 - `registry/federal.json`, `registry/canton_vd.json` — shared CH core + VD cantonal layer (refs verified from a live OEREB extract).
 - `lausanne/`, `pully/` — per-commune ingested rulesets (`rpga_zones.json`) + `INGESTION.md` (sources, in-force status, gaps).
   Lausanne is **geometric/IUS**; Pully is **IOS 20 %** — the same engine absorbs both styles (run `selector.py` to see it).
@@ -61,6 +65,8 @@ still performing the live OEREB fetch (shown as byte count).
 python pilot/selector.py     # shows: CH/federal + VD/cantonal + {Lausanne|Pully}/communal, only active layers consulted
 python pilot/validate_packs.py
 python pilot/validate_matrix.py
+python pilot/validate_permit.py
+python pilot/validate_compliance.py
 ```
 Adding a commune = drop a `<slug>/rpga_zones.json`. Adding a country = add a federal/canton/commune layer set;
 the selector logic is unchanged (see docs/strategy/knowledge-architecture.md).
@@ -74,6 +80,9 @@ that validator and the output trust contract in the offline smoke suite. GitHub 
 
 `python pilot/validate_matrix.py` validates the phase-aware constraint matrix described in
 [`../docs/nomos/phase-aware-constraint-matrix.md`](../docs/nomos/phase-aware-constraint-matrix.md).
+`python pilot/validate_permit.py` and `python pilot/validate_compliance.py` validate the phase-33 permit and
+compliance contracts described in [`../docs/permit/vd-camac-permit-completeness.md`](../docs/permit/vd-camac-permit-completeness.md)
+and [`../docs/compliance/phase33-compliance-gates.md`](../docs/compliance/phase33-compliance-gates.md).
 
 ## The gap this closes
 

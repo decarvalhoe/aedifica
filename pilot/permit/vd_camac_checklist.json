@@ -1,0 +1,128 @@
+{
+  "checklist_version": "1.0",
+  "checklist_id": "PERMIT-VD-CAMAC-BASELINE",
+  "title": "Vaud ACTIS-CAMAC permit dossier baseline completeness checklist",
+  "jurisdiction": {
+    "country": "CH",
+    "canton_or_region": "VD"
+  },
+  "phase_code": "33",
+  "source_refs": [
+    {
+      "source_id": "VD-PERMIS-CONSTRUIRE",
+      "title": "Permis de construire | Etat de Vaud",
+      "url": "https://www.vd.ch/territoire-et-construction/permis-de-construire",
+      "locator": "ACTIS-CAMAC platform and information utiles",
+      "valid_as_of": "2026-05-29",
+      "confidence": "high"
+    },
+    {
+      "source_id": "VD-REALISER-DOSSIER",
+      "title": "Realiser son dossier en vue d'une demande de permis de construire | Etat de Vaud",
+      "url": "https://www.vd.ch/territoire-et-construction/permis-de-construire/realiser-son-dossier-en-vue-dune-demande-de-permis-de-construire",
+      "locator": "Questionnaire general, plans signes, art. 73 RLATC / art. 69 RLATC",
+      "valid_as_of": "2026-05-29",
+      "confidence": "high"
+    },
+    {
+      "source_id": "VD-CAMAC",
+      "title": "Centrale des autorisations en matiere de construction (CAMAC) | Etat de Vaud",
+      "url": "https://www.vd.ch/dits/dgtl/dac/camac",
+      "locator": "Role CAMAC: completude cantonale, autorisations, preavis, complements et oppositions",
+      "valid_as_of": "2026-05-29",
+      "confidence": "high"
+    }
+  ],
+  "items": [
+    {
+      "item_id": "VD-CAMAC-QG",
+      "title": "Questionnaire general ACTIS-CAMAC",
+      "category": "platform",
+      "required": true,
+      "claim_state": "sourced",
+      "accepted_evidence": ["actis_questionnaire_general"],
+      "source_ids": ["VD-REALISER-DOSSIER"],
+      "missing_message": "Saisir le questionnaire general sur ACTIS-CAMAC avant depot."
+    },
+    {
+      "item_id": "VD-CAMAC-SITUATION-PLAN",
+      "title": "Plan de situation / geometre when required",
+      "category": "plans",
+      "required": true,
+      "claim_state": "sourced",
+      "accepted_evidence": ["site_plan_signed", "surveyor_plan"],
+      "source_ids": ["VD-REALISER-DOSSIER"],
+      "missing_message": "Ajouter le plan de situation adapte au projet et aux exigences communales/cantonales."
+    },
+    {
+      "item_id": "VD-CAMAC-SIGNED-PLANS",
+      "title": "Signed permit plans",
+      "category": "plans",
+      "required": true,
+      "claim_state": "sourced",
+      "accepted_evidence": ["signed_plans"],
+      "source_ids": ["VD-REALISER-DOSSIER"],
+      "missing_message": "Ajouter les plans de mise a l'enquete signes par les professionnels requis."
+    },
+    {
+      "item_id": "VD-CAMAC-PARCEL-EVIDENCE",
+      "title": "Parcel identity and RDPPF/OEREB evidence",
+      "category": "parcel",
+      "required": true,
+      "claim_state": "computed",
+      "accepted_evidence": ["egrid", "parcel_number", "oereb_extract"],
+      "source_ids": ["VD-CAMAC", "VD-PERMIS-CONSTRUIRE"],
+      "missing_message": "Joindre ou consigner la reference parcelle/EGRID et les restrictions RDPPF utiles."
+    },
+    {
+      "item_id": "VD-CAMAC-PROJECT-DESCRIPTION",
+      "title": "Project description and works type",
+      "category": "project",
+      "required": true,
+      "claim_state": "sourced",
+      "accepted_evidence": ["project_description", "works_type"],
+      "source_ids": ["VD-PERMIS-CONSTRUIRE"],
+      "missing_message": "Decrire clairement le type de travaux, l'objet et le perimetre de la demande."
+    },
+    {
+      "item_id": "VD-CAMAC-ENERGY-FORMS",
+      "title": "Energy forms and SIA 380/1 justification when applicable",
+      "category": "compliance",
+      "required": true,
+      "claim_state": "sourced",
+      "accepted_evidence": ["energy_form", "sia_380_1_calculation"],
+      "source_ids": ["VD-ENERGY-FORMS"],
+      "missing_message": "Ajouter les formulaires energie VD et le calcul SIA 380/1 lorsque le projet y est soumis."
+    },
+    {
+      "item_id": "VD-CAMAC-FIRE-EVIDENCE",
+      "title": "Fire-safety evidence / ECA-AEAI position when applicable",
+      "category": "compliance",
+      "required": true,
+      "claim_state": "sourced",
+      "accepted_evidence": ["fire_safety_note", "eca_fire_position"],
+      "source_ids": ["ECA-VAUD-FIRE-PERMIT"],
+      "missing_message": "Ajouter la note de protection incendie ou la position ECA/AEAI pertinente au projet."
+    },
+    {
+      "item_id": "VD-CAMAC-SPECIAL-QUESTIONNAIRES",
+      "title": "Special questionnaires triggered by project scope",
+      "category": "special_authorizations",
+      "required": false,
+      "claim_state": "assumption",
+      "accepted_evidence": ["special_questionnaires"],
+      "source_ids": ["VD-PERMIS-CONSTRUIRE"],
+      "missing_message": "Verifier les questionnaires particuliers ACTIS-CAMAC selon le projet."
+    },
+    {
+      "item_id": "VD-CAMAC-CONSTRAINT-MATRIX",
+      "title": "Phase-aware constraints and unknowns handoff",
+      "category": "aedifica",
+      "required": true,
+      "claim_state": "decision",
+      "accepted_evidence": ["phase_constraint_matrix"],
+      "source_ids": ["MATRIX-CH-VD-LAUSANNE-MVP1"],
+      "missing_message": "Generer la matrice de contraintes phase-aware et consigner les inconnues restantes."
+    }
+  ]
+}

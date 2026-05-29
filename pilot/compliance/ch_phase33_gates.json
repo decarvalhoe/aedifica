@@ -1,0 +1,106 @@
+{
+  "gates_version": "1.0",
+  "gates_id": "COMPLIANCE-CH-VD-PHASE33",
+  "title": "Phase 33 Swiss/Vaud compliance gates",
+  "phase_code": "33",
+  "jurisdiction": {
+    "country": "CH",
+    "canton_or_region": "VD"
+  },
+  "source_refs": [
+    {
+      "source_id": "VD-ENERGY-FORMS",
+      "title": "Formulaires energie pour demandes d'autorisation | Etat de Vaud",
+      "url": "https://www.vd.ch/environnement/energie/formulaires-energie",
+      "locator": "Dossier energie de mise a l'enquete and SIA 380/1 reminder",
+      "valid_as_of": "2026-05-29",
+      "confidence": "high"
+    },
+    {
+      "source_id": "VD-CONSTRUCTIONS-ENERGIE",
+      "title": "Constructions et energie | Etat de Vaud",
+      "url": "https://publication.vd.ch/publications/dgaic/aide-memoire/domaines-batiments/constructions-et-energie",
+      "locator": "Permis de construire, batiments chauffes, SIA 380/1 reference",
+      "valid_as_of": "2026-05-29",
+      "confidence": "high"
+    },
+    {
+      "source_id": "ECA-VAUD-FIRE-PERMIT",
+      "title": "Permis de construire - ECA Vaud",
+      "url": "https://www.eca-vaud.ch/collectivites-publiques/batiment/constructions-renovations/procedure-permis-de-construire/",
+      "locator": "Protection incendie, competence communale/cantonale and AEAI prescriptions",
+      "valid_as_of": "2026-05-29",
+      "confidence": "high"
+    },
+    {
+      "source_id": "ARCHITECT-REALITY",
+      "title": "The Architect's Reality",
+      "url": "../docs/strategy/architect-reality.md",
+      "locator": "Section 5",
+      "valid_as_of": "2026-05-29",
+      "confidence": "medium"
+    }
+  ],
+  "gates": [
+    {
+      "gate_id": "ENERGY-SIA-380-1-VD",
+      "title": "Energy dossier and SIA 380/1 justification",
+      "domain": "energy",
+      "binding_type": "binding_law_when_applicable",
+      "legal_basis": "VD energy/construction procedure; SIA 380/1 referenced by Vaud energy implementation when applicable",
+      "phase_code": "33",
+      "blocking": true,
+      "required_evidence": ["energy_form", "sia_380_1_calculation"],
+      "source_ids": ["VD-ENERGY-FORMS", "VD-CONSTRUCTIONS-ENERGIE"],
+      "notes": "Norm version must match the permit-delivery context; verify current VD energy form before filing."
+    },
+    {
+      "gate_id": "FIRE-AEAI-ECA-VD",
+      "title": "Fire-safety evidence under AEAI/ECA Vaud framework",
+      "domain": "fire",
+      "binding_type": "binding_law_when_applicable",
+      "legal_basis": "AEAI prescriptions and Vaud/ECA procedure where the project triggers fire-safety review",
+      "phase_code": "33",
+      "blocking": true,
+      "required_evidence": ["fire_safety_note"],
+      "source_ids": ["ECA-VAUD-FIRE-PERMIT"],
+      "notes": "Competence can be communal or require ECA/specialist handling depending on project scope."
+    },
+    {
+      "gate_id": "ACCESSIBILITY-LHAND-SIA500",
+      "title": "Accessibility / construction without obstacles",
+      "domain": "accessibility",
+      "binding_type": "binding_law_when_applicable",
+      "legal_basis": "LHand and applicable cantonal/permit requirements; SIA 500 as technical execution reference when applicable",
+      "phase_code": "33",
+      "blocking": true,
+      "required_evidence": ["accessibility_note"],
+      "source_ids": ["ARCHITECT-REALITY"],
+      "notes": "Applicability depends on use, public access, residential program, and authority requirements."
+    },
+    {
+      "gate_id": "STRUCTURE-SEISMIC-SIA261",
+      "title": "Structural and seismic basis",
+      "domain": "structure",
+      "binding_type": "technical_norm_by_reference",
+      "legal_basis": "Structural proof and SIA 261 where required by authority, mandate, or professional standard",
+      "phase_code": "33",
+      "blocking": true,
+      "required_evidence": ["structural_concept", "seismic_basis"],
+      "source_ids": ["ARCHITECT-REALITY"],
+      "notes": "Usually owned by the civil engineer when mandated; architect tracks handoff and dossier completeness."
+    },
+    {
+      "gate_id": "BIM-DIGITAL-INFORMATION-CONVENTION",
+      "title": "BIM / digital information convention is contractual, not a legal permit gate",
+      "domain": "bim",
+      "binding_type": "contractual_not_legal",
+      "legal_basis": "Project convention only; BIM is not a Swiss legal permit requirement by itself",
+      "phase_code": "32",
+      "blocking": false,
+      "required_evidence": ["digital_information_convention"],
+      "source_ids": ["ARCHITECT-REALITY"],
+      "notes": "Do not present SIA 2051/openBIM as a phase-33 legal compliance gate."
+    }
+  ]
+}

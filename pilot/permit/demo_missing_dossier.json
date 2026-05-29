@@ -1,0 +1,25 @@
+{
+  "dossier_id": "DEMO-VD-LAUSANNE-MISSING",
+  "checklist_id": "PERMIT-VD-CAMAC-BASELINE",
+  "project_context": {
+    "country": "CH",
+    "canton_or_region": "VD",
+    "commune": "Lausanne",
+    "phase_code": "33"
+  },
+  "evidence": {
+    "actis_questionnaire_general": true,
+    "site_plan_signed": true,
+    "signed_plans": false,
+    "egrid": true,
+    "parcel_number": true,
+    "oereb_extract": true,
+    "project_description": true,
+    "works_type": true,
+    "energy_form": false,
+    "sia_380_1_calculation": false,
+    "fire_safety_note": false,
+    "eca_fire_position": false,
+    "phase_constraint_matrix": true
+  }
+}
