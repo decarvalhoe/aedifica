@@ -25,6 +25,9 @@ try:  # show accents/m² correctly on Windows consoles
 except Exception:
     pass
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import oereb  # noqa: E402  (local module in pilot/)
+
 GEOADMIN = "https://api3.geo.admin.ch/rest/services"
 VD_OEREB = "https://www.rdppf.vd.ch/ws/RdppfSVC.svc"
 CADASTRE_LAYER = "ch.kantone.cadastralwebmap-farbe"
@@ -108,69 +111,63 @@ def _walk_strings(obj):
 
 
 def fetch_constraints(egrid):
-    """EGRID -> constraints from the VD OEREB extract.
-    Always attempts the live fetch (proves connectivity). For the verified demo parcel it
-    shows the PoC-verified fields; otherwise it parses the live extract heuristically."""
-    out = {"_source": "VD OEREB extract (live)"}
-    raw = None
+    """EGRID -> binding constraints via the robust OEREB parser (works for any VD parcel).
+    Falls back to verified PoC values only if the live service is unreachable."""
     try:
-        raw = get(f"{VD_OEREB}/extract/json/?EGRID={egrid}&LANG=fr")
-        out["_bytes"] = len(raw)
+        o = oereb.get(egrid)
+        return {
+            "_source": f"VD OEREB extract (live, {o['_bytes']} o)",
+            "commune": o.get("commune"),
+            "zone": o.get("zone"),
+            "ds": o.get("noise_ds"),
+            "alignments": o.get("alignments") or [],
+            "laws": [f"{law['title']} ({law['number']})" for law in o.get("laws", [])],
+            "not_concerned": o.get("not_concerned") or [],
+            "area_official": o.get("area_m2"),
+            "parcel": o.get("parcel"),
+            "plans": o.get("plans") or [],
+        }
     except Exception as ex:
-        out["_error"] = f"{type(ex).__name__}: {ex}"
-
-    if egrid in POC_CACHE:  # verified parcel: trustworthy fields + proof of live fetch
-        c = dict(POC_CACHE[egrid])
-        c["_source"] = ("VD OEREB extract — live fetch OK, fields verified PoC" if raw
-                        else "VD OEREB extract — PoC values (offline)")
-        if out.get("_bytes"):
-            c["_bytes"] = out["_bytes"]
+        c = dict(POC_CACHE.get(egrid, {}))
+        c["_source"] = f"PoC fallback (live indisponible: {type(ex).__name__})"
         return c
 
-    if raw:  # generic parcel: best-effort tolerant parse
-        try:
-            seen = []
-            for t in _walk_strings(json.loads(raw.decode("utf-8", "replace"))):
-                t = t.strip()
-                if t and t not in seen:
-                    seen.append(t)
-            out["zone"] = max((t for t in seen if "zone" in t.lower() and "lat" in t.lower()
-                               and "sensib" not in t.lower()), key=len, default=None)
-            out["ds"] = (next((t for t in seen if re.search(r"sensibilit[ée].*\b(I{1,3}|IV)\b", t, re.I)), None)
-                         or next((t for t in seen if re.search(r"sensibilit", t, re.I)), None))
-            out["alignments"] = [t for t in seen if "limite des constructions" in t.lower()][:2]
-            out["laws"] = [t for t in seen if re.fullmatch(r"(LAT|LATC|RLATC|LPE|OPB|LRou|LPNMS)", t)][:5]
-        except Exception as ex:
-            out["_error"] = f"parse: {type(ex).__name__}: {ex}"
-    return out
 
-
-def load_rpga():
-    if not os.path.exists(RPGA_PATH):
+def load_rpga(commune):
+    """Load the ingested ruleset for a commune (pilot/<slug>/rpga_zones.json)."""
+    slug = (commune or "").strip().lower()
+    path = os.path.join(HERE, slug, "rpga_zones.json")
+    if not slug or not os.path.exists(path):
         return None
-    with open(RPGA_PATH, encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
 def match_zone(rpga, constraints):
-    """Map the OEREB zone designation to a Lausanne RPGA zone entry."""
+    """Map the OEREB harmonized zone designation to a communal zone entry.
+    Returns (zone_name, params, how) where how in {demo, exact, keyword}."""
     if not rpga:
-        return None, None
+        return None, None, None
     zones = rpga.get("zones", {})
-    # Prefer the explicit demo-parcel mapping if present (exact or prefix match on a zone key).
-    dz = (rpga.get("demo_parcel_zone") or {}).get("communal_zone")
-    if dz:
-        for name in zones:
-            if dz == name or dz.lower().startswith(name.lower()):
-                return name, zones[name]
-    z = (constraints.get("zone") or "").lower()
+    dpz = rpga.get("demo_parcel_zone") or {}
+    # Verified demo mapping — ONLY for the exact demo parcel.
+    if dpz.get("communal_zone") and str(dpz.get("parcel")) == str(constraints.get("parcel")):
+        name = dpz["communal_zone"]
+        for z in zones:
+            if name == z or name.lower().startswith(z.lower()):
+                return z, zones[z], "demo"
+    zt = (constraints.get("zone") or "").lower()
     for name, params in zones.items():
-        if name.lower() in z:
-            return name, params
-    for name, params in zones.items():  # keyword fallback (skip short stopwords)
-        if any(w in z for w in name.lower().split() if len(w) > 4):
-            return name, params
-    return None, None
+        if name.lower() in zt:
+            return name, params, "exact"
+    # heuristic: match on a DISCRIMINATING signal (density/type), not common words like "habitation"
+    signals = ("villa", "faible", "moyenne", "forte", "centr", "historique",
+               "publique", "ferrov", "parc", "rives", "forest", "verdure", "détente", "sportif")
+    zt_sig = [s for s in signals if s in zt]
+    for name, params in zones.items():
+        if any(s in name.lower() for s in zt_sig):
+            return name, params, "keyword"
+    return None, None, None
 
 
 def tag(provenance):
@@ -207,35 +204,42 @@ def main():
             print(f"[unknown] swisstopo indisponible ({type(ex).__name__}); bascule sur la parcelle de démo.")
             egrid = DEMO_EGRID
     egrid = egrid or DEMO_EGRID
+    c = fetch_constraints(egrid)
+    if c.get("area_official"):
+        area = float(c["area_official"])
 
-    print(f"[api] Parcelle nº     : {number or '—'}")
+    print(f"[api] Parcelle nº     : {number or c.get('parcel') or '—'}")
     print(f"[api] EGRID          : {egrid}")
-    print(f"[api] Surface parcelle: {fmt(area,' m²') if area else '— (non calculée)'}")
+    src_area = "registre foncier" if c.get("area_official") else "calculée"
+    print(f"[api] Surface parcelle: {fmt(area,' m²') if area else '—'} ({src_area})")
 
     print("-" * 72)
     print("CONTRAINTES (sources officielles)")
-    c = fetch_constraints(egrid)
-    print(f"      · source       : {c.get('_source','—')}" + (f"  ({c['_bytes']} o)" if c.get("_bytes") else ""))
-    print(f"[api] Zone affectation: {c.get('zone','—')}")
-    print(f"[api] Sensibilité bruit: {c.get('ds','—')}")
+    print(f"      · source       : {c.get('_source','—')}")
+    print(f"[api] Zone affectation: {c.get('zone') or '—'}")
+    print(f"[api] Sensibilité bruit: {c.get('ds') or '—'}")
     print(f"[api] Alignements     : {', '.join(c.get('alignments') or []) or '—'}")
     print(f"[api] Lois applicables: {', '.join(c.get('laws') or []) or '—'}")
-    if c.get("not_concerned"):
-        print(f"[api] Non concerné par : {', '.join(c['not_concerned'])}")
+    nc = c.get("not_concerned") or []
+    if nc:
+        print(f"[api] Non concerné par : {', '.join(nc[:4])}" + (f" … (+{len(nc)-4})" if len(nc) > 4 else ""))
+    if c.get("plans"):
+        print(f"[api] Plans légalisés : {len(c['plans'])} document(s) liés")
 
     print("-" * 72)
     print("ENVELOPPE CONSTRUCTIBLE (règlement communal + calcul)")
-    rpga = load_rpga()
-    zname, zp = match_zone(rpga, c)
+    rpga = load_rpga(c.get("commune"))
+    zname, zp, how = match_zone(rpga, c)
     if not rpga:
-        print("[unknown] Ruleset RPGA Lausanne non encore ingéré (pilot/lausanne/rpga_zones.json).")
-        print("          -> indices/hauteurs en attente d'ingestion. Le reste de la chaîne fonctionne.")
+        print(f"[unknown] Ruleset communal non ingéré pour « {c.get('commune','?')} » (couche commune à ajouter).")
     elif not zp:
-        print(f"[unknown] Zone communale non appariée pour « {c.get('zone','?')} ».")
+        print(f"[unknown] Zone communale non appariée pour « {c.get('zone','?')} » ({c.get('commune','?')}).")
     else:
         prov = zp.get("provenance") or {}
-        print(f"      · zone RPGA    : {zname}")
+        print(f"      · zone RPGA    : {zname}  [{c.get('commune','?')}]")
         print(f"      · source       : {prov.get('article','?')} — confiance {prov.get('confidence','?')}")
+        if how == "keyword":
+            print("      · note         : appariement type OEREB → zone communale APPROXIMATIF (à confirmer sur le plan)")
         ibus, ius, ios = zp.get("ibus"), zp.get("ius"), zp.get("ios")
         idx = ibus if ibus is not None else ius
         idx_name = "IBUS" if ibus is not None else "IUS"
@@ -249,8 +253,13 @@ def main():
             print(f"[RPGA] IOS            : {ios:g}")
             if area:
                 print(f"[calc] Emprise sol max: {area*ios:,.0f} m²".replace(",", "'"))
-        hc = zp.get("height_corniche_m")
-        print(f"[RPGA] Hauteur corniche: {f'{hc:g} m' if hc is not None else 'calée sur le bâti contigu (non métrique, art. 89)'}")
+        hc, hf = zp.get("height_corniche_m"), zp.get("height_faite_m")
+        if hc is not None:
+            print(f"[RPGA] Hauteur corniche: {hc:g} m")
+        if hf is not None:
+            print(f"[RPGA] Hauteur faîte  : {hf:g} m")
+        if hc is None and hf is None:
+            print("[RPGA] Hauteur        : non fixée numériquement (gabarit / contiguïté — voir règles)")
         if zp.get("levels_max") is not None:
             print(f"[RPGA] Niveaux max     : {zp.get('levels_max'):g}")
         if zp.get("setback_min_m") is not None:

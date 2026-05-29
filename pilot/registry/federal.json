@@ -1,0 +1,12 @@
+{
+  "level": "federal",
+  "jurisdiction": "CH",
+  "description": "Shared Swiss core — always active for any parcel in Switzerland (the 'federal' layer of the regulatory route).",
+  "units": [
+    {"id": "CH-LAT", "title": "Loi fédérale sur l'aménagement du territoire (LAT/RPG)", "ref": "RS 700", "url": "https://www.fedlex.admin.ch/eli/cc/1979/1573_1573_1573/fr", "scope": "Séparation zones à bâtir / hors zone; densification (LAT 1)", "confidence": "high"},
+    {"id": "CH-OPB", "title": "Ordonnance sur la protection contre le bruit (OPB)", "ref": "RS 814.41", "url": "https://www.fedlex.admin.ch/eli/cc/1987/338_338_338/fr", "scope": "Valeurs limites de bruit; degrés de sensibilité DS I-IV (assignés par zone)", "confidence": "high"},
+    {"id": "CH-LHand", "title": "Loi sur l'égalité pour les handicapés (LHand)", "ref": "RS 151.3", "url": "https://www.fedlex.admin.ch/eli/cc/2003/667/fr", "scope": "Accessibilité des constructions (mise en oeuvre technique via norme SIA 500)", "confidence": "medium"},
+    {"id": "CH-AEAI", "title": "Prescriptions de protection incendie AEAI", "ref": "AEAI 2015 (concordat AIET)", "url": "https://www.bsvonline.ch/fr/prescriptions-de-protection-incendie/", "scope": "Protection incendie — déclarées contraignantes par les cantons (droit obligatoire, distinct des normes SIA)", "confidence": "medium"}
+  ],
+  "note": "LAT and OPB refs/URLs verified from a live VD OEREB extract (2026-05-29). LHand/AEAI refs are well-established; URLs to re-verify before production."
+}

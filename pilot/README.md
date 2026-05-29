@@ -42,9 +42,20 @@ still performing the live OEREB fetch (shown as byte count).
 
 ## Files
 
-- `mvp1_demo.py` — the end-to-end demonstrator.
-- `lausanne/rpga_zones.json` — ingested per-zone building rules (indices/heights), with provenance + confidence.
-- `lausanne/INGESTION.md` — how the règlement was ingested, sources, in-force status, gaps.
+- `mvp1_demo.py` — the end-to-end demonstrator (commune-aware: Lausanne, Pully).
+- `oereb.py` — robust VD OEREB/RDPPF parser; works for **any VD parcel** (`python pilot/oereb.py <EGRID>`).
+- `selector.py` — the **regulatory route**: composes Federal + canton + commune layers (`python pilot/selector.py`).
+- `registry/federal.json`, `registry/canton_vd.json` — shared CH core + VD cantonal layer (refs verified from a live OEREB extract).
+- `lausanne/`, `pully/` — per-commune ingested rulesets (`rpga_zones.json`) + `INGESTION.md` (sources, in-force status, gaps).
+  Lausanne is **geometric/IUS**; Pully is **IOS 20 %** — the same engine absorbs both styles (run `selector.py` to see it).
+
+## The regulatory route (selector)
+
+```
+python pilot/selector.py     # shows: CH/federal + VD/cantonal + {Lausanne|Pully}/communal, only active layers consulted
+```
+Adding a commune = drop a `<slug>/rpga_zones.json`. Adding a country = add a federal/canton/commune layer set;
+the selector logic is unchanged (see docs/strategy/knowledge-architecture.md).
 
 ## The gap this closes
 

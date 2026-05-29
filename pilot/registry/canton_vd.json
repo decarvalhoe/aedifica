@@ -1,0 +1,13 @@
+{
+  "level": "cantonal",
+  "jurisdiction": "VD",
+  "description": "Vaud cantonal overlay — active when canton = VD. Refs/URLs verified from a live VD OEREB extract (2026-05-29).",
+  "units": [
+    {"id": "VD-LATC", "title": "Loi sur l'aménagement du territoire et les constructions (LATC)", "ref": "BLV 700.11", "url": "https://prestations.vd.ch/pub/blv-publication/actes/consolide/700.11", "scope": "Cadre cantonal des constructions + procédure de permis", "confidence": "high"},
+    {"id": "VD-RLATC", "title": "Règlement d'application de la LATC (constructions)", "ref": "BLV 700.11.1", "url": "https://prestations.vd.ch/pub/blv-publication/actes/consolide/700.11.1", "scope": "Détails d'application de la LATC", "confidence": "high"},
+    {"id": "VD-RAT", "title": "Règlement sur l'aménagement du territoire (RAT)", "ref": "BLV 700.11.2", "url": "https://prestations.vd.ch/pub/blv-publication/actes/consolide/700.11.2", "scope": "Aménagement du territoire (plans d'affectation)", "confidence": "high"},
+    {"id": "VD-RLPE", "title": "Règlement cantonal d'application de la LPE (environnement)", "ref": "BLV 814.01.1", "url": "https://prestations.vd.ch/pub/blv-publication/actes/consolide/814.01.1", "scope": "Protection de l'environnement (mise en oeuvre cantonale)", "confidence": "high"},
+    {"id": "VD-LRou", "title": "Loi sur les routes", "ref": "BLV 725.01", "url": "https://prestations.vd.ch/pub/blv-publication/actes/consolide/725.01", "scope": "Routes; alignements / limites des constructions", "confidence": "high"},
+    {"id": "VD-procedure", "title": "Permis de construire — mise à l'enquête + synthèse CAMAC", "ref": "LATC + RLATC", "url": "https://www.vd.ch/themes/territoire-et-construction/constructions", "scope": "Enquête publique ~30 j, oppositions, recours (CDAP); CAMAC = centrale des autorisations / synthèse cantonale", "confidence": "high"}
+  ]
+}

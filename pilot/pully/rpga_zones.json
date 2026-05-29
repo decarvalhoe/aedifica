@@ -1,0 +1,69 @@
+{
+  "commune": "Pully",
+  "ingested_at": "2026-05-29",
+  "document": {
+    "title": "Règlement communal sur l'aménagement du territoire et les constructions (RCATC)",
+    "version": "RCATC 2017 (modification du RCATC 2012; abroge le règlement de 1983). Plan général d'affectation (PGA/PACom) — dernière adaptation 2001. Zone réservée communale depuis 2023 (overlay: indice de pleine terre 50% + protection patrimoine note 3) n'altérant PAS les indices/hauteurs/niveaux. Révision Pully 2040 en cours, NON adoptée.",
+    "in_force": "2017-11-03 (approuvé 7.9.2017; en vigueur 3.11.2017)",
+    "url": "https://www.pully.ch/media/kx2bz5gf/rcatc-2017-final-2017-11-03.pdf",
+    "note": "Pully utilise un INDICE D'OCCUPATION DU SOL (IOS) — PAS d'IUS/IBUS. IOS = emprise au sol max 20% (1:5) dans TOUTES les zones à bâtir (Art. 10). Densité = IOS 20% + niveaux + hauteur au faîte + distances géométriques. Régime HYBRIDE: indice d'emprise (IOS) + gabarit. Hauteurs exprimées AU FAÎTE (pas à la corniche)."
+  },
+  "zones": {
+    "Zone de villas": {
+      "ius": null, "ibus": null, "ios": 0.20,
+      "height_corniche_m": null, "height_faite_m": 10.0, "levels_max": 3, "setback_min_m": 5.0,
+      "other": "Niveaux = rez + 1 étage + combles. IOS 20% (1:5) (Art. 10). Réservée aux villas (<=3 logements, Art. 38). Ordre non contigu par défaut (Art. 8). Distance limites 5,00 m pour façade <=16 m, +0,30 m/m au-delà; si hauteur corniche >10 m, distance augmentée du dépassement (Art. 16). Longueur façade max 30,00 m (Art. 15).",
+      "provenance": {
+        "article": "Art. 39 al. 1-2 (hauteur/niveaux), Art. 38 (destination), Art. 10 (IOS), Art. 16 (distances)",
+        "url": "https://www.pully.ch/media/kx2bz5gf/rcatc-2017-final-2017-11-03.pdf",
+        "verbatim": "Art. 39: «1 Le nombre de niveaux est limité à 3, soit rez-de-chaussée, un étage et combles. 2 La hauteur au faîte, mesurée conformément à l'article 19, est limitée à 10.00 m.» Art. 10: «Dans toutes les zones à bâtir, il ne peut excéder les 20 % (1:5) de la surface de celle-ci.»",
+        "confidence": "high"
+      }
+    },
+    "Zone d'habitation à faible densité": {
+      "ius": null, "ibus": null, "ios": 0.20,
+      "height_corniche_m": null, "height_faite_m": 12.0, "levels_max": 3, "setback_min_m": 5.0,
+      "other": "Niveaux = rez + 1 étage + combles. IOS 20% (Art. 10). Ordre non contigu par défaut (Art. 8). Longueur façade max 30,00 m (Art. 15). Distances Art. 16. Surcombles / 1 niveau sous rez en forte pente admis sous conditions (Art. 37 al. 2-3).",
+      "provenance": {
+        "article": "Art. 37 al. 1 (hauteur/niveaux), Art. 10 (IOS), Art. 16, Art. 15, Art. 8",
+        "url": "https://www.pully.ch/media/kx2bz5gf/rcatc-2017-final-2017-11-03.pdf",
+        "verbatim": "«Le nombre de niveaux est limité à 3, soit le rez-de-chaussée, un étage et combles. La hauteur au faîte, calculée conformément à l'article 19, est limitée à 12.00 m.»",
+        "confidence": "high"
+      }
+    },
+    "Zone d'habitation à moyenne densité": {
+      "ius": null, "ibus": null, "ios": 0.20,
+      "height_corniche_m": null, "height_faite_m": 15.0, "levels_max": 4, "setback_min_m": 5.0,
+      "other": "Niveaux = rez + 2 étages + combles. IOS 20% (Art. 10). Ordre non contigu par défaut (Art. 8). Mêmes distances (Art. 16), longueur (Art. 15), surcombles (Art. 37 al. 2-3).",
+      "provenance": {
+        "article": "Art. 37 al. 1 (hauteur/niveaux), Art. 10 (IOS), Art. 16",
+        "url": "https://www.pully.ch/media/kx2bz5gf/rcatc-2017-final-2017-11-03.pdf",
+        "verbatim": "«Le nombre de niveaux est limité à 4, soit le rez-de-chaussée, deux étages et combles. La hauteur au faîte, calculée conformément à l'article 19, est limitée à 15.00 m.»",
+        "confidence": "high"
+      }
+    },
+    "Zone d'habitation à forte densité": {
+      "ius": null, "ibus": null, "ios": 0.20,
+      "height_corniche_m": null, "height_faite_m": 18.0, "levels_max": 5, "setback_min_m": 5.0,
+      "other": "Niveaux = rez + 3 étages + combles. IOS 20% (Art. 10). Ordre non contigu par défaut (Art. 8). Mêmes distances (Art. 16), longueur (Art. 15). Logement + activités compatibles; commerces/surfaces de vente <=500 m² par unité (Art. 36).",
+      "provenance": {
+        "article": "Art. 37 al. 1 (hauteur/niveaux), Art. 10 (IOS), Art. 36 (destination), Art. 16",
+        "url": "https://www.pully.ch/media/kx2bz5gf/rcatc-2017-final-2017-11-03.pdf",
+        "verbatim": "«Le nombre de niveaux est limité à 5, soit le rez-de-chaussée, trois étages et combles. La hauteur au faîte, calculée conformément à l'article 19, est limitée à 18.00 m.»",
+        "confidence": "high"
+      }
+    },
+    "Zone de constructions d'utilité publique": {
+      "ius": null, "ibus": null, "ios": 0.20,
+      "height_corniche_m": null, "height_faite_m": 12.0, "levels_max": null, "setback_min_m": 5.0,
+      "other": "Hauteur au faîte 12,00 m pour aménagements sport/loisirs, locaux techniques et édicules publics jusqu'à 200 m² de surface bâtie. Tout projet dérogeant à la zone adjacente la plus restrictive => plan partiel d'affectation ou plan de quartier (Art. 41 al. 1). Niveaux non fixés. IOS 20% (Art. 10, 'toutes les zones à bâtir').",
+      "provenance": {
+        "article": "Art. 41 (constructions/hauteur), Art. 40 (destination), Art. 10 (IOS)",
+        "url": "https://www.pully.ch/media/kx2bz5gf/rcatc-2017-final-2017-11-03.pdf",
+        "verbatim": "Art. 41 al. 2: «...les édicules publics jusqu'à 200 m2 de surface bâtie [...]. La hauteur au faîte de ces constructions est limitée à 12.00 m.»",
+        "confidence": "medium"
+      }
+    }
+  },
+  "demo_parcel_zone": null
+}
