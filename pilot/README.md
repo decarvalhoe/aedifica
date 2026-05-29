@@ -47,6 +47,7 @@ still performing the live OEREB fetch (shown as byte count).
 - `opposition_radar.py` — MVP2 opposition/recours-risk radar (`python pilot/opposition_radar.py [addr] [height_m]`).
 - `fiche.py` — printable **A4 HTML fiche** per parcel combining constraints + envelope + radar (`python pilot/fiche.py [addr] [height_m]` → `pilot/out/`).
 - `selector.py` — the **regulatory route**: composes Federal + canton + commune layers (`python pilot/selector.py`).
+- `selfcheck.py` — offline smoke test of the pure logic, no network (`python pilot/selfcheck.py`, 20 checks).
 - `registry/federal.json`, `registry/canton_vd.json` — shared CH core + VD cantonal layer (refs verified from a live OEREB extract).
 - `lausanne/`, `pully/` — per-commune ingested rulesets (`rpga_zones.json`) + `INGESTION.md` (sources, in-force status, gaps).
   Lausanne is **geometric/IUS**; Pully is **IOS 20 %** — the same engine absorbs both styles (run `selector.py` to see it).
