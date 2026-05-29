@@ -4,6 +4,8 @@ This contract is the first Aedifica permit-readiness surface for phase `33`. It 
 ACTIS-CAMAC and the competent authority remain the receiving and deciding rails. Aedifica pre-checks whether
 the architect has assembled the expected evidence before filing.
 
+Product spec: [`../specs/mvp2-permit-dossier-assistant.md`](../specs/mvp2-permit-dossier-assistant.md).
+
 ## Files
 
 - Checklist: `pilot/permit/vd_camac_checklist.json`

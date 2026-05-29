@@ -14,14 +14,16 @@ Deliverables:
 
 ## Recommended MVP Track
 
-The recommended sequence is:
+The revised sequence is:
 
-1. NOMOS Archi Intake.
-2. Auto-BIM / Model Intelligence.
-3. Permit Dossier Assistant.
-4. Direction Travaux Agentique.
+1. MVP0 Foundation: neutral engine, NOMOS, trust contract, packs, source registry.
+2. MVP1 NOMOS Archi Intake: parcel -> sourced constraints + buildable envelope.
+3. MVP2 Permit & Opposition: opposition radar, permit completeness, phase `33` compliance gates.
+4. MVP3 Fees, Cost & Tender: SIA 102 fees, eCCC/NPK/CFC bridge, offer comparison.
+5. MVP4 Project Memory & Coordination: site, decisions, handover, operation memory.
 
-Tendering and voice-to-design remain important, but they should follow the first validated project memory and model-intelligence loop.
+Auto-BIM/Archicad remains a live hybrid demo track for the partner office, but it is not the product identity
+and should not block the regulatory/project-intelligence wedge.
 
 ## MVP 1: NOMOS Archi Intake
 
@@ -49,39 +51,42 @@ Success criteria:
 - The output is useful to an architect before drawing starts.
 - Constraints are structured enough to drive later model checks.
 
-## MVP 2: Auto-BIM / Model Intelligence
+## MVP 2: Permit & Opposition
 
-Goal: inspect a BIM/model state, detect missing or inconsistent project information, propose corrections, apply approved updates through the available adapter, and export deliverables.
+Goal: prepare and audit permit dossier completeness for a selected Swiss commune/canton, and surface
+opposition/recours risks early enough to change the project.
 
 Initial capabilities:
 
-- Connect first through the most practical project adapter: IFC, Speckle, Archicad JSON/Tapir/Add-On, or another available model source.
-- Extract spaces, elements, attributes, properties, and classifications.
-- Run missing metadata checks.
-- Apply property updates after approval.
-- Export IFC/PDF/DWG where supported.
-- Generate a traceable report.
-
-Success criteria:
-
-- Saves measurable time on real model cleanup.
-- Produces better IFC/property completeness than manual baseline.
-- Does not break the model.
-- Keeps a clear before/after audit trail.
-
-Note: Archicad is an excellent first real-world adapter because of the initial user context, but this MVP should validate a general model-intelligence capability.
-
-## MVP 3: Permit Dossier Assistant
-
-Goal: prepare and audit permit dossier completeness for a selected Swiss commune/canton.
-
-Capabilities:
-
+- Opposition-risk radar from parcel, heritage/noise/neighbourhood/shadow signals.
 - Commune/canton checklist.
 - Required document matrix.
 - Missing document detection.
+- Phase `33` compliance gates with legal/contractual typing.
 - Regulation citation support.
-- Draft notices and justification text.
+- Draft notes and justification text.
+
+Success criteria:
+
+- Detects missing required permit evidence before filing.
+- Distinguishes legal/authority-triggered obligations from contractual BIM conventions.
+- Produces a human-reviewable report with source IDs, dates, and unknowns.
+- Does not claim to replace ACTIS-CAMAC, commune, canton, architect, or specialists.
+
+Spec: [`specs/mvp2-permit-dossier-assistant.md`](specs/mvp2-permit-dossier-assistant.md).
+
+## MVP 3: Fees, Cost & Tender
+
+Goal: connect architect fees, cost structures, quantities, and tendering.
+
+Capabilities:
+
+- SIA 102 fee and profitability cockpit.
+- eCCC/NPK/CFC bridge, including `.crbx` / IfA18 where useful.
+- Quantity extraction or import from plans/model snapshots.
+- Draft tender descriptions.
+- Offer comparison.
+- Assumption and exclusion tracking.
 
 ## MVP 4: Direction Travaux Agentique
 
@@ -97,17 +102,21 @@ Capabilities:
 - Cost and schedule alerts.
 - Handover dossier.
 
-## Later Track: Tender and Quantity Workflows
+## Later Track: Auto-BIM / Model Intelligence
 
-Goal: support calls for tender from BIM/model context.
+Goal: inspect a BIM/model state, detect missing or inconsistent project information, propose corrections, apply approved updates through the available adapter, and export deliverables.
 
 Capabilities:
 
-- Extract quantities.
-- Map quantities to CFC/eCCC or office structure.
-- Draft tender descriptions.
-- Compare offers.
-- Track assumptions and exclusions.
+- Connect first through the most practical project adapter: IFC, Speckle, Archicad JSON/Tapir/Add-On, or another available model source.
+- Extract spaces, elements, attributes, properties, and classifications.
+- Run missing metadata checks.
+- Apply property updates after approval.
+- Export IFC/PDF/DWG where supported.
+- Generate a traceable report.
+
+Note: Archicad is an excellent first real-world adapter because of the initial user context, but this track
+should validate a general model-intelligence capability.
 
 ## Later Track: Voice-to-Design Workflow
 

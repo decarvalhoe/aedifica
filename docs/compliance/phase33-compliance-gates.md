@@ -3,6 +3,8 @@
 This contract models permit-readiness checks as explicit gates instead of generic advice. It separates legal or
 authority-triggered obligations from project-conventional BIM requirements.
 
+Product spec: [`../specs/mvp2-permit-dossier-assistant.md`](../specs/mvp2-permit-dossier-assistant.md).
+
 ## Files
 
 - Gates: `pilot/compliance/ch_phase33_gates.json`

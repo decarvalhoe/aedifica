@@ -57,7 +57,8 @@ Références de construction:
 [`research/swiss-phase-lifecycle-matrix.md`](research/swiss-phase-lifecycle-matrix.md),
 [`research/pilot-source-registry.md`](research/pilot-source-registry.md),
 [`permit/vd-camac-permit-completeness.md`](permit/vd-camac-permit-completeness.md),
-[`compliance/phase33-compliance-gates.md`](compliance/phase33-compliance-gates.md).
+[`compliance/phase33-compliance-gates.md`](compliance/phase33-compliance-gates.md),
+[`specs/mvp2-permit-dossier-assistant.md`](specs/mvp2-permit-dossier-assistant.md).
 
 ## 6 · Contexte suisse — 3 niveaux + parcelle
 
@@ -139,8 +140,8 @@ fil Archicad) ; pilote **Vaud / Lausanne** ; cold-start **hybride** (ingestion �
 1. Adjacence de voisinage réelle + ombres sur la volumétrie réelle (radar).
 2. Passage à l'échelle : plus de communes (ingestion à la demande).
 3. Formaliser le **moteur neutre + packs** (ADR [#22](https://github.com/decarvalhoe/aedifica/issues/22)).
-4. Spécifier l'assistant permis complet ([#17](https://github.com/decarvalhoe/aedifica/issues/17)) au-dessus des
-   contrats CAMAC/compliance déjà validés ; copilote **honoraires/coûts**
+4. Prochain bloc produit : régime de connaissance projet ([#25](https://github.com/decarvalhoe/aedifica/issues/25))
+   puis copilote **honoraires/coûts**
    ([#29](https://github.com/decarvalhoe/aedifica/issues/29)/[#30](https://github.com/decarvalhoe/aedifica/issues/30)).
 
 ## 12 · Carte des documents (où lire quoi)
@@ -157,6 +158,7 @@ fil Archicad) ; pilote **Vaud / Lausanne** ; cold-start **hybride** (ingestion �
 | La matrice phase par phase validée | [`research/swiss-phase-lifecycle-matrix.md`](research/swiss-phase-lifecycle-matrix.md) |
 | Le registre de sources pilote | [`research/pilot-source-registry.md`](research/pilot-source-registry.md) |
 | La spec MVP1 | [`specs/mvp1-parcel-constraints-intake.md`](specs/mvp1-parcel-constraints-intake.md) |
+| La spec assistant permis | [`specs/mvp2-permit-dossier-assistant.md`](specs/mvp2-permit-dossier-assistant.md) |
 | La preuve API (Lausanne) | [`strategy/poc-lausanne-parcel.md`](strategy/poc-lausanne-parcel.md) |
 | Le pilote (code) | [`../pilot/README.md`](../pilot/README.md) |
 
