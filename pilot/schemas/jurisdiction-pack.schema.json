@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aedifica.local/schemas/jurisdiction-pack.schema.json",
+  "title": "Aedifica pilot jurisdiction pack",
+  "description": "Human-readable contract for pilot regulatory packs. CI currently enforces this shape through pilot/validate_packs.py to keep the pilot stdlib-only.",
+  "oneOf": [
+    { "$ref": "#/$defs/registryPack" },
+    { "$ref": "#/$defs/communePack" }
+  ],
+  "$defs": {
+    "sourceVersion": {
+      "type": "object",
+      "required": ["source_status", "verified_at", "review_due"],
+      "additionalProperties": true,
+      "properties": {
+        "source_status": { "type": "string", "minLength": 1 },
+        "verified_at": { "type": "string", "format": "date" },
+        "review_due": { "type": "string", "format": "date" },
+        "notes": { "type": "string" }
+      }
+    },
+    "confidence": {
+      "enum": ["high", "medium", "low"]
+    },
+    "registryPack": {
+      "type": "object",
+      "required": ["schema_version", "source_version", "level", "jurisdiction", "description", "units"],
+      "properties": {
+        "schema_version": { "const": "1.0" },
+        "source_version": { "$ref": "#/$defs/sourceVersion" },
+        "level": { "enum": ["federal", "cantonal"] },
+        "jurisdiction": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "units": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "title", "ref", "url", "scope", "confidence"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "title": { "type": "string", "minLength": 1 },
+              "ref": { "type": "string", "minLength": 1 },
+              "url": { "type": "string", "minLength": 1 },
+              "scope": { "type": "string", "minLength": 1 },
+              "confidence": { "$ref": "#/$defs/confidence" }
+            }
+          }
+        }
+      }
+    },
+    "nullableNumber": {
+      "anyOf": [
+        { "type": "number" },
+        { "type": "null" }
+      ]
+    },
+    "zone": {
+      "type": "object",
+      "required": [
+        "ius",
+        "ibus",
+        "ios",
+        "height_corniche_m",
+        "height_faite_m",
+        "levels_max",
+        "setback_min_m",
+        "other",
+        "provenance"
+      ],
+      "properties": {
+        "ius": { "$ref": "#/$defs/nullableNumber" },
+        "ibus": { "$ref": "#/$defs/nullableNumber" },
+        "ios": { "$ref": "#/$defs/nullableNumber" },
+        "height_corniche_m": { "$ref": "#/$defs/nullableNumber" },
+        "height_faite_m": { "$ref": "#/$defs/nullableNumber" },
+        "levels_max": { "$ref": "#/$defs/nullableNumber" },
+        "setback_min_m": { "$ref": "#/$defs/nullableNumber" },
+        "other": { "type": "string", "minLength": 1 },
+        "provenance": {
+          "type": "object",
+          "required": ["article", "url", "confidence"],
+          "properties": {
+            "article": { "type": "string", "minLength": 1 },
+            "url": { "type": "string", "minLength": 1 },
+            "verbatim": { "type": "string" },
+            "confidence": { "$ref": "#/$defs/confidence" }
+          }
+        }
+      }
+    },
+    "communePack": {
+      "type": "object",
+      "required": ["schema_version", "source_version", "commune", "ingested_at", "document", "zones"],
+      "properties": {
+        "schema_version": { "const": "1.0" },
+        "source_version": { "$ref": "#/$defs/sourceVersion" },
+        "commune": { "type": "string", "minLength": 1 },
+        "ingested_at": { "type": "string", "format": "date" },
+        "document": {
+          "type": "object",
+          "required": ["title", "version", "in_force", "url", "note"],
+          "properties": {
+            "title": { "type": "string", "minLength": 1 },
+            "version": { "type": "string", "minLength": 1 },
+            "in_force": { "type": "string", "minLength": 1 },
+            "url": { "type": "string", "minLength": 1 },
+            "note": { "type": "string", "minLength": 1 }
+          }
+        },
+        "zones": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "$ref": "#/$defs/zone" }
+        }
+      }
+    }
+  }
+}

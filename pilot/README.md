@@ -56,9 +56,17 @@ still performing the live OEREB fetch (shown as byte count).
 
 ```
 python pilot/selector.py     # shows: CH/federal + VD/cantonal + {Lausanne|Pully}/communal, only active layers consulted
+python pilot/validate_packs.py
 ```
 Adding a commune = drop a `<slug>/rpga_zones.json`. Adding a country = add a federal/canton/commune layer set;
 the selector logic is unchanged (see docs/strategy/knowledge-architecture.md).
+
+## Pack contract and CI
+
+Each regulatory pack declares a `schema_version` and `source_version` (`verified_at`, `review_due`, status).
+`python pilot/validate_packs.py` checks the contract with stdlib only; `python pilot/selfcheck.py` includes
+that validator in the offline smoke suite. GitHub Actions runs both on pushes and PRs. See
+[`../docs/architecture/jurisdiction-pack-contract.md`](../docs/architecture/jurisdiction-pack-contract.md).
 
 ## The gap this closes
 

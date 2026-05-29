@@ -1,4 +1,11 @@
 {
+  "schema_version": "1.0",
+  "source_version": {
+    "source_status": "live_verified",
+    "verified_at": "2026-05-29",
+    "review_due": "2026-11-29",
+    "notes": "Refs/URLs verified from a live VD OEREB extract and VD public legal pages."
+  },
   "level": "cantonal",
   "jurisdiction": "VD",
   "description": "Vaud cantonal overlay — active when canton = VD. Refs/URLs verified from a live VD OEREB extract (2026-05-29).",

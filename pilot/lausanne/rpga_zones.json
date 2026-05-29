@@ -1,4 +1,11 @@
 {
+  "schema_version": "1.0",
+  "source_version": {
+    "source_status": "official_document_ingested",
+    "verified_at": "2026-05-29",
+    "review_due": "2026-11-29",
+    "notes": "RPGA values are pilot-ingested from the official Lausanne PDF; re-check if MPGA/PACom adoption changes the urban zoning contract."
+  },
   "commune": "Lausanne",
   "ingested_at": "2026-05-29",
   "document": {

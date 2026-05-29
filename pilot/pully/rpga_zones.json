@@ -1,4 +1,11 @@
 {
+  "schema_version": "1.0",
+  "source_version": {
+    "source_status": "official_document_ingested",
+    "verified_at": "2026-05-29",
+    "review_due": "2026-11-29",
+    "notes": "RCATC values are pilot-ingested from the official Pully PDF; re-check Pully 2040 and zone reserve changes before production use."
+  },
   "commune": "Pully",
   "ingested_at": "2026-05-29",
   "document": {

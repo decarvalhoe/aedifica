@@ -83,7 +83,8 @@ Code Python (stdlib), ancré sur les **API publiques gratuites** suisses, pouss�
 | `selector.py` | **route réglementaire** : fédéral + canton + commune | ✅ |
 | `lausanne/` + `pully/` | **2 communes ingérées**, sourcées (Lausanne PGA 2006 géométrique/IUS ; Pully RCATC 2017 IOS) | ✅ |
 | `fiche.py` | **fiche A4 imprimable** (contraintes + enveloppe + radar) | ✅ |
-| `selfcheck.py` | tests hors-ligne | ✅ 20/20 |
+| `validate_packs.py` | contrat/versioning des packs réglementaires (stdlib) | ✅ |
+| `selfcheck.py` | tests hors-ligne | ✅ 23/23 |
 
 **Preuve réelle** (parcelle Place de la Palud, Lausanne, nº 10072) : Zone centrale 15 LAT · DS III ·
 alignements · LATC/LAT — en quelques secondes, **sans maquette ni identifiant**. Validé aussi sur Pully.
@@ -92,11 +93,14 @@ alignements · LATC/LAT — en quelques secondes, **sans maquette ni identifiant
 python pilot/mvp1_demo.py        ["adresse"|EGRID] [hauteur]
 python pilot/opposition_radar.py ["adresse"]        [hauteur]
 python pilot/fiche.py            ["adresse"]        [hauteur]   # → pilot/out/*.html
-python pilot/selector.py    ·    python pilot/selfcheck.py
+python pilot/selector.py    ·    python pilot/validate_packs.py    ·    python pilot/selfcheck.py
 ```
 
 > Limite assumée : l'**enveloppe numérique** (indices/hauteurs) n'est **pas** en open data — uniquement dans
 > les PDF communaux → ingestion par commune (couche capitalisable). Le radar est **indicatif**.
+
+Un premier contrat de pack versionné est documenté dans
+[`architecture/jurisdiction-pack-contract.md`](architecture/jurisdiction-pack-contract.md) et validé par CI.
 
 ## 9 · Backlog & gouvernance
 

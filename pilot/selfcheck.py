@@ -20,6 +20,7 @@ import oereb              # noqa: E402
 import selector          # noqa: E402
 import opposition_radar as radar  # noqa: E402
 import mvp1_demo as demo  # noqa: E402
+import validate_packs    # noqa: E402
 
 _n = _fail = 0
 
@@ -86,6 +87,12 @@ communes = selector.list_communes()
 check("selector discovers Lausanne + Pully", "Lausanne" in communes and "Pully" in communes)
 r = selector.route("CH", "VD", "Lausanne")
 check("route = 3 active layers", len(r["active"]) == 3)
+
+print("Jurisdiction pack contract")
+report = validate_packs.validate_all()
+check("all jurisdiction packs validate", not report.errors)
+check("schema version declared", all(item["schema_version"] == "1.0" for item in report.items))
+check("source version metadata declared", all(item["source_version"] for item in report.items))
 
 print("-" * 48)
 print(f"{_n - _fail}/{_n} checks passed" + ("" if not _fail else f"  ({_fail} FAILED)"))

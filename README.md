@@ -51,6 +51,7 @@ One strong validation track is **Swiss Auto-BIM for small and mid-sized offices*
 - `docs/strategy/`: strategy deep-dive — challenge & brainstorm, architect reality, Swiss regulatory stack, knowledge architecture, decisions, Lausanne PoC.
 - `docs/research/`: Swiss architecture lifecycle, phase-agentic matrix, sources.
 - `docs/architecture/`: target system architecture + first universal API/MCP surface.
+- `docs/architecture/jurisdiction-pack-contract.md`: versioned regulatory-pack contract + CI validation rules.
 - `docs/nomos/nomos-archi.md`: NOMOS adaptation for architecture.
 - `docs/specs/mvp1-parcel-constraints-intake.md`: implementation-ready MVP1 spec.
 - `docs/mvp-roadmap.md`: staged MVP plan.
@@ -65,4 +66,5 @@ Concept + strategy + a **working pilot**. A strategy deep-dive ([`docs/strategy/
 product around **registry-anchored regulatory/project intelligence** (neutral engine + Swiss jurisdiction packs),
 and a runnable pilot ([`pilot/`](pilot/)) demonstrates **MVP1** (parcel → sourced constraints + buildable envelope)
 and an **MVP2 opposition-risk radar** on real Vaud parcels (Lausanne + Pully) via free public Swiss APIs.
-See **[`docs/overview.md`](docs/overview.md)** for the up-to-date global plan. Not production-ready (prototypes; re-verify sources).
+See **[`docs/overview.md`](docs/overview.md)** for the up-to-date global plan. The pilot now has an offline
+CI path and a versioned jurisdiction-pack contract, but it is still not production-ready (prototypes; re-verify sources).

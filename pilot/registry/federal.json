@@ -1,4 +1,11 @@
 {
+  "schema_version": "1.0",
+  "source_version": {
+    "source_status": "live_verified",
+    "verified_at": "2026-05-29",
+    "review_due": "2026-11-29",
+    "notes": "LAT and OPB refs/URLs verified from a live VD OEREB extract; LHand/AEAI URLs require production re-check."
+  },
   "level": "federal",
   "jurisdiction": "CH",
   "description": "Shared Swiss core — always active for any parcel in Switzerland (the 'federal' layer of the regulatory route).",
