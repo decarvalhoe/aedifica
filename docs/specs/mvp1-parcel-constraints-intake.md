@@ -49,7 +49,7 @@ version + retrieval date); anything inferred is `assumption` and visibly flagged
 ## 6. Outputs (data model)
 
 1. **Source registry** — every source with `{id, type(federal|cantonal|communal|parcel), uri, version, retrieved_at, allowed_use}`.
-2. **Constraint matrix** — list of canonical units (see §7), each phase-tagged and source-linked.
+2. **Constraint matrix** — list of canonical units (see §7), each phase-tagged, source-linked, and tied to a phase-specific action (see [`../nomos/phase-aware-constraint-matrix.md`](../nomos/phase-aware-constraint-matrix.md)).
 3. **Buildable envelope** — `{zone, IUS, IBUS, IOS, max_height, setbacks{N,E,S,W}, max_levels, DS_noise, alignments[], derived_max_SBP, est_units}` — each field carrying `provenance` (api | document | assumption | unknown).
 4. **Risk list** — constraints likely to block/shrink (e.g. alignment, DS, servitude, protected fabric).
 5. **Unknowns & required human decisions** — what's missing to proceed.

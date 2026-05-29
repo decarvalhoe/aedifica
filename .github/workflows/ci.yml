@@ -30,5 +30,8 @@ jobs:
       - name: Validate jurisdiction packs
         run: python pilot/validate_packs.py
 
+      - name: Validate phase-aware constraint matrices
+        run: python pilot/validate_matrix.py
+
       - name: Run offline pilot selfcheck
         run: python pilot/selfcheck.py

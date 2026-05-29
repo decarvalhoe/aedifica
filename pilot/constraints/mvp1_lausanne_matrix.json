@@ -1,0 +1,222 @@
+{
+  "matrix_version": "1.0",
+  "matrix_id": "MATRIX-CH-VD-LAUSANNE-MVP1",
+  "title": "MVP1 phase-aware constraint matrix for Lausanne/VD parcel intake",
+  "scope": "Pilot matrix for parcel-driven constraints, envelope, permit handoff, and downstream responsibility signals.",
+  "phase_model": {
+    "source": "SIA 112:2014 / SIA 102 practice, with pre-SIA intake phase 0",
+    "jurisdiction_pack": "CH",
+    "notes": "Phase 0 is an Aedifica intake extension. Codes 11-63 follow the Swiss SIA backbone used in docs/strategy/architect-reality.md."
+  },
+  "project_context": {
+    "country": "CH",
+    "canton_or_region": "VD",
+    "commune": "Lausanne",
+    "demo_parcel": "10072",
+    "demo_egrid": "CH915772367853",
+    "knowledge_regime": "context_first"
+  },
+  "phases": [
+    {"phase_code": "0", "label": "Initialisation / intake Aedifica"},
+    {"phase_code": "11", "label": "Enonce des besoins"},
+    {"phase_code": "21", "label": "Definition du projet, etude de faisabilite"},
+    {"phase_code": "22", "label": "Procedure de choix des mandataires"},
+    {"phase_code": "31", "label": "Avant-projet"},
+    {"phase_code": "32", "label": "Projet de l'ouvrage"},
+    {"phase_code": "33", "label": "Procedure de demande d'autorisation"},
+    {"phase_code": "41", "label": "Appel d'offres, comparaison, adjudication"},
+    {"phase_code": "51", "label": "Projet d'execution"},
+    {"phase_code": "52", "label": "Execution de l'ouvrage"},
+    {"phase_code": "53", "label": "Mise en service, achevement"},
+    {"phase_code": "61", "label": "Fonctionnement"},
+    {"phase_code": "62", "label": "Surveillance, controle, entretien"},
+    {"phase_code": "63", "label": "Maintenance"}
+  ],
+  "constraints": [
+    {
+      "constraint_id": "CTX-REGULATORY-ROUTE",
+      "title": "Regulatory route must scope claims to Federal + VD + Lausanne",
+      "domain": "knowledge",
+      "claim_state": "sourced",
+      "owner": "Aedifica engine",
+      "verification": "document_check",
+      "outputs": ["active_layer_list", "source_registry", "constraints_brief"],
+      "source_refs": [
+        {"source_id": "ADR-0001", "locator": "Decision", "valid_as_of": "2026-05-29", "confidence": "high"},
+        {"source_id": "JURISDICTION-PACK-CONTRACT", "locator": "Version Contract", "valid_as_of": "2026-05-29", "confidence": "high"}
+      ],
+      "phase_applicability": [
+        {"phase_code": "0", "relevance": "blocker", "action": "Resolve project country, canton, and commune before rendering regulatory claims."},
+        {"phase_code": "11", "relevance": "handoff", "action": "Carry selected route into needs analysis and feasibility context."}
+      ]
+    },
+    {
+      "constraint_id": "PARCEL-OEREB-IDENTITY",
+      "title": "Parcel identity, EGRID, official area, and RDPPF extract are required",
+      "domain": "parcel",
+      "claim_state": "sourced",
+      "owner": "Architect / Aedifica intake",
+      "verification": "api_check",
+      "outputs": ["parcel_ref", "egrid", "official_area", "oereb_extract_ref"],
+      "source_refs": [
+        {"source_id": "VD-OEREB", "locator": "EGRID CH915772367853", "valid_as_of": "2026-05-29", "confidence": "high"},
+        {"source_id": "SWISSTOPO-CADASTRE", "locator": "ch.kantone.cadastralwebmap-farbe", "valid_as_of": "2026-05-29", "confidence": "medium"}
+      ],
+      "phase_applicability": [
+        {"phase_code": "0", "relevance": "blocker", "action": "Fetch and store parcel identity before constraint calculation."},
+        {"phase_code": "21", "relevance": "check", "action": "Recheck identity when feasibility scenarios use parcel area or geometry."},
+        {"phase_code": "33", "relevance": "deliverable", "action": "Use the verified parcel identity in permit dossier references."}
+      ]
+    },
+    {
+      "constraint_id": "ZONING-COMMUNAL-MATCH",
+      "title": "OEREB zoning label must be mapped to a commune ruleset zone",
+      "domain": "zoning",
+      "claim_state": "sourced",
+      "owner": "Architect / Aedifica intake",
+      "verification": "document_check",
+      "outputs": ["communal_zone", "zone_match_confidence", "zone_rules"],
+      "source_refs": [
+        {"source_id": "VD-OEREB", "locator": "Zone centrale 15 LAT", "valid_as_of": "2026-05-29", "confidence": "high"},
+        {"source_id": "LAUSANNE-RPGA-2006", "locator": "Chapitre 4.1, Art. 83-94", "valid_as_of": "2026-05-29", "confidence": "high"}
+      ],
+      "phase_applicability": [
+        {"phase_code": "0", "relevance": "blocker", "action": "Resolve commune zone or mark envelope as unknown."},
+        {"phase_code": "21", "relevance": "blocker", "action": "Use the matched zone to test feasibility and massing limits."},
+        {"phase_code": "31", "relevance": "check", "action": "Confirm the zone match against the plan before design commitment."},
+        {"phase_code": "33", "relevance": "deliverable", "action": "Cite the matched zone and source locator in permit notes."}
+      ]
+    },
+    {
+      "constraint_id": "ENVELOPE-GEOMETRIC-CENTRE-HISTORIQUE",
+      "title": "Centre historique envelope is governed by geometric context, not a fixed IUS/IBUS",
+      "domain": "envelope",
+      "claim_state": "sourced",
+      "owner": "Architect",
+      "verification": "document_check",
+      "outputs": ["envelope_summary", "unknowns_list", "human_review_request"],
+      "source_refs": [
+        {"source_id": "LAUSANNE-RPGA-2006", "locator": "Art. 87-91", "valid_as_of": "2026-05-29", "confidence": "high"}
+      ],
+      "phase_applicability": [
+        {"phase_code": "21", "relevance": "blocker", "action": "Do not compute a numeric SBP max from IUS/IBUS; use gabarit context."},
+        {"phase_code": "31", "relevance": "check", "action": "Review contiguous buildings, cornice line, roof gabarit, and depth before concept freeze."},
+        {"phase_code": "32", "relevance": "check", "action": "Coordinate architectural massing with geometric constraints."},
+        {"phase_code": "33", "relevance": "deliverable", "action": "Expose the geometric-rule basis in the authorization dossier."}
+      ]
+    },
+    {
+      "constraint_id": "NOISE-DS-III",
+      "title": "Noise sensitivity degree affects use, acoustic risk, and permit checks",
+      "domain": "acoustics",
+      "claim_state": "sourced",
+      "owner": "Architect / acoustician when mandated",
+      "verification": "api_check",
+      "outputs": ["noise_ds", "acoustic_check_flag"],
+      "source_refs": [
+        {"source_id": "VD-OEREB", "locator": "Degré de sensibilité III", "valid_as_of": "2026-05-29", "confidence": "high"},
+        {"source_id": "CH-OPB", "locator": "RS 814.41", "valid_as_of": "2026-05-29", "confidence": "high"}
+      ],
+      "phase_applicability": [
+        {"phase_code": "21", "relevance": "inform", "action": "Flag noise sensitivity in the feasibility brief."},
+        {"phase_code": "32", "relevance": "check", "action": "Coordinate acoustic requirements with the project concept when use or exposure requires it."},
+        {"phase_code": "33", "relevance": "deliverable", "action": "Include acoustic justification if the permit dossier requires it."},
+        {"phase_code": "53", "relevance": "check", "action": "Retain acoustic evidence for commissioning if acoustic performance was a project requirement."}
+      ]
+    },
+    {
+      "constraint_id": "ALIGNMENT-LIMIT",
+      "title": "Construction alignment is present and must be confirmed before design commitment",
+      "domain": "roads_alignments",
+      "claim_state": "sourced",
+      "owner": "Architect / surveyor when mandated",
+      "verification": "api_check",
+      "outputs": ["alignment_flag", "survey_request"],
+      "source_refs": [
+        {"source_id": "VD-OEREB", "locator": "Limite des constructions definie par un plan approuve", "valid_as_of": "2026-05-29", "confidence": "high"},
+        {"source_id": "VD-LRou", "locator": "BLV 725.01", "valid_as_of": "2026-05-29", "confidence": "high"}
+      ],
+      "phase_applicability": [
+        {"phase_code": "0", "relevance": "inform", "action": "Flag alignment in unknowns and risk list."},
+        {"phase_code": "21", "relevance": "blocker", "action": "Confirm precise line before relying on envelope."},
+        {"phase_code": "31", "relevance": "check", "action": "Check concept against the alignment."},
+        {"phase_code": "33", "relevance": "deliverable", "action": "Include alignment compliance evidence in authorization if required."},
+        {"phase_code": "51", "relevance": "check", "action": "Carry confirmed line into execution drawings."},
+        {"phase_code": "52", "relevance": "check", "action": "Use confirmed setting-out data before site execution."}
+      ]
+    },
+    {
+      "constraint_id": "SERVITUDES-LAND-REGISTER",
+      "title": "Land-register servitudes are not available through the free pilot pipeline",
+      "domain": "servitudes",
+      "claim_state": "unknown",
+      "owner": "Architect",
+      "verification": "manual_review",
+      "outputs": ["unknowns_list", "human_action"],
+      "source_refs": [],
+      "phase_applicability": [
+        {"phase_code": "0", "relevance": "blocker", "action": "Mark servitudes as unknown before feasibility conclusions."},
+        {"phase_code": "21", "relevance": "blocker", "action": "Request land-register verification before committing to envelope or access assumptions."},
+        {"phase_code": "31", "relevance": "check", "action": "Confirm servitude impacts before concept freeze."},
+        {"phase_code": "33", "relevance": "deliverable", "action": "Carry relevant servitude evidence into permit dossier if needed."}
+      ]
+    },
+    {
+      "constraint_id": "PERMIT-COMPLETENESS-HANDOFF",
+      "title": "Phase 33 needs a source-backed dossier completeness checklist",
+      "domain": "permit",
+      "claim_state": "assumption",
+      "owner": "Architect",
+      "verification": "manual_review",
+      "outputs": ["permit_checklist_seed", "issue_28_handoff"],
+      "source_refs": [],
+      "phase_applicability": [
+        {"phase_code": "31", "relevance": "handoff", "action": "Collect expected permit documents before phase 33."},
+        {"phase_code": "32", "relevance": "handoff", "action": "Prepare calculations, plans, notices, and justifications for authorization."},
+        {"phase_code": "33", "relevance": "blocker", "action": "Run dossier completeness check before filing."}
+      ]
+    },
+    {
+      "constraint_id": "COMPLIANCE-GATES-HANDOFF",
+      "title": "Energy, fire, accessibility, and seismic gates must become explicit checks",
+      "domain": "compliance",
+      "claim_state": "sourced",
+      "owner": "Architect / mandated specialists",
+      "verification": "document_check",
+      "outputs": ["compliance_gate_seed", "issue_33_handoff"],
+      "source_refs": [
+        {"source_id": "ARCHITECT-REALITY", "locator": "Section 5", "valid_as_of": "2026-05-29", "confidence": "medium"}
+      ],
+      "phase_applicability": [
+        {"phase_code": "21", "relevance": "inform", "action": "Flag mandatory compliance families early."},
+        {"phase_code": "32", "relevance": "check", "action": "Coordinate specialist evidence before authorization."},
+        {"phase_code": "33", "relevance": "blocker", "action": "Block permit-readiness if mandatory compliance evidence is missing."},
+        {"phase_code": "51", "relevance": "check", "action": "Carry approved compliance assumptions into execution project."},
+        {"phase_code": "52", "relevance": "check", "action": "Track execution changes that could invalidate compliance evidence."},
+        {"phase_code": "53", "relevance": "deliverable", "action": "Retain commissioning evidence where required."}
+      ]
+    },
+    {
+      "constraint_id": "DECISION-LEDGER-CARRYOVER",
+      "title": "Every phase handoff must carry decisions, assumptions, unknowns, and approvals",
+      "domain": "trust",
+      "claim_state": "sourced",
+      "owner": "Aedifica engine / Architect",
+      "verification": "document_check",
+      "outputs": ["ledger_entries", "handoff_summary"],
+      "source_refs": [
+        {"source_id": "TRUST-CONTRACT-LEDGER", "locator": "Ledger Entry Schema", "valid_as_of": "2026-05-29", "confidence": "high"}
+      ],
+      "phase_applicability": [
+        {"phase_code": "0", "relevance": "deliverable", "action": "Create initial decision and unknowns ledger."},
+        {"phase_code": "21", "relevance": "handoff", "action": "Carry feasibility assumptions into preliminary studies."},
+        {"phase_code": "31", "relevance": "handoff", "action": "Record concept decisions and unresolved risks."},
+        {"phase_code": "32", "relevance": "handoff", "action": "Record coordination decisions and specialist responsibilities."},
+        {"phase_code": "33", "relevance": "handoff", "action": "Record filed dossier basis and approvals."},
+        {"phase_code": "41", "relevance": "handoff", "action": "Carry permit and design assumptions into tender documents."},
+        {"phase_code": "52", "relevance": "handoff", "action": "Track site decisions and changed assumptions against the ledger."},
+        {"phase_code": "53", "relevance": "deliverable", "action": "Close out final evidence and residual warranty/defect obligations."}
+      ]
+    }
+  ]
+}

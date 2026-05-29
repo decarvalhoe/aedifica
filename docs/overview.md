@@ -52,6 +52,7 @@ MOTEUR NEUTRE (universel)                         JURISDICTION PACK : CH (1er)
 Références de construction:
 [`architecture/adr-0001-neutral-engine-and-jurisdiction-packs.md`](architecture/adr-0001-neutral-engine-and-jurisdiction-packs.md),
 [`nomos/nomos-archi-schema-v0.md`](nomos/nomos-archi-schema-v0.md),
+[`nomos/phase-aware-constraint-matrix.md`](nomos/phase-aware-constraint-matrix.md),
 [`architecture/trust-contract-and-ledger.md`](architecture/trust-contract-and-ledger.md).
 
 ## 6 · Contexte suisse — 3 niveaux + parcelle
@@ -89,8 +90,9 @@ Code Python (stdlib), ancré sur les **API publiques gratuites** suisses, pouss�
 | `lausanne/` + `pully/` | **2 communes ingérées**, sourcées (Lausanne PGA 2006 géométrique/IUS ; Pully RCATC 2017 IOS) | ✅ |
 | `fiche.py` | **fiche A4 imprimable** (contraintes + enveloppe + radar) | ✅ |
 | `validate_packs.py` | contrat/versioning des packs réglementaires (stdlib) | ✅ |
+| `validate_matrix.py` | validation de la matrice phase-aware MVP1 | ✅ |
 | `trust.py` | footer/contrat de rendu non-autoritaire partagé par les sorties pilote | ✅ |
-| `selfcheck.py` | tests hors-ligne | ✅ 25/25 |
+| `selfcheck.py` | tests hors-ligne | ✅ 28/28 |
 
 **Preuve réelle** (parcelle Place de la Palud, Lausanne, nº 10072) : Zone centrale 15 LAT · DS III ·
 alignements · LATC/LAT — en quelques secondes, **sans maquette ni identifiant**. Validé aussi sur Pully.

@@ -56,6 +56,7 @@ One strong validation track is **Swiss Auto-BIM for small and mid-sized offices*
 - `docs/architecture/jurisdiction-pack-contract.md`: versioned regulatory-pack contract + CI validation rules.
 - `docs/nomos/nomos-archi.md`: NOMOS adaptation for architecture.
 - `docs/nomos/nomos-archi-schema-v0.md`: initial canonical-unit schema for sources, rules, constraints, decisions, evidence, checks, and actions.
+- `docs/nomos/phase-aware-constraint-matrix.md`: phase-aware matrix contract connecting constraints to SIA-phase actions.
 - `docs/specs/mvp1-parcel-constraints-intake.md`: implementation-ready MVP1 spec.
 - `docs/mvp-roadmap.md`: staged MVP plan.
 - `docs/review/foundations-audit.md`: living corrections tracker.

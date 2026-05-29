@@ -21,6 +21,7 @@ import selector          # noqa: E402
 import opposition_radar as radar  # noqa: E402
 import mvp1_demo as demo  # noqa: E402
 import validate_packs    # noqa: E402
+import validate_matrix   # noqa: E402
 import trust             # noqa: E402
 
 _n = _fail = 0
@@ -99,6 +100,12 @@ print("Output trust contract")
 footer = trust.render_footer("fr")
 check("trust footer marks output non-authoritative", "jamais une autorité" in footer)
 check("known provenance tags include api/RPGA/calc/unknown", {"api", "RPGA", "calc", "unknown"}.issubset(trust.PROVENANCE_TAGS))
+
+print("Phase-aware constraint matrix")
+matrix_report = validate_matrix.validate_all()
+check("all constraint matrices validate", not matrix_report.errors)
+check("pilot matrix includes authorization phase", any("33" in item["phase_codes"] for item in matrix_report.items))
+check("pilot matrix includes downstream phases", any({"41", "52"}.issubset(set(item["phase_codes"])) for item in matrix_report.items))
 
 print("-" * 48)
 print(f"{_n - _fail}/{_n} checks passed" + ("" if not _fail else f"  ({_fail} FAILED)"))

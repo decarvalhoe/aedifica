@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aedifica.local/schemas/constraint-matrix.schema.json",
+  "title": "Aedifica phase-aware constraint matrix",
+  "description": "Human-readable JSON Schema for the pilot matrix. CI enforces the same shape through pilot/validate_matrix.py to keep the pilot stdlib-only.",
+  "type": "object",
+  "required": ["matrix_version", "matrix_id", "title", "phase_model", "phases", "constraints"],
+  "properties": {
+    "matrix_version": { "const": "1.0" },
+    "matrix_id": { "type": "string", "minLength": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "scope": { "type": "string" },
+    "phase_model": { "type": "object" },
+    "project_context": { "type": "object" },
+    "phases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["phase_code", "label"],
+        "properties": {
+          "phase_code": { "type": "string", "minLength": 1 },
+          "label": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "constraints": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/constraint" }
+    }
+  },
+  "$defs": {
+    "sourceRef": {
+      "type": "object",
+      "required": ["source_id", "locator", "valid_as_of", "confidence"],
+      "properties": {
+        "source_id": { "type": "string", "minLength": 1 },
+        "locator": { "type": "string", "minLength": 1 },
+        "valid_as_of": { "type": "string", "minLength": 1 },
+        "confidence": { "enum": ["high", "medium", "low"] }
+      }
+    },
+    "phaseApplicability": {
+      "type": "object",
+      "required": ["phase_code", "relevance", "action"],
+      "properties": {
+        "phase_code": { "type": "string", "minLength": 1 },
+        "relevance": { "enum": ["inform", "check", "blocker", "deliverable", "handoff"] },
+        "action": { "type": "string", "minLength": 1 }
+      }
+    },
+    "constraint": {
+      "type": "object",
+      "required": [
+        "constraint_id",
+        "title",
+        "domain",
+        "claim_state",
+        "owner",
+        "verification",
+        "outputs",
+        "phase_applicability"
+      ],
+      "properties": {
+        "constraint_id": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "domain": { "type": "string", "minLength": 1 },
+        "claim_state": { "enum": ["sourced", "computed", "assumption", "unknown", "conflict", "decision"] },
+        "owner": { "type": "string", "minLength": 1 },
+        "verification": { "enum": ["manual_review", "document_check", "api_check", "calculation", "adapter_check", "not_available"] },
+        "outputs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "source_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sourceRef" }
+        },
+        "phase_applicability": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/phaseApplicability" }
+        }
+      }
+    }
+  }
+}

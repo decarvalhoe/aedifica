@@ -4,6 +4,8 @@ NOMOS Archi adapts the canonical-first method to architecture projects.
 
 The concrete initial schema is maintained in
 [`nomos-archi-schema-v0.md`](nomos-archi-schema-v0.md). This page gives the conceptual overview.
+Phase-specific handling is maintained in
+[`phase-aware-constraint-matrix.md`](phase-aware-constraint-matrix.md).
 
 ## Purpose
 
