@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aedifica — ArchiOS Suisse · One-pager</title>
+<style>
+  :root{
+    --ink:#16202b; --slate:#46566a; --mute:#7d8a99; --line:#dfe4ea;
+    --accent:#b5673f; --accent2:#1f6f6b; --stone:#f5f3ef; --panel:#fafbfc;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink); line-height:1.45; font-size:11px; background:#e9ebee;
+  }
+  .page{
+    width:210mm; min-height:297mm; margin:10px auto; background:#fff; padding:14mm 14mm 12mm;
+    box-shadow:0 2px 18px rgba(0,0,0,.12);
+  }
+  h1{font-size:27px; letter-spacing:.5px; margin:0; font-weight:800}
+  h1 .sub{color:var(--accent); font-weight:800}
+  .kicker{font-size:9.5px; letter-spacing:2.5px; text-transform:uppercase; color:var(--mute); margin:0 0 4px}
+  .tag{font-size:13px; color:var(--slate); margin:6px 0 0; font-weight:500}
+  .lab{font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--accent2); font-weight:700; margin:0 0 7px}
+  header{border-bottom:2px solid var(--ink); padding-bottom:12px; display:flex; justify-content:space-between; align-items:flex-end}
+  header .right{text-align:right; color:var(--mute); font-size:9.5px; line-height:1.5}
+
+  .thesis{background:var(--ink); color:#fff; padding:13px 16px; border-radius:5px; margin:14px 0 16px; display:grid; grid-template-columns:auto 1fr; gap:16px; align-items:center}
+  .thesis .big{font-size:30px; font-weight:800; color:#fff; line-height:1; white-space:nowrap}
+  .thesis .big small{display:block; font-size:10px; font-weight:600; color:var(--accent); letter-spacing:1px; margin-top:3px}
+  .thesis p{margin:0; font-size:11.5px; color:#dfe4ea}
+  .thesis b{color:#fff}
+
+  .phases{display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin:6px 0 4px}
+  .ph{border:1px solid var(--line); border-top:3px solid var(--accent2); border-radius:4px; padding:7px 7px 8px; background:var(--panel)}
+  .ph .code{font-size:14px; font-weight:800; color:var(--ink)}
+  .ph .nm{font-size:8.5px; text-transform:uppercase; letter-spacing:.4px; color:var(--mute); margin:1px 0 5px; min-height:20px}
+  .ph .win{font-size:9.5px; color:var(--slate); line-height:1.32}
+  .ph .pill{display:inline-block; margin-top:5px; font-size:7.5px; letter-spacing:.5px; padding:1px 5px; border-radius:8px; font-weight:700}
+  .nobim{background:#e7f1ee; color:#1f6f6b}
+  .bim{background:#fbeee7; color:#b5673f}
+
+  .cols{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:16px}
+  .panel{border:1px solid var(--line); border-radius:5px; padding:12px 13px; background:var(--panel)}
+  .levels div{display:flex; gap:9px; padding:5px 0; border-bottom:1px dashed var(--line)}
+  .levels div:last-child{border-bottom:0}
+  .levels .lv{font-size:9px; font-weight:800; color:#fff; background:var(--accent2); border-radius:3px; padding:2px 6px; height:fit-content; white-space:nowrap}
+  .levels .lv.p{background:var(--accent)}
+  .levels .tx{font-size:9.7px; color:var(--slate)}
+  .levels .tx b{color:var(--ink)}
+
+  .proof .row{display:flex; justify-content:space-between; padding:3px 0; font-size:9.7px; border-bottom:1px dotted var(--line)}
+  .proof .row span:first-child{color:var(--mute)}
+  .proof .row b{color:var(--ink)}
+  .proof .note{font-size:9px; color:var(--mute); margin-top:7px; font-style:italic}
+  .chk{color:#1f6f6b; font-weight:800}
+
+  .demo{margin-top:15px; border-top:1px solid var(--line); padding-top:11px}
+  .demo ol{margin:6px 0 0; padding-left:0; counter-reset:d; list-style:none; display:grid; grid-template-columns:repeat(5,1fr); gap:8px}
+  .demo li{counter-increment:d; font-size:9.3px; color:var(--slate); position:relative; padding-left:20px}
+  .demo li::before{content:counter(d); position:absolute; left:0; top:-1px; width:15px; height:15px; background:var(--ink); color:#fff; border-radius:50%; font-size:9px; font-weight:800; display:flex; align-items:center; justify-content:center}
+  .demo li b{color:var(--ink)}
+
+  footer{margin-top:14px; border-top:2px solid var(--ink); padding-top:9px; display:flex; justify-content:space-between; font-size:9px; color:var(--mute)}
+  footer b{color:var(--ink)}
+  .accentbar{height:4px; background:linear-gradient(90deg,var(--accent) 0 45%,var(--accent2) 45% 100%); border-radius:3px; margin:2px 0 0}
+
+  @media print{
+    body{background:#fff; font-size:10.5px}
+    .page{box-shadow:none; margin:0; width:auto; min-height:auto; padding:0}
+    @page{size:A4; margin:12mm}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div>
+      <p class="kicker">Assistant agentique pour l'architecte · Contexte suisse</p>
+      <h1>AEDIFICA <span class="sub">— ArchiOS Suisse</span></h1>
+      <p class="tag">L'intelligence qui accompagne <b>tout</b> le projet d'architecture — de la parcelle à la livraison finale.</p>
+    </div>
+    <div class="right">
+      Pilote&nbsp;: <b style="color:var(--ink)">Vaud / Lausanne</b><br>
+      Ancrage&nbsp;: Fédéral · Cantonal · Communal<br>
+      Sans dépendance à un logiciel
+    </div>
+  </header>
+
+  <div class="thesis">
+    <div class="big">5&nbsp;%<small>« l'IA qui dessine »</small></div>
+    <p>Le rêve de <b>parler à une IA qui dessine le bâtiment</b> est séduisant — mais c'est une toute petite partie du métier.
+    La vraie valeur&nbsp;: <b>un gain concret à chaque étape</b> du mandat — orientation, contraintes, faisabilité, coordination,
+    permis, soumissions, chantier, remise, mémoire — <b>sourcé et tracé</b>, dans vos outils. <b>Le dessin est la plus petite partie du travail.</b></p>
+  </div>
+
+  <p class="lab">Ce qu'Aedifica fait, phase SIA par phase</p>
+  <div class="phases">
+    <div class="ph"><div class="code">0–1</div><div class="nm">Intake · Faisabilité</div><div class="win">Parcelle → fiche de contraintes + enveloppe constructible, sourcée.</div><span class="pill nobim">sans BIM</span></div>
+    <div class="ph"><div class="code">2</div><div class="nm">Études prélim.</div><div class="win">Variantes notées vs règles ; dossier de concours.</div><span class="pill nobim">sans BIM</span></div>
+    <div class="ph"><div class="code">31–32</div><div class="nm">Projet</div><div class="win">Contrôles surfaces (SIA 416) ; Auto-BIM Archicad (propriétés, classifications).</div><span class="pill bim">Archicad</span></div>
+    <div class="ph"><div class="code">33</div><div class="nm">Autorisation</div><div class="win">Radar de risque d'opposition + complétude du dossier (CAMAC/VD).</div><span class="pill nobim">sans BIM</span></div>
+    <div class="ph"><div class="code">41</div><div class="nm">Appel d'offres</div><div class="win">Métré → eCCC → NPK/CAN, soumissions .crbx, comparaison.</div><span class="pill bim">modèle utile</span></div>
+    <div class="ph"><div class="code">51–52</div><div class="nm">Réalisation</div><div class="win">PV de chantier, minutes → tâches, suivi des défauts, alertes coûts/délais.</div><span class="pill nobim">sans BIM</span></div>
+    <div class="ph"><div class="code">53–6</div><div class="nm">Remise · Exploit.</div><div class="win">Dossier de remise + mémoire de projet interrogeable.</div><span class="pill nobim">sans BIM</span></div>
+  </div>
+  <div class="accentbar"></div>
+
+  <div class="cols">
+    <div class="panel">
+      <p class="lab">Ancré dans le contexte suisse — 3 niveaux + parcelle</p>
+      <div class="levels">
+        <div><span class="lv">Fédéral</span><span class="tx"><b>LAT/RPG, OPB (bruit), LHand, AEAI (incendie), énergie CO₂</b> — le cadre.</span></div>
+        <div><span class="lv">Cantonal</span><span class="tx"><b>VD : LATC/RLATC, procédure CAMAC, énergie</b> — le permis et l'essentiel des règles.</span></div>
+        <div><span class="lv">Communal</span><span class="tx"><b>Lausanne : PGA/RPGA, zones, indices, distances, hauteurs</b> — ce que la parcelle autorise.</span></div>
+        <div><span class="lv p">Parcelle</span><span class="tx"><b>RDPPF/ÖREB, registre foncier, servitudes, DS bruit</b> — les droits attachés au terrain.</span></div>
+      </div>
+      <p style="font-size:9px;color:var(--mute);margin:9px 0 0">26 cantons · ~2 100 communes · 4 langues. Cette complexité est le <b style="color:var(--ink)">fossé concurrentiel</b> — pas un logiciel étranger ne la couvre.</p>
+    </div>
+
+    <div class="panel proof">
+      <p class="lab">Déjà possible aujourd'hui — preuve réelle (Lausanne)</p>
+      <div class="row"><span>Parcelle Place de la Palud</span><b>nº 10072 · EGRID CH915772367853</b></div>
+      <div class="row"><span>Zone d'affectation</span><b><span class="chk">✓</span> Zone centrale (15 LAT)</b></div>
+      <div class="row"><span>Degré de sensibilité au bruit</span><b><span class="chk">✓</span> DS III</b></div>
+      <div class="row"><span>Alignements / limites</span><b><span class="chk">✓</span> plan approuvé</b></div>
+      <div class="row"><span>Sites pollués / eaux / forêt</span><b><span class="chk">✓</span> non concernés</b></div>
+      <div class="row"><span>Lois applicables</span><b><span class="chk">✓</span> LATC 700.11, LAT</b></div>
+      <p class="note">Obtenu en quelques secondes via les API publiques gratuites (swisstopo, cadastre RDPPF VD) — sans maquette, sans identifiant. Indices &amp; hauteurs&nbsp;: ajoutés via le règlement communal de Lausanne (couche capitalisable).</p>
+    </div>
+  </div>
+
+  <div class="demo">
+    <p class="lab">À montrer en premier — 5 démos</p>
+    <ol>
+      <li><b>Parcelle → contraintes</b> sourcées (sans modèle)</li>
+      <li><b>Enveloppe constructible</b> « que puis-je bâtir ? »</li>
+      <li><b>Radar d'opposition</b> avant l'enquête — unique</li>
+      <li><b>Auto-BIM Archicad</b> — votre outil, propriétés auto</li>
+      <li><b>PV &amp; minutes → tâches</b> de chantier</li>
+    </ol>
+  </div>
+
+  <footer>
+    <div><b>Produit généralisable</b> : moteur neutre + packs par juridiction (la Suisse = 1ᵉ pack). Internationalisable. <b>Pas un logiciel de dessin.</b></div>
+    <div>Aedifica · 2026</div>
+  </footer>
+
+</div>
+</body>
+</html>
