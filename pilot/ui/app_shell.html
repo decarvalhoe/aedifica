@@ -7,6 +7,14 @@
   <link rel="icon" href="../../docs/design-system/assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../../docs/design-system/colors_and_type.css">
   <link rel="stylesheet" href="../../docs/design-system/aedifica-datum-ui.css">
+  <style>
+    .ds-ts.is-unknown { color: var(--st-unknown, #84847A); }
+    .ds-ts { white-space: nowrap; }
+    .wsr-actions li { margin: 6px 0; }
+    .wsr-val { font-family: var(--font-mono, monospace); }
+    td, th { word-break: break-word; }
+    .dt th:first-child, .dt td:first-child { width: 132px; white-space: nowrap; }
+  </style>
 </head>
 <body class="datum-viewport datum-surface">
   <main class="slide" aria-label="AEDIFICA workspace">
@@ -15,71 +23,41 @@
       <span>DEMO-LAUSANNE-PALUD</span>
       <span><a href="project_intake.html">Intake</a> · <a href="claim_review.html">Claims</a></span>
     </div>
-
     <section class="slide__head">
       <div class="slide__kicker">
-        <span class="snum">§ R1</span>
-        <span class="ds-eyebrow">Projet · sources · modèle · décisions</span>
+        <span class="snum">§ R1B</span>
+        <span class="ds-eyebrow">Projet · route · sources · inconnues</span>
       </div>
-      <h1 class="d-title">Une mémoire projet avant toute action.</h1>
-      <p class="d-lead">
-        Le workspace relie les sources bottom-up, la route réglementaire, les
-        rapports et les futures actions multi-logiciels. Chaque sortie garde son
-        état de preuve et sa limite de non-autorité.
-      </p>
+      <h1 class="d-title">Demo Lausanne Palud</h1>
+      <p class="d-lead">Surface de travail du projet CH · VD · Lausanne — route réglementaire, état des contraintes et prochaines vérifications. Chaque sortie garde son état de preuve.</p>
     </section>
-
     <section class="slide__body">
       <div class="g2" style="height:100%; align-items:stretch">
         <article class="dash">
           <div class="dash__bar">
             <span class="ds-wordmark"><span class="ae">Æ</span>DIFICA</span>
-            <span class="sub">Portefeuille</span>
+            <span class="sub">DEMO-LAUSANNE-PALUD</span>
             <span class="sp mono">CH · VD · Lausanne</span>
           </div>
           <div class="dash__body">
             <div class="g3 gap-tight mobile-g2" style="margin-bottom:14px">
-              <div class="kpi">
-                <div class="kpi__label">Route</div>
-                <div class="kpi__num">3</div>
-                <div class="kpi__foot">couches actives</div>
-              </div>
-              <div class="kpi">
-                <div class="kpi__label">Unknowns</div>
-                <div class="kpi__num">7</div>
-                <div class="kpi__foot"><span class="state-sq" style="color:var(--st-unknown);border-style:dashed;background:transparent"></span>à sourcer</div>
-              </div>
-              <div class="kpi">
-                <div class="kpi__label">Ledger</div>
-                <div class="kpi__num">42</div>
-                <div class="kpi__foot">entrées projet</div>
-              </div>
+              <div class="kpi"><div class="kpi__label">Route</div><div class="kpi__num">3</div><div class="kpi__foot">couches actives</div></div>
+              <div class="kpi"><div class="kpi__label">Sourcé</div><div class="kpi__num">5</div><div class="kpi__foot">contraintes sourcées</div></div>
+              <div class="kpi"><div class="kpi__label">Unknowns</div><div class="kpi__num">5</div><div class="kpi__foot"><span class="state-sq" style="color:var(--st-unknown);border-style:dashed;background:transparent"></span>à sourcer</div></div>
             </div>
-            <table class="dt">
-              <tbody>
-                <tr><td>Parcel brief</td><td><span class="chip" style="color:var(--st-sourced)"><span class="dot"></span>Ready</span></td></tr>
-                <tr><td>Permit readiness</td><td><span class="chip" style="color:var(--st-computed)"><span class="dot"></span>Computed</span></td></tr>
-                <tr><td>Model bridge</td><td><span class="chip" style="color:var(--st-assumption)"><span class="dot"></span>Dry-run</span></td></tr>
-              </tbody>
-            </table>
+            <table class="dt"><tbody><tr><td>CH/federal</td><td><span class='ds-ts is-sourced'><span class='dot'></span>live_verified@2026-05-29</span></td></tr><tr><td>VD/cantonal</td><td><span class='ds-ts is-sourced'><span class='dot'></span>live_verified@2026-05-29</span></td></tr><tr><td>Lausanne/communal</td><td><span class='ds-ts is-sourced'><span class='dot'></span>official_document_ingested@2026-05-29</span></td></tr></tbody></table>
           </div>
         </article>
-
         <aside class="panel panel--ink">
-          <h2>Contrat de lecture.</h2>
-          <p>Préparation sourcée par AEDIFICA. Pas une autorité.</p>
-          <ul>
-            <li>Le rouge Datum marque une référence active, jamais un état de confiance.</li>
-            <li>Les mutations logicielles passent par dry-run, approbation et ledger.</li>
-            <li>Archicad est un premier pont, pas l'identité du produit.</li>
-          </ul>
+          <h2>Prochaines vérifications.</h2>
+          <ul class="wsr-actions"><li>Surface de plancher maximale — Aucun IUS/IBUS numerique n&#x27;est disponible; verifier le gabarit communal et le contexte bati.</li><li>Emprise au sol maximale — Aucun IOS numerique n&#x27;est disponible; verifier les distances, longueurs et gabarits applicables.</li><li>Hauteur a la corniche — Verifier la regle de hauteur dans le reglement communal.</li><li>Hauteur au faite — Verifier la regle de hauteur dans le reglement communal.</li><li>Nombre de niveaux maximal — Verifier niveaux, combles et attiques dans le reglement communal.</li><li>Servitudes du registre foncier — Consulter l&#x27;extrait du registre foncier et les servitudes avant toute decision.</li></ul>
+          
         </aside>
       </div>
     </section>
-
     <footer class="slide__foot">
       <span><b>Préparation sourcée par AEDIFICA. Pas une autorité.</b></span>
-      <span>§ application · dashboard dérivé</span>
+      <span>§ workspace</span>
     </footer>
   </main>
 </body>

@@ -48,6 +48,7 @@ import project_cli  # noqa: E402
 import route_service  # noqa: E402
 import r1b_demo  # noqa: E402
 import workspace_api  # noqa: E402
+import workspace_ui  # noqa: E402
 import urllib.request  # noqa: E402
 import model_bridge_demo  # noqa: E402
 import adapter_snapshots   # noqa: E402
@@ -346,6 +347,32 @@ _sensitive = {"client_name": "Famille Test", "notes": "mail test@example.ch tel 
 _redacted = redaction.redact_artifact(_sensitive)
 check("redaction removes sensitive fields and patterns", not redaction.find_sensitive(_redacted))
 check("redaction does not mutate the original artifact", redaction.find_sensitive(_sensitive))
+
+print("Datum workspace surfaces")
+_demo_project = os.path.join(HERE, "projects", "demo_lausanne_palud")
+shell_html = workspace_ui.render_workspace_shell(_demo_project)
+check("workspace shell loads the fixture project", "DEMO-LAUSANNE-PALUD" in shell_html and "Prochaines vérifications" in shell_html)
+check("workspace shell leads with the working surface, no marketing page", "datum-surface" in shell_html and "slide__body" in shell_html)
+intake_html = workspace_ui.render_parcel_intake(_demo_project)
+check("parcel intake renders address/EGRID/parcel state", "EGRID" in intake_html and "CH915772367853" in intake_html and 'name="address"' in intake_html)
+synthetic_brief = {
+    "claims": [
+        claims.make_claim("UI-S", "Sourced thing", "sourced", "Zone X", source_refs=[{"source_id": "VD-OEREB"}]),
+        claims.make_claim("UI-C", "Computed thing", "computed", 42, formula="a*b", source_refs=[{"source_id": "VD-OEREB"}]),
+        claims.make_claim("UI-A", "Assumed thing", "assumption", "peut-être", required_human_check="Confirmer aupres de architecte responsable"),
+        claims.unknown_claim("UI-U", "Unknown thing", "Verifier le reglement communal"),
+    ]
+}
+claim_html = workspace_ui.render_claim_review(synthetic_brief)
+check(
+    "claim review renders sourced/computed/assumption/unknown states",
+    all(f"{state} · 1" in claim_html for state in ("sourced", "computed", "assumption", "unknown")),
+)
+check("claim review shows the next action for unknown claims", "Verifier le reglement communal" in claim_html)
+check("claim review shows an explicit human-review status for assumptions", "Confirmer aupres de architecte responsable" in claim_html)
+with tempfile.TemporaryDirectory() as tmp:
+    written = workspace_ui.write_surfaces(tmp)
+    check("workspace surfaces writer emits the three screens", set(written) == {"app_shell.html", "project_intake.html", "claim_review.html"})
 
 print("Local workspace HTTP API")
 with tempfile.TemporaryDirectory() as tmp:
