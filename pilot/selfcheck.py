@@ -40,6 +40,7 @@ import validate_site    # noqa: E402
 import validate_workspace  # noqa: E402
 import validate_manifest  # noqa: E402
 import validate_evidence_store  # noqa: E402
+import validate_brief  # noqa: E402
 import evidence_store  # noqa: E402
 import project_cli  # noqa: E402
 import model_bridge_demo  # noqa: E402
@@ -310,6 +311,14 @@ check("real demo manifest satisfies the schema", not validate_manifest.validate_
 check(
     "manifest schema rejects a manifest missing project_id",
     any("project_id" in err for err in validate_manifest.validate_manifest({"schema_version": "1.0"}, manifest_schema)),
+)
+
+print("Project-scoped constraint brief")
+brief_report = validate_brief.validate_all()
+check("project-scoped constraint brief validates against schema", not brief_report.errors)
+check(
+    "brief object bundles constraints, envelope, risks and unknowns",
+    brief_report.items and brief_report.items[0]["serialized_bytes"] > 0,
 )
 
 print("Source and evidence store")

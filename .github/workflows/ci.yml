@@ -39,6 +39,9 @@ jobs:
       - name: Validate source and evidence store
         run: python pilot/validate_evidence_store.py
 
+      - name: Validate project-scoped constraint brief
+        run: python pilot/validate_brief.py
+
       - name: Validate phase-aware constraint matrices
         run: python pilot/validate_matrix.py
 
