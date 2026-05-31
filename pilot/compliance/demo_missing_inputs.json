@@ -1,0 +1,13 @@
+{
+  "inputs_id": "COMPLIANCE-INPUTS-MISSING",
+  "gates_id": "COMPLIANCE-CH-VD-PHASE33",
+  "note": "Energy calc and fire note unknown; accessibility N/A; BIM convention unknown.",
+  "inputs": {
+    "energy_form": "present",
+    "sia_380_1_calculation": "unknown",
+    "fire_safety_note": "unknown",
+    "accessibility_note": "not_applicable",
+    "structural_concept": "present",
+    "seismic_basis": "present"
+  }
+}

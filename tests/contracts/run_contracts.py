@@ -10,6 +10,7 @@ sys.path.insert(0, PILOT)
 import validate_brief  # noqa: E402
 import validate_commune_packs  # noqa: E402
 import validate_compliance  # noqa: E402
+import validate_compliance_report  # noqa: E402
 import validate_cost  # noqa: E402
 import validate_dossier_evidence  # noqa: E402
 import validate_evidence_store  # noqa: E402
@@ -37,6 +38,7 @@ VALIDATORS = [
     validate_permit.validate_all,
     validate_dossier_evidence.validate_all,
     validate_compliance.validate_all,
+    validate_compliance_report.validate_all,
     validate_research.validate_all,
     validate_memory.validate_all,
     validate_ledger.validate_all,

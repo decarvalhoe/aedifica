@@ -60,6 +60,9 @@ jobs:
       - name: Validate compliance gates
         run: python pilot/validate_compliance.py
 
+      - name: Validate phase-33 compliance workspace report
+        run: python pilot/validate_compliance_report.py
+
       - name: Validate research backbone
         run: python pilot/validate_research.py
 

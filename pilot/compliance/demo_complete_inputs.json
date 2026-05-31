@@ -1,0 +1,14 @@
+{
+  "inputs_id": "COMPLIANCE-INPUTS-COMPLETE",
+  "gates_id": "COMPLIANCE-CH-VD-PHASE33",
+  "note": "All required phase-33 evidence present; BIM convention is contractual.",
+  "inputs": {
+    "energy_form": "present",
+    "sia_380_1_calculation": "present",
+    "fire_safety_note": "present",
+    "accessibility_note": "present",
+    "structural_concept": "present",
+    "seismic_basis": "present",
+    "digital_information_convention": "present"
+  }
+}

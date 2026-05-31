@@ -49,6 +49,8 @@ import permit_state  # noqa: E402
 import validate_dossier_evidence  # noqa: E402
 import permit_mapping  # noqa: E402
 import permit_readiness  # noqa: E402
+import validate_compliance_report  # noqa: E402
+import compliance_report as compliance_report_mod  # noqa: E402
 import redaction  # noqa: E402
 import evidence_store  # noqa: E402
 import project_cli  # noqa: E402
@@ -232,6 +234,19 @@ print("Phase 33 compliance gates")
 compliance_report = validate_compliance.validate_all()
 check("compliance gates validate", not compliance_report.errors)
 check("compliance gates distinguish legal from contractual", any(item["has_contractual_not_legal"] for item in compliance_report.items))
+
+print("Phase 33 compliance workspace report")
+compliance_report_validation = validate_compliance_report.validate_all()
+check("phase-33 compliance workspace report validates", not compliance_report_validation.errors)
+_gates_doc = load("compliance", "ch_phase33_gates.json")
+_complete_inputs = load("compliance", "demo_complete_inputs.json")["inputs"]
+_missing_inputs = load("compliance", "demo_missing_inputs.json")["inputs"]
+_complete_compliance = compliance_report_mod.build_compliance_report(_gates_doc, _complete_inputs)
+_missing_compliance = compliance_report_mod.build_compliance_report(_gates_doc, _missing_inputs)
+check("compliance report separates legal from contractual BIM gates", _complete_compliance["legal_contractual_separated"] and any(g["domain"] == "bim" for g in _complete_compliance["contractual"]))
+check("complete compliance inputs produce no legal blockers", _complete_compliance["summary"]["legal_blockers"] == 0)
+check("unknown compliance inputs produce legal blockers and next actions", _missing_compliance["summary"]["legal_blockers"] > 0 and _missing_compliance["next_actions"])
+check("compliance report renders legal and contractual sections", "Obligations légales" in compliance_report_mod.render_compliance_html(_missing_compliance) and "Conventions contractuelles" in compliance_report_mod.render_compliance_html(_missing_compliance))
 
 print("Research backbone")
 research_report = validate_research.validate_all()
