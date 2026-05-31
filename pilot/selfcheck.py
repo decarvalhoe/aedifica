@@ -47,6 +47,8 @@ import evidence_store  # noqa: E402
 import project_cli  # noqa: E402
 import route_service  # noqa: E402
 import r1b_demo  # noqa: E402
+import workspace_api  # noqa: E402
+import urllib.request  # noqa: E402
 import model_bridge_demo  # noqa: E402
 import adapter_snapshots   # noqa: E402
 import workspace          # noqa: E402
@@ -344,6 +346,34 @@ _sensitive = {"client_name": "Famille Test", "notes": "mail test@example.ch tel 
 _redacted = redaction.redact_artifact(_sensitive)
 check("redaction removes sensitive fields and patterns", not redaction.find_sensitive(_redacted))
 check("redaction does not mutate the original artifact", redaction.find_sensitive(_sensitive))
+
+print("Local workspace HTTP API")
+with tempfile.TemporaryDirectory() as tmp:
+    status_health, _ = workspace_api.route_request("GET", "/api/health", None, tmp)
+    check("API health endpoint returns ok", status_health == 200)
+    status_create, created_payload = workspace_api.route_request(
+        "POST", "/api/projects", {"project_id": "API-SELFCHECK-1", "name": "API selfcheck"}, tmp
+    )
+    check("API creates a project with structured payload", status_create == 201 and "created" in created_payload)
+    status_missing, missing_payload = workspace_api.route_request("POST", "/api/projects", {}, tmp)
+    check("API returns structured 400 for missing fields", status_missing == 400 and missing_payload["error"]["code"] == "MISSING_FIELDS")
+    status_404, _ = workspace_api.route_request("GET", "/api/projects/NOPE", None, tmp)
+    check("API returns 404 for unknown project", status_404 == 404)
+    # brief endpoint against a copy of the offline fixture
+    shutil.copytree(os.path.join(HERE, "projects", "demo_lausanne_palud"), os.path.join(tmp, "demo_lausanne_palud"))
+    status_brief, brief_payload = workspace_api.route_request("POST", "/api/projects/DEMO-LAUSANNE-PALUD/brief", {}, tmp)
+    check("API generates a brief from an offline fixture", status_brief == 200 and brief_payload["unknowns_count"] > 0)
+    # live socket smoke
+    api_server = workspace_api.serve("127.0.0.1", 0, tmp)
+    api_thread = threading.Thread(target=api_server.serve_forever, daemon=True)
+    api_thread.start()
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{api_server.server_port}/api/health", timeout=5) as resp:
+            live_health = json.loads(resp.read().decode("utf-8"))
+    finally:
+        api_server.shutdown()
+        api_server.server_close()
+    check("API answers a live HTTP health request", live_health.get("status") == "ok")
 
 print("R1B end-to-end demo")
 with tempfile.TemporaryDirectory() as tmp:
