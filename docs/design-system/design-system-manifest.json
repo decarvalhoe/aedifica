@@ -5,6 +5,12 @@
   "status": "validated",
   "basedOn": "Validated direction 02A Datum (source of truth: project 0b56b66b)",
   "direction": "02A — Datum · radical Swiss · architectonic · evidence-backed",
+  "sourcePackage": {
+    "file": "C:/Users/decarvalhoe/Downloads/AEDIFICA — Datum Design System.zip",
+    "status": "absolute reference integrated",
+    "integratedAt": "2026-05-31",
+    "rule": "The ZIP package is the complete design-system source. README.md, SKILL.md, colors_and_type.css, design_system/, preview/, screenshots/, assets/ and fonts/ must remain byte-for-byte aligned with it unless the source package is regenerated."
+  },
   "brandBook": {
     "file": "aedifica-brand-book.html",
     "status": "canonical corrected Claude Design export",

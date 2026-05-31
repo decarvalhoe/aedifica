@@ -27,6 +27,7 @@ except Exception:
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import oereb            # noqa: E402
 import domain           # noqa: E402
+import datum_html       # noqa: E402
 import mvp1_demo as demo  # noqa: E402  (reuse geocode/identify/area/zone matching)
 import trust            # noqa: E402
 
@@ -252,18 +253,13 @@ def render_report_html(report_obj):
         for signal in report_obj.get("signals", [])
     )
     checks = "".join(f"<li>{esc(check)}</li>" for check in report_obj.get("required_checks", []))
-    return f"""<!doctype html>
-<html lang="fr">
-<head><meta charset="utf-8"><title>{esc(report_obj['report_id'])}</title></head>
-<body>
+    body = f"""
   <h1>Rapport indicatif opposition / recours</h1>
-  <p>Risque global: {esc(report_obj['summary']['overall'])} ({esc(report_obj['summary']['score'])})</p>
-  <h2>Signaux</h2><ul>{rows}</ul>
-  <h2>Contrôles requis</h2><ul>{checks}</ul>
-  <footer>{esc(report_obj.get('trust_footer'))}</footer>
-</body>
-</html>
+  <p><span class="chip {esc(report_obj['summary']['overall'])}">Risque global</span> {esc(report_obj['summary']['overall'])} ({esc(report_obj['summary']['score'])})</p>
+  <section><h2>Signaux</h2><ul>{rows}</ul></section>
+  <section><h2>Contrôles requis</h2><ul>{checks}</ul></section>
 """
+    return datum_html.shell(esc(report_obj["report_id"]), "Opposition / recours", body, esc(report_obj.get("trust_footer")))
 
 
 def assess(query, project_height_m=None):

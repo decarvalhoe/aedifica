@@ -138,7 +138,7 @@ check("source version metadata declared", all(item["source_version"] for item in
 
 print("Output trust contract")
 footer = trust.render_footer("fr")
-check("trust footer marks output non-authoritative", "jamais une autorité" in footer)
+check("trust footer marks output non-authoritative", "Pas une autorité" in footer)
 check("known provenance tags include api/RPGA/calc/unknown", {"api", "RPGA", "calc", "unknown"}.issubset(trust.PROVENANCE_TAGS))
 
 print("Phase-aware constraint matrix")

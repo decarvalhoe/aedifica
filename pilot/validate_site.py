@@ -5,6 +5,8 @@ import json
 import os
 import sys
 
+import datum_html
+
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SITE_DIR = os.path.join(HERE, "site")
@@ -84,9 +86,14 @@ def generate_pv_and_task_register(note):
 
 
 def render_handover_html(checklist, defects):
-    defect_rows = "".join(f"<li>{d['status']} · {d['title']} · {d['responsible_party']}</li>" for d in defects.get("defects", []))
-    item_rows = "".join(f"<li>{i['status']} · {i['title']}</li>" for i in checklist.get("items", []))
-    return f"<!doctype html><html><body><h1>Handover checklist</h1><h2>Items</h2><ul>{item_rows}</ul><h2>Defects</h2><ul>{defect_rows}</ul></body></html>"
+    defect_rows = "".join(f"<li class='{d['status']}'><span class='state {d['status']}'>{d['status']}</span> {d['title']} · {d['responsible_party']}</li>" for d in defects.get("defects", []))
+    item_rows = "".join(f"<li class='{i['status']}'><span class='state {i['status']}'>{i['status']}</span> {i['title']}</li>" for i in checklist.get("items", []))
+    body = f"""
+  <h1>Handover checklist</h1>
+  <section><h2>Items</h2><ul>{item_rows}</ul></section>
+  <section><h2>Defects</h2><ul>{defect_rows}</ul></section>
+"""
+    return datum_html.shell("Handover checklist", "Chantier / remise", body)
 
 
 def validate_all():

@@ -1,0 +1,25 @@
+<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>body{margin:0;background:var(--surface);display:grid;grid-template-columns:1fr 1fr;height:200px}
+.cell{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;border-right:1px solid var(--line)}
+.cell.ink{background:var(--ink);border-right:none}
+.cap{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}</style></head>
+<body>
+  <div class="cell">
+    <svg viewBox="0 0 160 160" width="118" role="img" aria-label="AEDIFICA monogramme">
+      <line x1="28" y1="44" x2="132" y2="44" stroke="#16171A" stroke-opacity="0.18" stroke-width="1"/>
+      <text x="80" y="108" font-size="98" font-weight="400" text-anchor="middle" fill="#16171A" font-family="Space Grotesk">&#198;</text>
+      <path d="M28 128 H92 V122 H132" fill="none" stroke="#C0392B" stroke-width="2"/>
+      <text x="132" y="146" text-anchor="end" font-family="IBM Plex Mono" font-size="9" letter-spacing="1.5" fill="#87867D">+13.50</text>
+    </svg>
+    <span class="cap">monogramme · datum + fracture</span>
+  </div>
+  <div class="cell ink">
+    <svg viewBox="0 0 160 160" width="118" role="img" aria-label="AEDIFICA monogramme reverse">
+      <line x1="28" y1="44" x2="132" y2="44" stroke="#F3F1EC" stroke-opacity="0.2" stroke-width="1"/>
+      <text x="80" y="108" font-size="98" font-weight="400" text-anchor="middle" fill="#F3F1EC" font-family="Space Grotesk">&#198;</text>
+      <path d="M28 128 H92 V122 H132" fill="none" stroke="#C0392B" stroke-width="2"/>
+      <text x="132" y="146" text-anchor="end" font-family="IBM Plex Mono" font-size="9" letter-spacing="1.5" fill="#908E85">+13.50</text>
+    </svg>
+    <span class="cap" style="color:#908E85">reverse · sur ink</span>
+  </div>
+</body></html>

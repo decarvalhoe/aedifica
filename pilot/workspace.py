@@ -15,6 +15,7 @@ import re
 
 import artifacts
 import claims
+import datum_html
 import domain
 import opposition_radar as radar
 import parcel_intake
@@ -564,24 +565,7 @@ def render_brief_html(brief: dict) -> str:
         f"<li>{esc(item.get('topic'))}: {esc(item.get('next_action'))}</li>"
         for item in brief.get("residual_unknowns", [])
     )
-    return f"""<!doctype html>
-<html lang="fr">
-<head>
-  <meta charset="utf-8">
-  <title>{title}</title>
-  <style>
-    body {{ font-family: Arial, sans-serif; margin: 32px; color: #17202a; line-height: 1.35; }}
-    h1, h2 {{ margin: 0 0 10px; }}
-    section {{ border-top: 1px solid #d9dee7; padding-top: 16px; margin-top: 18px; }}
-    ul {{ padding-left: 18px; }}
-    .claim {{ margin: 9px 0; }}
-    .state {{ display: inline-block; min-width: 86px; font-size: 12px; text-transform: uppercase; color: #4f5b67; }}
-    .unknown .state, .assumption .state, .conflict .state {{ color: #9a5b00; font-weight: bold; }}
-    small {{ display: block; color: #5d6975; margin-top: 2px; }}
-    footer {{ white-space: pre-line; color: #4f5b67; margin-top: 24px; font-size: 12px; }}
-  </style>
-</head>
-<body>
+    body = f"""
   <h1>{title}</h1>
   <p>{esc(brief.get('project_summary', {}).get('name'))} · {esc(brief.get('generated_at'))}</p>
   <section><h2>Route réglementaire</h2><ul>{active_layers}</ul>{'<h3>Avertissements</h3><ul>' + warning_rows + '</ul>' if warning_rows else ''}</section>
@@ -590,10 +574,8 @@ def render_brief_html(brief: dict) -> str:
   <section><h2>Enveloppe</h2><ul>{''.join(render_claim(c) for c in brief.get('envelope_claims', []))}</ul></section>
   <section><h2>Risques indicatifs</h2><p>Global: {esc(risks.get('overall'))} ({esc(risks.get('score'))})</p><ul>{risk_rows or '<li>Aucun facteur saillant dans le fixture.</li>'}</ul></section>
   <section><h2>Inconnues résiduelles</h2><ul>{unknown_rows}</ul></section>
-  <footer>{esc(brief.get('trust_footer'))}</footer>
-</body>
-</html>
 """
+    return datum_html.shell(title, "Brief parcelle", body, esc(brief.get("trust_footer")))
 
 
 def write_brief_html_report(project_dir: str, brief: dict) -> dict:

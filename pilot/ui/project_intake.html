@@ -3,44 +3,64 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AEDIFICA Project Intake</title>
+  <title>AEDIFICA — Project Intake</title>
   <link rel="icon" href="../../docs/design-system/assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../../docs/design-system/colors_and_type.css">
   <link rel="stylesheet" href="../../docs/design-system/aedifica-datum-ui.css">
 </head>
-<body class="datum-viewport datum-pilot-page">
-  <header class="datum-shell datum-topbar">
-    <a class="datum-logo" href="app_shell.html" aria-label="AEDIFICA">
-      <span class="datum-wordmark"><span class="ae">Æ</span>DIFICA</span>
-      <span class="datum-datum-line" aria-hidden="true"><span></span></span>
-    </a>
-    <nav class="datum-nav" aria-label="Pilot navigation">
-      <a href="app_shell.html">Workspace</a>
-      <a href="project_intake.html" aria-current="page">Intake</a>
-      <a href="claim_review.html">Claims</a>
-    </nav>
-  </header>
+<body class="datum-viewport datum-surface">
+  <main class="slide" aria-label="AEDIFICA project intake">
+    <div class="slide__topline">
+      <span><a href="app_shell.html">Workspace</a></span>
+      <span>Project intake</span>
+      <span><a href="claim_review.html">Claims</a></span>
+    </div>
 
-  <main class="datum-shell datum-workspace datum-band">
-    <aside class="datum-panel datum-sidebar">
-      <p class="datum-label">Intake contract</p>
-      <p>Créer un projet revient à choisir une route réglementaire, un contexte de phase et les premiers points d'entrée pour les futurs adapters.</p>
-    </aside>
-
-    <section class="datum-report">
-      <p class="datum-kicker">Project intake</p>
-      <h1 class="datum-title" style="font-size:clamp(34px,5vw,62px)">Créer le contexte projet.</h1>
-      <p class="datum-lead">Le formulaire reste volontairement simple : le produit doit d'abord produire un contexte sourcé, puis seulement ensuite déclencher rapports, checks ou actions logicielles.</p>
-
-      <form class="datum-form" style="margin-top:28px">
-        <label>Project ID <input name="project_id" value="DEMO-LAUSANNE-PALUD"></label>
-        <label>Country <input name="country" value="CH"></label>
-        <label>Canton <input name="canton" value="VD"></label>
-        <label>Commune <input name="commune" value="Lausanne"></label>
-        <label>EGRID <input name="egrid" value="CH915772367853"></label>
-        <button class="ds-btn ds-btn--accent" type="button">Create workspace</button>
-      </form>
+    <section class="slide__head">
+      <div class="slide__kicker">
+        <span class="snum">§ 01</span>
+        <span class="ds-eyebrow">Créer le contexte projet</span>
+      </div>
+      <h1 class="d-title">Commencer par la route, les sources et les inconnues.</h1>
+      <p class="d-lead">
+        L'intake ne promet pas une réponse magique. Il fixe le périmètre,
+        active les packs juridictionnels et prépare la mémoire sourcée du projet.
+      </p>
     </section>
+
+    <section class="slide__body">
+      <div class="g2" style="height:100%; align-items:start">
+        <form class="panel" aria-label="Project intake form">
+          <div class="g2 gap-tight mobile-g2">
+            <div class="field"><label>Project ID</label><input name="project_id" value="DEMO-LAUSANNE-PALUD"></div>
+            <div class="field"><label>Phase</label><input name="phase" value="0 · pré-SIA"></div>
+            <div class="field"><label>Country</label><input name="country" value="CH"></div>
+            <div class="field"><label>Canton</label><input name="canton" value="VD"></div>
+            <div class="field"><label>Commune</label><input name="commune" value="Lausanne"></div>
+            <div class="field"><label>EGRID</label><input name="egrid" value="CH915772367853"></div>
+          </div>
+          <div style="display:flex;gap:12px;margin-top:18px;flex-wrap:wrap">
+            <button class="ds-btn ds-btn--accent" type="button">Créer le workspace</button>
+            <button class="ds-btn ds-btn--ghost" type="button">Voir la source</button>
+          </div>
+        </form>
+
+        <aside class="panel panel--accent">
+          <h2>Ce que l'intake produit.</h2>
+          <ul>
+            <li>Route CH / VD / commune avec fraîcheur des packs.</li>
+            <li>Registre de sources et premiers unknowns.</li>
+            <li>Contrat de preuve avant tout rapport ou adapter.</li>
+            <li>Surface suivante : workspace, pas écran marketing.</li>
+          </ul>
+        </aside>
+      </div>
+    </section>
+
+    <footer class="slide__foot">
+      <span><b>Préparation sourcée par AEDIFICA. Pas une autorité.</b></span>
+      <span>§ intake · contexte d'abord</span>
+    </footer>
   </main>
 </body>
 </html>

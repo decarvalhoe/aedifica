@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AEDIFICA — Datum · Foundations</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="ds.css">
+</head>
+<body data-page="foundations">
+
+<main class="ds-wrap">
+  <section class="ds-hero">
+    <p class="ds-eyebrow">§ 01 · Foundations</p>
+    <h1 class="ds-title-1">Tokens</h1>
+    <p class="ds-lead">Every value in the system, named. Build only with these. The full color and state model lives in <a class="k" href="color-states.html">Color &amp; States</a>; this page is the index of foundations.</p>
+  </section>
+
+  <!-- COLOR overview -->
+  <section class="doc-section">
+    <div class="doc-section__head">
+      <div class="doc-section__num">§ 01.1</div>
+      <div class="doc-section__title"><h2 class="ds-title-2">Color — core</h2>
+        <p>Ink on warm paper, one red accent. No pure black, no pure white, no gradient.</p></div>
+    </div>
+    <div class="cols cols-4">
+      <div class="swatch"><div class="swatch__chip" style="background:var(--surface)"></div><div class="swatch__meta"><div class="swatch__name">--surface</div><div class="swatch__hex">#F3F1EC</div></div></div>
+      <div class="swatch"><div class="swatch__chip" style="background:var(--ink)"></div><div class="swatch__meta"><div class="swatch__name">--ink</div><div class="swatch__hex">#16171A</div></div></div>
+      <div class="swatch"><div class="swatch__chip" style="background:var(--accent)"></div><div class="swatch__meta"><div class="swatch__name">--accent</div><div class="swatch__hex">#C0392B</div></div></div>
+      <div class="swatch"><div class="swatch__chip" style="background:var(--accent-2)"></div><div class="swatch__meta"><div class="swatch__name">--accent-2</div><div class="swatch__hex">#908E85</div></div></div>
+    </div>
+    <p class="ds-caption" style="margin-top:16px">The datum-red accent is the active reference line — used sparingly, never as a state and never decoratively. Provenance is carried by the six trust states (see <a class="k" href="color-states.html">Color &amp; States</a>).</p>
+  </section>
+
+  <!-- NEUTRAL ramp -->
+  <section class="doc-section">
+    <div class="doc-section__head">
+      <div class="doc-section__num">§ 01.2</div>
+      <div class="doc-section__title"><h2 class="ds-title-2">Neutral ramp</h2>
+        <p>Warm-neutral, paper → ink. Nine steps. Borders live at 200; text at 500–900.</p></div>
+    </div>
+    <div class="ramp">
+      <div style="background:var(--n-0)"><span>0</span></div>
+      <div style="background:var(--n-50)"><span>50</span></div>
+      <div style="background:var(--n-100)"><span>100</span></div>
+      <div style="background:var(--n-200)"><span>200</span></div>
+      <div style="background:var(--n-300)"><span>300</span></div>
+      <div style="background:var(--n-400)"><span style="color:#fff">400</span></div>
+      <div style="background:var(--n-500)"><span style="color:#fff">500</span></div>
+      <div style="background:var(--n-600)"><span style="color:#fff">600</span></div>
+      <div style="background:var(--n-900)"><span style="color:#fff">900</span></div>
+    </div>
+  </section>
+
+  <!-- TYPE scale -->
+  <section class="doc-section">
+    <div class="doc-section__head">
+      <div class="doc-section__num">§ 01.3</div>
+      <div class="doc-section__title"><h2 class="ds-title-2">Type scale</h2>
+        <p>Space Grotesk for everything visible; IBM Plex Mono for annotations only. Full specimens in <a class="k" href="typography.html">Typography</a>.</p></div>
+    </div>
+    <table class="spec">
+      <thead><tr><th>Token</th><th>Size</th><th>Font / weight</th><th>Use</th></tr></thead>
+      <tbody>
+        <tr><td class="tok">--fs-display-1</td><td class="val">48–76</td><td class="val">Grotesk 300</td><td class="use">Hero display</td></tr>
+        <tr><td class="tok">--fs-display-2</td><td class="val">38–56</td><td class="val">Grotesk 300</td><td class="use">Section display</td></tr>
+        <tr><td class="tok">--fs-title-1</td><td class="val">30–40</td><td class="val">Grotesk 300/500</td><td class="use">Page title</td></tr>
+        <tr><td class="tok">--fs-title-2</td><td class="val">26</td><td class="val">Grotesk 500</td><td class="use">Section title</td></tr>
+        <tr><td class="tok">--fs-title-3</td><td class="val">20</td><td class="val">Grotesk 500</td><td class="use">Card / block title</td></tr>
+        <tr><td class="tok">--fs-body</td><td class="val">16</td><td class="val">Grotesk 400</td><td class="use">Body</td></tr>
+        <tr><td class="tok">--fs-body-sm</td><td class="val">14</td><td class="val">Grotesk 400</td><td class="use">Dense UI / table</td></tr>
+        <tr><td class="tok">--fs-anno</td><td class="val">11</td><td class="val">Plex Mono 400</td><td class="use">Evidence / labels</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- SPACING -->
+  <section class="doc-section">
+    <div class="doc-section__head">
+      <div class="doc-section__num">§ 01.4</div>
+      <div class="doc-section__title"><h2 class="ds-title-2">Spacing</h2>
+        <p>Base unit 4px; datum module <span class="k">--su</span> = 8px. Everything snaps to the module.</p></div>
+    </div>
+    <div style="display:flex; flex-wrap:wrap; gap:24px; align-items:flex-end;">
+      <div><div style="width:4px;height:4px;background:var(--ink)"></div><div class="swatch__hex" style="margin-top:8px">--s-1 · 4</div></div>
+      <div><div style="width:8px;height:8px;background:var(--ink)"></div><div class="swatch__hex" style="margin-top:8px">--s-2 · 8</div></div>
+      <div><div style="width:12px;height:12px;background:var(--ink)"></div><div class="swatch__hex" style="margin-top:8px">--s-3 · 12</div></div>
+      <div><div style="width:16px;height:16px;background:var(--ink)"></div><div class="swatch__hex" style="margin-top:8px">--s-4 · 16</div></div>
+      <div><div style="width:24px;height:24px;background:var(--ink)"></div><div class="swatch__hex" style="margin-top:8px">--s-5 · 24</div></div>
+      <div><div style="width:32px;height:32px;background:var(--ink)"></div><div class="swatch__hex" style="margin-top:8px">--s-6 · 32</div></div>
+      <div><div style="width:48px;height:48px;background:var(--ink)"></div><div class="swatch__hex" style="margin-top:8px">--s-7 · 48</div></div>
+      <div><div style="width:64px;height:64px;background:var(--ink)"></div><div class="swatch__hex" style="margin-top:8px">--s-8 · 64</div></div>
+    </div>
+  </section>
+
+  <!-- RADII + ELEVATION -->
+  <section class="doc-section">
+    <div class="doc-section__head">
+      <div class="doc-section__num">§ 01.5</div>
+      <div class="doc-section__title"><h2 class="ds-title-2">Radii &amp; elevation</h2>
+        <p>Corners are square. Elevation is minimal — hairlines do the work; shadow is for overlays only.</p></div>
+    </div>
+    <div class="cols cols-2">
+      <div>
+        <table class="spec">
+          <thead><tr><th>Token</th><th>Value</th><th>Use</th></tr></thead>
+          <tbody>
+            <tr><td class="tok">--radius-0</td><td class="val">0</td><td class="use">Cards, panels, report sheet</td></tr>
+            <tr><td class="tok">--radius-soft</td><td class="val">2px</td><td class="use">Inputs, chips — the maximum</td></tr>
+          </tbody>
+        </table>
+        <table class="spec" style="margin-top:24px">
+          <thead><tr><th>Elevation</th><th>Use</th></tr></thead>
+          <tbody>
+            <tr><td class="tok">--elev-flat</td><td class="use">Default — inset hairline</td></tr>
+            <tr><td class="tok">--elev-popover</td><td class="use">Menus, popovers</td></tr>
+            <tr><td class="tok">--elev-overlay</td><td class="use">Modals, drawers only</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:16px;">
+        <div style="background:var(--sheet);border:1px solid var(--hairline);height:54px;display:flex;align-items:center;padding:0 16px" class="mono">--elev-flat · hairline</div>
+        <div style="background:var(--sheet);box-shadow:var(--elev-popover);height:54px;display:flex;align-items:center;padding:0 16px" class="mono">--elev-popover</div>
+        <div style="background:var(--sheet);box-shadow:var(--elev-overlay);height:54px;display:flex;align-items:center;padding:0 16px" class="mono">--elev-overlay</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GRID -->
+  <section class="doc-section">
+    <div class="doc-section__head">
+      <div class="doc-section__num">§ 01.6</div>
+      <div class="doc-section__title"><h2 class="ds-title-2">Grid &amp; datum lines</h2>
+        <p>12 columns, 24px gutter, 64px desktop margin. Datum lines are the strong hairlines that structure a page like a drawing.</p></div>
+    </div>
+    <div class="panel" style="padding:0">
+      <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:var(--gutter);padding:24px;border-bottom:1px solid var(--ink)">
+        <!-- 12 col blocks -->
+        <div style="background:var(--surface-2);height:48px;border:1px solid var(--line-2)"></div>
+        <div style="background:var(--surface-2);height:48px;border:1px solid var(--line-2)"></div>
+        <div style="background:var(--surface-2);height:48px;border:1px solid var(--line-2)"></div>
+        <div style="background:var(--surface-2);height:48px;border:1px solid var(--line-2)"></div>
+        <div style="background:var(--surface-2);height:48px;border:1px solid var(--line-2)"></div>
+        <div style="background:var(--surface-2);height:48px;border:1px solid var(--line-2)"></div>
+        <div style="background:var(--surface-2);height:48px;border:1px solid var(--line-2)"></div>
+        <div style="background:var(--surface-2);height:48px;border:1px solid var(--line-2)"></div>
+        <div style="background:var(--surface-2);height:48px;border:1px solid var(--line-2)"></div>
+        <div style="background:var(--surface-2);height:48px;border:1px solid var(--line-2)"></div>
+        <div style="background:var(--surface-2);height:48px;border:1px solid var(--line-2)"></div>
+        <div style="background:var(--surface-2);height:48px;border:1px solid var(--line-2)"></div>
+      </div>
+      <div class="mono" style="padding:12px 24px;color:var(--fg-2)">12 col · gutter 24 · margin 64 · content-max 1200 · measure 66ch · baseline 8</div>
+    </div>
+  </section>
+
+  <!-- MOTION -->
+  <section class="doc-section">
+    <div class="doc-section__head">
+      <div class="doc-section__num">§ 01.7</div>
+      <div class="doc-section__title"><h2 class="ds-title-2">Motion</h2>
+        <p>Precise and mechanical. Fast, square easing. No bounce, no spring. Always honour <span class="k">prefers-reduced-motion</span>.</p></div>
+    </div>
+    <table class="spec">
+      <thead><tr><th>Token</th><th>Value</th><th>Use</th></tr></thead>
+      <tbody>
+        <tr><td class="tok">--ease-datum</td><td class="val">cubic-bezier(.2,0,0,1)</td><td class="use">Default — decisive</td></tr>
+        <tr><td class="tok">--dur-1</td><td class="val">120ms</td><td class="use">Hover, state toggle</td></tr>
+        <tr><td class="tok">--dur-2</td><td class="val">180ms</td><td class="use">Panels, tabs</td></tr>
+        <tr><td class="tok">--dur-3</td><td class="val">260ms</td><td class="use">Overlays</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+</main>
+
+<script src="ds.js"></script>
+</body>
+</html>

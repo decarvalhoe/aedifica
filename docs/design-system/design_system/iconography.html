@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AEDIFICA — Datum · Iconography</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="ds.css">
+<style>
+  .ico-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(116px, 1fr)); border-top:1px solid var(--hairline); border-left:1px solid var(--hairline); }
+  .ico { display:flex; flex-direction:column; align-items:center; gap:10px; padding:20px 8px; border-right:1px solid var(--hairline); border-bottom:1px solid var(--hairline); }
+  .ico svg { width:26px; height:26px; color:var(--ink); }
+  .ico span { font-family:var(--font-mono); font-size:10px; letter-spacing:.02em; color:var(--fg-2); text-align:center; }
+  pre.code { background:var(--ink); color:var(--paper); font-family:var(--font-mono); font-size:12px; line-height:1.6; padding:18px 20px; overflow:auto; border:1px solid var(--ink); }
+  pre.code .c { color:var(--n-300); }
+</style>
+</head>
+<body data-page="iconography">
+
+<main class="ds-wrap">
+  <section class="ds-hero">
+    <p class="ds-eyebrow">§ 05 · Iconography</p>
+    <h1 class="ds-title-1">One proprietary sprite</h1>
+    <p class="ds-lead">All icons live in a single file — <span class="k">assets/functional-icons.svg</span>. Geometric, 24px grid, 1.5px stroke, square caps, drawn to match the datum drawing language. There is <b>no external icon library</b> and no icon-package dependency, ever.</p>
+  </section>
+
+  <!-- UI ICONS -->
+  <section class="doc-section">
+    <div class="doc-section__head">
+      <div class="doc-section__num">§ 05.1</div>
+      <div class="doc-section__title"><h2 class="ds-title-2">UI glyphs</h2><p>Interface controls. Inherit <span class="k">currentColor</span>.</p></div>
+    </div>
+    <div class="ico-grid">
+      <div class="ico"><svg><use href="../assets/functional-icons.svg#ic-search"/></svg><span>ic-search</span></div>
+      <div class="ico"><svg><use href="../assets/functional-icons.svg#ic-filter"/></svg><span>ic-filter</span></div>
+      <div class="ico"><svg><use href="../assets/functional-icons.svg#ic-chevron-right"/></svg><span>ic-chevron-right</span></div>
+      <div class="ico"><svg><use href="../assets/functional-icons.svg#ic-chevron-down"/></svg><span>ic-chevron-down</span></div>
+      <div class="ico"><svg><use href="../assets/functional-icons.svg#ic-plus"/></svg><span>ic-plus</span></div>
+      <div class="ico"><svg><use href="../assets/functional-icons.svg#ic-check"/></svg><span>ic-check</span></div>
+      <div class="ico"><svg><use href="../assets/functional-icons.svg#ic-cross"/></svg><span>ic-cross</span></div>
+      <div class="ico"><svg><use href="../assets/functional-icons.svg#ic-alert"/></svg><span>ic-alert</span></div>
+      <div class="ico"><svg><use href="../assets/functional-icons.svg#ic-export"/></svg><span>ic-export</span></div>
+      <div class="ico"><svg><use href="../assets/functional-icons.svg#ic-clock"/></svg><span>ic-clock</span></div>
+      <div class="ico"><svg><use href="../assets/functional-icons.svg#ic-calendar"/></svg><span>ic-calendar</span></div>
+    </div>
+  </section>
+
+  <!-- PRODUCT SURFACES -->
+  <section class="doc-section">
+    <div class="doc-section__head">
+      <div class="doc-section__num">§ 05.2</div>
+      <div class="doc-section__title"><h2 class="ds-title-2">Product surfaces</h2><p>One glyph per surface in the system.</p></div>
+    </div>
+    <div class="ico-grid">
+      <div class="ico"><svg><use href="../assets/functional-icons.svg#ic-portfolio"/></svg><span>ic-portfolio</span></div>
+      <div class="ico"><svg><use href="../assets/functional-icons.svg#ic-parcel"/></svg><span>ic-parcel</span></div>
+      <div class="ico"><svg><use href="../assets/functional-icons.svg#ic-permit"/></svg><span>ic-permit</span></div>
+      <div class="ico"><svg><use href="../assets/functional-icons.svg#ic-report"/></svg><span>ic-report</span></div>
+      <div class="ico"><svg><use href="../assets/functional-icons.svg#ic-evidence"/></svg><span>ic-evidence</span></div>
+      <div class="ico"><svg><use href="../assets/functional-icons.svg#ic-ledger"/></svg><span>ic-ledger</span></div>
+      <div class="ico"><svg><use href="../assets/functional-icons.svg#ic-opposition"/></svg><span>ic-opposition</span></div>
+      <div class="ico"><svg><use href="../assets/functional-icons.svg#ic-intake"/></svg><span>ic-intake</span></div>
+      <div class="ico"><svg><use href="../assets/functional-icons.svg#ic-source"/></svg><span>ic-source</span></div>
+      <div class="ico"><svg><use href="../assets/functional-icons.svg#ic-map-pin"/></svg><span>ic-map-pin</span></div>
+      <div class="ico"><svg><use href="../assets/functional-icons.svg#ic-layers"/></svg><span>ic-layers</span></div>
+    </div>
+  </section>
+
+  <!-- DATUM MARKS + STATE SQUARES -->
+  <section class="doc-section">
+    <div class="doc-section__head">
+      <div class="doc-section__num">§ 05.3</div>
+      <div class="doc-section__title"><h2 class="ds-title-2">Datum marks &amp; state squares</h2>
+        <p>Drafting marks that carry the architectural language, plus the eight state squares (full model in <a class="k" href="color-states.html">Color &amp; States</a>).</p></div>
+    </div>
+    <div class="cols cols-2">
+      <div class="ico-grid">
+        <div class="ico"><svg><use href="../assets/functional-icons.svg#ic-datum-target"/></svg><span>datum-target</span></div>
+        <div class="ico"><svg><use href="../assets/functional-icons.svg#ic-datum-dimension"/></svg><span>datum-dimension</span></div>
+        <div class="ico"><svg><use href="../assets/functional-icons.svg#ic-datum-north"/></svg><span>datum-north</span></div>
+      </div>
+      <div class="panel" style="display:flex;flex-wrap:wrap;gap:18px;align-items:center;justify-content:center">
+        <span class="state-sq" style="color:var(--ts-sourced);background:currentColor"></span>
+        <span class="state-sq" style="color:var(--ts-computed);background:currentColor"></span>
+        <span class="state-sq" style="color:var(--ts-assume);background:currentColor"></span>
+        <span class="state-sq" style="color:var(--ts-unknown);border-style:dashed"></span>
+        <span class="state-sq" style="color:var(--ts-conflict);background:currentColor"></span>
+        <span class="state-sq" style="color:var(--ts-decision);background:currentColor"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- USAGE -->
+  <section class="doc-section">
+    <div class="doc-section__head">
+      <div class="doc-section__num">§ 05.4</div>
+      <div class="doc-section__title"><h2 class="ds-title-2">Usage &amp; rules</h2></div>
+    </div>
+    <div class="cols cols-2">
+      <pre class="code"><span class="c">&lt;!-- reference the sprite by symbol id --&gt;</span>
+&lt;svg class="i"&gt;
+  &lt;use href="assets/functional-icons.svg#ic-parcel"/&gt;
+&lt;/svg&gt;
+
+.i { width:22px; height:22px;
+     color: var(--ink); }</pre>
+      <div>
+        <table class="spec">
+          <tbody>
+            <tr><td class="tok">grid</td><td class="use">24px · 1.5px stroke · square caps · miter joins</td></tr>
+            <tr><td class="tok">color</td><td class="use">inherits currentColor — never hard-coded</td></tr>
+            <tr><td class="tok">sizes</td><td class="use">16–18 inline · 22–24 controls · 26+ surface headers</td></tr>
+            <tr><td class="tok">family</td><td class="use">outline only — never mix outline + filled</td></tr>
+            <tr><td class="tok">emoji</td><td class="use">never — breaks the tone</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="note" style="margin-top:24px">
+      <span class="note__label">Policy</span>
+      Icons are part of the brand. Add new glyphs to <span class="k">functional-icons.svg</span> on the same 24px grid and stroke. <b>Aucune bibliothèque externe</b> — do not pull in or link any third-party icon set or icon-package dependency.
+    </div>
+  </section>
+
+</main>
+
+<script src="ds.js"></script>
+</body>
+</html>

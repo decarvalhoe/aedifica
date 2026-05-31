@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AEDIFICA — Datum · Report A4</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="ds.css">
+<style>
+  /* A4 preview, scaled */
+  .a4 { width:480px; aspect-ratio:210/297; background:#fff; border:1px solid var(--ink); margin:0 auto;
+        box-shadow:var(--elev-overlay); padding:34px 36px; display:flex; flex-direction:column; color:var(--ink); }
+  .a4__head { display:flex; align-items:flex-start; justify-content:space-between; border-bottom:1px solid var(--ink); padding-bottom:12px; }
+  .a4__head svg { width:26px; color:var(--ink); }
+  .a4__title { font-family:var(--font-display); font-weight:300; font-size:21px; letter-spacing:-.01em; }
+  .a4__meta { font-family:var(--font-mono); font-size:8px; letter-spacing:.04em; color:#555; text-align:right; line-height:1.6; }
+  .a4__sec { margin-top:16px; }
+  .a4__lbl { font-family:var(--font-mono); font-size:8px; letter-spacing:.14em; text-transform:uppercase; color:#777; border-bottom:1px solid #ddd; padding-bottom:4px; margin-bottom:8px; }
+  .a4 p { font-family:var(--font-ui); font-size:10px; line-height:1.5; margin:0 0 6px; color:#1c1c1c; }
+  .a4 .src { font-family:var(--font-mono); font-size:8px; color:#1F7A44; }
+  .a4 .unk { font-family:var(--font-mono); font-size:9px; color:#7a7a7a; display:flex; gap:8px; align-items:center; }
+  .a4 .usq { width:9px; height:9px; border:1.5px solid #8A9099; flex:none; }
+  .a4__foot { margin-top:auto; border-top:1px solid var(--ink); padding-top:8px; font-family:var(--font-mono); font-size:8px; color:#16171A; display:flex; justify-content:space-between; }
+  .a4__claim { font-weight:500; }
+</style>
+</head>
+<body data-page="report-a4">
+
+<main class="ds-wrap">
+  <section class="ds-hero">
+    <p class="ds-eyebrow">§ 07 · Report A4</p>
+    <h1 class="ds-title-1">The sourced dossier</h1>
+    <p class="ds-lead">The A4 report is the most important deliverable AEDIFICA produces. It is print-first, evidence-led, and explicitly non-authority. Every conclusion is sourced; every gap is named as an unknown; the disclaimer is on every page.</p>
+  </section>
+
+  <section class="doc-section">
+    <div class="doc-section__head"><div class="doc-section__num">§ 07.1</div><div class="doc-section__title"><h2 class="ds-title-2">Anatomy</h2><p>A representative first page. Mark + title header, sourced sections, an explicit unknowns block, sourced conclusions, disclaimer footer.</p></div></div>
+    <div class="a4">
+      <div class="a4__head">
+        <div style="display:flex;gap:10px;align-items:baseline">
+          <span style="font-family:'Space Grotesk',sans-serif;font-weight:300;font-size:19px;letter-spacing:0.04em;color:#16171A"><span style="font-weight:400">Æ</span>DIFICA</span>
+          <div><div class="a4__title">Dossier parcelle</div><div style="font-family:var(--font-mono);font-size:8px;letter-spacing:.1em;color:#777">CH-VD-1004-4412 · PULLY</div></div>
+        </div>
+        <div class="a4__meta">RÉF AED-2026-0042<br>2026-05-31<br>p. 1 / 8</div>
+      </div>
+
+      <div class="a4__sec">
+        <div class="a4__lbl">Synthèse</div>
+        <p>La parcelle est constructible en zone 2. La hauteur au faîte est limitée à 12 m. Deux des trois reculs sont confirmés au plan cadastral. Le troisième est calculé et reste à confirmer.</p>
+      </div>
+
+      <div class="a4__sec">
+        <div class="a4__lbl">Contraintes — sourcées</div>
+        <p>Hauteur au faîte : <b>12 m</b>. <span class="src">RPGA art. 19 al. 2 · conf 0.92</span></p>
+        <p>Indice d'utilisation (IBUS) : <b>0.6</b>. <span class="src">RPGA art. 23 · conf 0.88</span></p>
+      </div>
+
+      <div class="a4__sec">
+        <div class="a4__lbl">Inconnues — à sourcer</div>
+        <div class="unk"><span class="usq"></span> Recul sur limite est — non confirmé au plan géomètre.</div>
+        <div class="unk" style="margin-top:5px"><span class="usq"></span> Servitude de passage — document non fourni.</div>
+      </div>
+
+      <div class="a4__sec">
+        <div class="a4__lbl">Conclusion — sourcée</div>
+        <p>Le projet est compatible avec le règlement sur les points sourcés. Deux inconnues doivent être levées avant dépôt. AEDIFICA prépare l'évidence ; la décision et la conformité relèvent de l'autorité compétente.</p>
+      </div>
+
+      <div class="a4__foot">
+        <span class="a4__claim">Préparation sourcée par AEDIFICA. Pas une autorité.</span>
+        <span>AED-2026-0042</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="doc-section">
+    <div class="doc-section__head"><div class="doc-section__num">§ 07.2</div><div class="doc-section__title"><h2 class="ds-title-2">Print rules</h2></div></div>
+    <table class="spec">
+      <tbody>
+        <tr><td class="tok">format</td><td class="use">A4 portrait · 210 × 297 mm</td></tr>
+        <tr><td class="tok">margins</td><td class="use">18 mm outer · header rule + footer rule on every page</td></tr>
+        <tr><td class="tok">type</td><td class="use">Space Grotesk for content; IBM Plex Mono for refs, IDs, dates, sources</td></tr>
+        <tr><td class="tok">color</td><td class="use">ink on white sheet (not paper) · trust for source lines · state squares stay glyph-legible in greyscale</td></tr>
+        <tr><td class="tok">sources</td><td class="use">every sourced claim cites ref + confidence inline; full source ledger on the last page</td></tr>
+        <tr><td class="tok">unknowns</td><td class="use">a dedicated “Inconnues — à sourcer” block; never omitted, never disguised</td></tr>
+        <tr><td class="tok">disclaimer</td><td class="use">“Préparation sourcée par AEDIFICA. Pas une autorité.” in every page footer</td></tr>
+        <tr><td class="tok">@page</td><td class="use">size A4; margin 18mm; running footer with claim + ref + page number</td></tr>
+      </tbody>
+    </table>
+    <div class="note note--info" style="margin-top:24px">
+      <span class="note__label">Non-authority posture</span>
+      The report never states conformity, approval, or legal outcome as fact. It prepares sourced evidence and names what is unknown. Conclusions are phrased as preparation — the decision and conformity rest with the competent authority.
+    </div>
+  </section>
+
+</main>
+
+<script src="ds.js"></script>
+</body>
+</html>

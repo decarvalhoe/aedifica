@@ -4,11 +4,11 @@ PROVENANCE_TAGS = frozenset({"api", "RPGA", "calc", "assumption", "hyp", "unknow
 
 FOOTERS = {
     "fr": (
-        "Préparation sourcée par Aedifica, jamais une autorité.\n"
+        "Préparation sourcée par AEDIFICA. Pas une autorité.\n"
         "L'architecte vérifie les sources citées, hypothèses, conflits et faits propres au projet avant de s'y appuyer."
     ),
     "en": (
-        "Preparation sourced by Aedifica. Not an authority.\n"
+        "Preparation sourced by AEDIFICA. Not an authority.\n"
         "The architect verifies the cited sources, assumptions, conflicts, and project-specific facts before relying on it."
     ),
 }

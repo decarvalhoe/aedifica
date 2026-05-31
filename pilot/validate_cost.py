@@ -7,6 +7,8 @@ import os
 import sys
 import zipfile
 
+import datum_html
+
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 COST_DIR = os.path.join(HERE, "cost")
@@ -107,18 +109,14 @@ def profitability_cockpit(fee_data):
 def render_profitability_html(cockpit):
     absorbed = "".join(f"<li>{item['title']} ({item['estimated_hours']} h)</li>" for item in cockpit["absorbed_tasks"])
     assumptions = "".join(f"<li>{item}</li>" for item in cockpit["assumptions"])
-    return f"""<!doctype html>
-<html lang="fr">
-<head><meta charset="utf-8"><title>Profitability cockpit</title></head>
-<body>
+    body = f"""
   <h1>Profitability cockpit</h1>
-  <p>Estimated fee: CHF {cockpit['estimated_fee_chf']} · Target margin: {cockpit['target_margin_percent']}%</p>
-  <p>Absorbed cost: CHF {cockpit['absorbed_cost_chf']} · Risk: {cockpit['margin_risk']}</p>
-  <h2>Absorbed tasks</h2><ul>{absorbed}</ul>
-  <h2>Assumptions</h2><ul>{assumptions}</ul>
-</body>
-</html>
+  <p><span class="chip computed">Estimated fee</span> CHF {cockpit['estimated_fee_chf']} · Target margin: {cockpit['target_margin_percent']}%</p>
+  <p><span class="chip {cockpit['margin_risk']}">Risk</span> Absorbed cost: CHF {cockpit['absorbed_cost_chf']} · Risk: {cockpit['margin_risk']}</p>
+  <section><h2>Absorbed tasks</h2><ul>{absorbed}</ul></section>
+  <section><h2>Assumptions</h2><ul>{assumptions}</ul></section>
 """
+    return datum_html.shell("Profitability cockpit", "Honoraires / coûts", body)
 
 
 def build_crbx_bytes(bridge):

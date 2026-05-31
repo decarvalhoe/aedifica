@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AEDIFICA — Datum · Color &amp; States</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="ds.css">
+<style>
+  .state-card { border: var(--border-card); background: var(--surface-2); }
+  .state-card__top { display:flex; align-items:center; gap:14px; padding:16px; border-bottom: var(--border-hair); }
+  .state-card__body { padding:14px 16px; }
+  .sq { width:40px; height:40px; flex:none; border:2px solid currentColor; }
+  .sq--solid { background:currentColor; }
+  .sq--dashed { border-style:dashed; background:transparent; }
+  .state-card__name { font-family:var(--font-mono); font-size:13px; letter-spacing:.04em; text-transform:uppercase; }
+  .state-card__hex { font-family:var(--font-mono); font-size:11px; color:var(--mut); margin-top:2px; }
+</style>
+</head>
+<body data-page="color-states">
+
+<main class="ds-wrap">
+  <section class="ds-hero">
+    <p class="ds-eyebrow">§ 03 · Color &amp; States</p>
+    <h1 class="ds-title-1">Provenance is the system</h1>
+    <p class="ds-lead">Three groups — core, neutral, trust-states. Datum is ink on warm paper with a single red accent used sparingly for the active reference. The six trust states are the system's most important objects: every claim, signal and field carries one, read by color and by label.</p>
+  </section>
+
+  <!-- CORE -->
+  <section class="doc-section">
+    <div class="doc-section__head">
+      <div class="doc-section__num">§ 03.1</div>
+      <div class="doc-section__title"><h2 class="ds-title-2">Core</h2>
+        <p>Ink on warm paper. The datum-red accent is the active reference line — used sparingly, never decoratively. Concrete grey is the secondary / inactive tone.</p></div>
+    </div>
+    <div class="cols cols-4">
+      <div class="swatch"><div class="swatch__chip" style="background:var(--surface)"></div><div class="swatch__meta"><div class="swatch__name">--surface</div><div class="swatch__hex">#F3F1EC</div></div></div>
+      <div class="swatch"><div class="swatch__chip" style="background:var(--ink)"></div><div class="swatch__meta"><div class="swatch__name">--ink</div><div class="swatch__hex">#16171A</div></div></div>
+      <div class="swatch"><div class="swatch__chip" style="background:var(--accent)"></div><div class="swatch__meta"><div class="swatch__name">--accent</div><div class="swatch__hex">#C0392B</div></div></div>
+      <div class="swatch"><div class="swatch__chip" style="background:var(--accent-2)"></div><div class="swatch__meta"><div class="swatch__name">--accent-2</div><div class="swatch__hex">#908E85</div></div></div>
+    </div>
+  </section>
+
+  <!-- NEUTRAL -->
+  <section class="doc-section">
+    <div class="doc-section__head">
+      <div class="doc-section__num">§ 03.2</div>
+      <div class="doc-section__title"><h2 class="ds-title-2">Neutral</h2>
+        <p>Ink alphas plus muted grey carry text hierarchy and hairlines. Borders are hairlines; structure comes from datum rules, not fills.</p></div>
+    </div>
+    <div class="cols cols-4">
+      <div class="swatch"><div class="swatch__chip" style="background:var(--ink-90)"></div><div class="swatch__meta"><div class="swatch__name">--ink-90</div><div class="swatch__hex">body text</div></div></div>
+      <div class="swatch"><div class="swatch__chip" style="background:var(--ink-70)"></div><div class="swatch__meta"><div class="swatch__name">--ink-70</div><div class="swatch__hex">secondary</div></div></div>
+      <div class="swatch"><div class="swatch__chip" style="background:var(--mut)"></div><div class="swatch__meta"><div class="swatch__name">--mut</div><div class="swatch__hex">#87867D</div></div></div>
+      <div class="swatch"><div class="swatch__chip" style="background:var(--surface-2);border-color:var(--line-2)"></div><div class="swatch__meta"><div class="swatch__name">--surface-2</div><div class="swatch__hex">#FFFFFF</div></div></div>
+    </div>
+  </section>
+
+  <!-- THE 6 TRUST STATES -->
+  <section class="doc-section">
+    <div class="doc-section__head">
+      <div class="doc-section__num">§ 03.3</div>
+      <div class="doc-section__title"><h2 class="ds-title-2">The six trust states</h2>
+        <p>Fixed and semantic. Unknown is dashed (human verification required); Decision is ink-filled (arbitrated, frozen). Color never carries meaning alone — always pair with the label.</p></div>
+    </div>
+    <div class="cols cols-3">
+      <div class="state-card"><div class="state-card__top" style="color:var(--ts-sourced)"><span class="sq sq--solid"></span><div><div class="state-card__name">Sourced</div><div class="state-card__hex">#1F7A44</div></div></div>
+        <div class="state-card__body"><p class="ds-body-sm">Adossé à une source citable. Référence + confiance.</p></div></div>
+      <div class="state-card"><div class="state-card__top" style="color:var(--ts-computed)"><span class="sq sq--solid"></span><div><div class="state-card__name">Computed</div><div class="state-card__hex">#475569</div></div></div>
+        <div class="state-card__body"><p class="ds-body-sm">Dérivé par calcul à partir d'entrées sourcées.</p></div></div>
+      <div class="state-card"><div class="state-card__top" style="color:var(--ts-assume)"><span class="sq sq--solid"></span><div><div class="state-card__name">Assumption</div><div class="state-card__hex">#9A6A10</div></div></div>
+        <div class="state-card__body"><p class="ds-body-sm">Hypothèse à confirmer. Provisoire, déclarée.</p></div></div>
+      <div class="state-card"><div class="state-card__top" style="color:var(--ts-unknown)"><span class="sq sq--dashed"></span><div><div class="state-card__name">Unknown</div><div class="state-card__hex">#84847A</div></div></div>
+        <div class="state-card__body"><p class="ds-body-sm">Vérification humaine requise. Jamais masqué (dashed).</p></div></div>
+      <div class="state-card"><div class="state-card__top" style="color:var(--ts-conflict)"><span class="sq sq--solid"></span><div><div class="state-card__name">Conflict</div><div class="state-card__hex">#C1122C</div></div></div>
+        <div class="state-card__body"><p class="ds-body-sm">Sources en désaccord. Arbitrage nécessaire.</p></div></div>
+      <div class="state-card"><div class="state-card__top" style="color:var(--ts-decision)"><span class="sq sq--solid"></span><div><div class="state-card__name">Decision</div><div class="state-card__hex">#16171A</div></div></div>
+        <div class="state-card__body"><p class="ds-body-sm">Choix arbitré et figé. Ink, plein.</p></div></div>
+    </div>
+  </section>
+
+  <!-- TOKENS + CHIPS -->
+  <section class="doc-section">
+    <div class="doc-section__head">
+      <div class="doc-section__num">§ 03.4</div>
+      <div class="doc-section__title"><h2 class="ds-title-2">Tokens &amp; chips</h2>
+        <p>The <span class="k">.ds-ts</span> chip — square, mono, no radius. Drop it into a claim, table cell or signal.</p></div>
+    </div>
+    <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:28px;">
+      <span class="ds-ts is-sourced"><span class="dot"></span>Sourced</span>
+      <span class="ds-ts is-computed"><span class="dot"></span>Computed</span>
+      <span class="ds-ts is-assume"><span class="dot"></span>Assumption</span>
+      <span class="ds-ts is-unknown"><span class="dot"></span>Unknown</span>
+      <span class="ds-ts is-conflict"><span class="dot"></span>Conflict</span>
+      <span class="ds-ts is-decision"><span class="dot"></span>Decision</span>
+    </div>
+    <table class="spec">
+      <thead><tr><th>State</th><th>token</th><th>value</th><th>treatment</th></tr></thead>
+      <tbody>
+        <tr><td class="tok">sourced</td><td class="val">--ts-sourced</td><td class="val">#1F7A44</td><td class="use">solid · dot filled</td></tr>
+        <tr><td class="tok">computed</td><td class="val">--ts-computed</td><td class="val">#475569</td><td class="use">solid · dot filled</td></tr>
+        <tr><td class="tok">assumption</td><td class="val">--ts-assume</td><td class="val">#9A6A10</td><td class="use">solid · dot filled</td></tr>
+        <tr><td class="tok">unknown</td><td class="val">--ts-unknown</td><td class="val">#84847A</td><td class="use">dashed border · hollow dot</td></tr>
+        <tr><td class="tok">conflict</td><td class="val">--ts-conflict</td><td class="val">#C1122C</td><td class="use">solid · dot filled</td></tr>
+        <tr><td class="tok">decision</td><td class="val">--ts-decision</td><td class="val">#16171A</td><td class="use">ink fill · white dot</td></tr>
+      </tbody>
+    </table>
+    <div class="note note--info" style="margin-top:24px">
+      <span class="note__label">Rule</span>
+      The datum-red accent is reserved for the active reference line and primary action — never as a state. <b>Sourced is green, conflict is red.</b> Backgrounds stay <span class="k">--surface</span>; states never become decorative color.
+    </div>
+  </section>
+
+</main>
+
+<script src="ds.js"></script>
+</body>
+</html>

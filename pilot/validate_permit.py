@@ -6,6 +6,8 @@ import json
 import os
 import sys
 
+import datum_html
+
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PERMIT_DIR = os.path.join(HERE, "permit")
@@ -232,16 +234,12 @@ def render_completeness_html(report):
                     + "</li>"
                 )
         groups.append(f"<section><h2>{esc(group['actor'])} · {esc(group['category'])}</h2><ul>{''.join(rows)}</ul></section>")
-    return f"""<!doctype html>
-<html lang="fr">
-<head><meta charset="utf-8"><title>{esc(report['dossier_id'])}</title></head>
-<body>
+    body = f"""
   <h1>Rapport de complétude permis</h1>
-  <p>Blockers requis: {esc(report['summary']['required_blockers'])}</p>
+  <p><span class="chip missing">Blockers requis</span> {esc(report['summary']['required_blockers'])}</p>
   {''.join(groups)}
-</body>
-</html>
 """
+    return datum_html.shell(esc(report["dossier_id"]), "Complétude permis", body)
 
 
 def _validate_evidence_record(record, path, report, index, accepted_keys):

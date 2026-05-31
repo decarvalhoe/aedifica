@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AEDIFICA — Datum · Accessibility / QA</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="ds.css">
+<style>
+  .cpair { display:flex; align-items:center; gap:0; border:1px solid var(--hairline); }
+  .cpair__sw { width:62px; height:56px; flex:none; display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-size:12px; }
+  .cpair__meta { padding:0 14px; font-family:var(--font-mono); font-size:12px; }
+  .pass { color:var(--st-ready); }
+  .warn { color:var(--st-assumption); }
+  .check { list-style:none; margin:0; padding:0; }
+  .check li { display:flex; gap:12px; align-items:flex-start; padding:9px 0; border-bottom:1px solid var(--hairline); font-size:14px; }
+  .check li svg { width:18px; height:18px; color:var(--st-ready); flex:none; margin-top:1px; }
+  .focusdemo { display:inline-flex; padding:0 20px; height:44px; align-items:center; background:var(--ink); color:var(--paper);
+    font-family:var(--font-ui); font-weight:500; font-size:14px; outline:2px solid var(--trust); outline-offset:2px; border-radius:var(--radius-soft); }
+</style>
+</head>
+<body data-page="accessibility-qa">
+
+<main class="ds-wrap">
+  <section class="ds-hero">
+    <p class="ds-eyebrow">§ 09 · Accessibility / QA</p>
+    <h1 class="ds-title-1">Legible, operable, printable</h1>
+    <p class="ds-lead">The system targets WCAG 2.2 AA on screen and full legibility in greyscale print. Because state colour never stands alone, the eight states pass the colour-blind and photocopy test by design.</p>
+  </section>
+
+  <!-- CONTRAST -->
+  <section class="doc-section">
+    <div class="doc-section__head"><div class="doc-section__num">§ 09.1</div><div class="doc-section__title"><h2 class="ds-title-2">Contrast</h2><p>Core pairs on paper. Body text and UI labels clear AA; state hues are paired with a glyph, never carrying meaning by colour alone.</p></div></div>
+    <div class="cols cols-2">
+      <div class="cpair"><div class="cpair__sw" style="background:var(--paper);color:var(--ink)">Aa</div><div class="cpair__meta">ink / paper · ~15:1 · <span class="pass">AAA</span></div></div>
+      <div class="cpair"><div class="cpair__sw" style="background:var(--paper);color:var(--trust)">Aa</div><div class="cpair__meta">trust / paper · ~5.4:1 · <span class="pass">AA</span></div></div>
+      <div class="cpair"><div class="cpair__sw" style="background:var(--paper);color:var(--n-500)">Aa</div><div class="cpair__meta">n-500 / paper · ~4.8:1 · <span class="pass">AA</span></div></div>
+      <div class="cpair"><div class="cpair__sw" style="background:var(--ink);color:var(--paper)">Aa</div><div class="cpair__meta">paper / ink · ~15:1 · <span class="pass">AAA</span></div></div>
+      <div class="cpair"><div class="cpair__sw" style="background:var(--paper);color:var(--n-400)">Aa</div><div class="cpair__meta">n-400 / paper · ~3.1:1 · <span class="warn">large / non-text only</span></div></div>
+      <div class="cpair"><div class="cpair__sw" style="background:var(--st-conflict-bg);color:var(--st-conflict)">Aa</div><div class="cpair__meta">conflict on tint · ~5:1 · <span class="pass">AA + glyph</span></div></div>
+    </div>
+    <div class="note note--warn" style="margin-top:24px"><span class="note__label">Caution</span> <span class="k">--n-400</span> is for placeholders, disabled text and hairlines only — never for body copy. Verify any new state-on-tint pairing reaches 4.5:1, and always keep the glyph.</div>
+  </section>
+
+  <!-- FOCUS + KEYBOARD -->
+  <section class="doc-section">
+    <div class="doc-section__head"><div class="doc-section__num">§ 09.2</div><div class="doc-section__title"><h2 class="ds-title-2">Focus &amp; keyboard</h2></div></div>
+    <div class="cols cols-2">
+      <div class="panel" style="display:flex;align-items:center;justify-content:center;gap:18px"><span class="focusdemo">Focused control</span></div>
+      <table class="spec">
+        <tbody>
+          <tr><td class="tok">focus ring</td><td class="use">2px solid trust · offset 2px · never removed without replacement</td></tr>
+          <tr><td class="tok">tab order</td><td class="use">follows the visual datum order, top-left to bottom-right</td></tr>
+          <tr><td class="tok">targets</td><td class="use">≥ 44 × 44px interactive minimum</td></tr>
+          <tr><td class="tok">state</td><td class="use">announced via text/aria, not colour alone</td></tr>
+          <tr><td class="tok">motion</td><td class="use">all transitions disabled under prefers-reduced-motion</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- CHECKLISTS -->
+  <section class="doc-section">
+    <div class="doc-section__head"><div class="doc-section__num">§ 09.3</div><div class="doc-section__title"><h2 class="ds-title-2">QA checklists</h2><p>Run before any surface or export ships.</p></div></div>
+    <div class="cols cols-3">
+      <div>
+        <p class="ds-eyebrow" style="margin-bottom:10px">Print QA</p>
+        <ul class="check">
+          <li><svg><use href="../assets/functional-icons.svg#ic-check"/></svg>A4, 18mm margins, header + footer rules</li>
+          <li><svg><use href="../assets/functional-icons.svg#ic-check"/></svg>State squares legible in greyscale</li>
+          <li><svg><use href="../assets/functional-icons.svg#ic-check"/></svg>Every sourced claim cites a ref</li>
+          <li><svg><use href="../assets/functional-icons.svg#ic-check"/></svg>Unknowns block present</li>
+          <li><svg><use href="../assets/functional-icons.svg#ic-check"/></svg>Disclaimer in page footer</li>
+        </ul>
+      </div>
+      <div>
+        <p class="ds-eyebrow" style="margin-bottom:10px">Responsive QA</p>
+        <ul class="check">
+          <li><svg><use href="../assets/functional-icons.svg#ic-check"/></svg>Margins collapse 64 → 24 under 760px</li>
+          <li><svg><use href="../assets/functional-icons.svg#ic-check"/></svg>Tables scroll, never crush</li>
+          <li><svg><use href="../assets/functional-icons.svg#ic-check"/></svg>Grid drops to 2 then 1 column</li>
+          <li><svg><use href="../assets/functional-icons.svg#ic-check"/></svg>Type scale holds (clamp)</li>
+          <li><svg><use href="../assets/functional-icons.svg#ic-check"/></svg>Targets stay ≥ 44px</li>
+        </ul>
+      </div>
+      <div>
+        <p class="ds-eyebrow" style="margin-bottom:10px">Export checklist</p>
+        <ul class="check">
+          <li><svg><use href="../assets/functional-icons.svg#ic-check"/></svg>Fonts embedded / wordmark outlined</li>
+          <li><svg><use href="../assets/functional-icons.svg#ic-check"/></svg>Assets copied, not cross-linked</li>
+          <li><svg><use href="../assets/functional-icons.svg#ic-check"/></svg>Demo data flagged DEMO</li>
+          <li><svg><use href="../assets/functional-icons.svg#ic-check"/></svg>No external icon library linked</li>
+          <li><svg><use href="../assets/functional-icons.svg#ic-check"/></svg>Disclaimer present</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script src="ds.js"></script>
+</body>
+</html>

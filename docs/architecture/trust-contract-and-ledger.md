@@ -110,7 +110,7 @@ The contract is enforced progressively:
 Any generated report or recommendation that uses regulatory facts must include:
 
 ```text
-Preparation sourced by Aedifica. Not an authority.
+Preparation sourced by AEDIFICA. Not an authority.
 The architect verifies the cited sources, assumptions, conflicts, and project-specific facts before relying on it.
 ```
 

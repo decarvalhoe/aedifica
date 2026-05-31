@@ -3,69 +3,84 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AEDIFICA Workspace</title>
+  <title>AEDIFICA — Workspace</title>
   <link rel="icon" href="../../docs/design-system/assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../../docs/design-system/colors_and_type.css">
   <link rel="stylesheet" href="../../docs/design-system/aedifica-datum-ui.css">
 </head>
-<body class="datum-viewport datum-pilot-page">
-  <header class="datum-shell datum-topbar">
-    <a class="datum-logo" href="app_shell.html" aria-label="AEDIFICA">
-      <span class="datum-wordmark"><span class="ae">Æ</span>DIFICA</span>
-      <span class="datum-datum-line" aria-hidden="true"><span></span></span>
-    </a>
-    <nav class="datum-nav" aria-label="Pilot navigation">
-      <a href="app_shell.html" aria-current="page">Workspace</a>
-      <a href="project_intake.html">Intake</a>
-      <a href="claim_review.html">Claims</a>
-    </nav>
-  </header>
+<body class="datum-viewport datum-surface">
+  <main class="slide" aria-label="AEDIFICA workspace">
+    <div class="slide__topline">
+      <span>Workspace</span>
+      <span>DEMO-LAUSANNE-PALUD</span>
+      <span><a href="project_intake.html">Intake</a> · <a href="claim_review.html">Claims</a></span>
+    </div>
 
-  <main class="datum-shell">
-    <section class="datum-hero">
-      <div>
-        <p class="datum-kicker">Project workspace · demo Lausanne Palud</p>
-        <h1 class="datum-title">Projet, sources, modèle, décisions.</h1>
-        <p class="datum-lead">
-          Le workspace est le point d'entrée produit : il relie les sources bottom-up,
-          la mémoire de projet, les rapports et les futures actions multi-logiciels.
-        </p>
+    <section class="slide__head">
+      <div class="slide__kicker">
+        <span class="snum">§ R1</span>
+        <span class="ds-eyebrow">Projet · sources · modèle · décisions</span>
       </div>
-      <aside class="datum-side">
-        <p class="datum-label">Route active</p>
-        <p>CH / VD / Lausanne · Phase 0 · DEMO-LAUSANNE-PALUD</p>
-      </aside>
+      <h1 class="d-title">Une mémoire projet avant toute action.</h1>
+      <p class="d-lead">
+        Le workspace relie les sources bottom-up, la route réglementaire, les
+        rapports et les futures actions multi-logiciels. Chaque sortie garde son
+        état de preuve et sa limite de non-autorité.
+      </p>
     </section>
 
-    <section class="datum-band">
-      <div class="datum-section-head">
-        <h2>Surfaces actives</h2>
-        <p class="datum-label">Produit complet, pas seulement UI</p>
-      </div>
-      <div class="datum-grid-4">
-        <article class="datum-card">
-          <h3>Parcel brief</h3>
-          <p>Contraintes, enveloppe, sources et inconnues pour cadrer le projet avant décision.</p>
+    <section class="slide__body">
+      <div class="g2" style="height:100%; align-items:stretch">
+        <article class="dash">
+          <div class="dash__bar">
+            <span class="ds-wordmark"><span class="ae">Æ</span>DIFICA</span>
+            <span class="sub">Portefeuille</span>
+            <span class="sp mono">CH · VD · Lausanne</span>
+          </div>
+          <div class="dash__body">
+            <div class="g3 gap-tight mobile-g2" style="margin-bottom:14px">
+              <div class="kpi">
+                <div class="kpi__label">Route</div>
+                <div class="kpi__num">3</div>
+                <div class="kpi__foot">couches actives</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi__label">Unknowns</div>
+                <div class="kpi__num">7</div>
+                <div class="kpi__foot"><span class="state-sq" style="color:var(--st-unknown);border-style:dashed;background:transparent"></span>à sourcer</div>
+              </div>
+              <div class="kpi">
+                <div class="kpi__label">Ledger</div>
+                <div class="kpi__num">42</div>
+                <div class="kpi__foot">entrées projet</div>
+              </div>
+            </div>
+            <table class="dt">
+              <tbody>
+                <tr><td>Parcel brief</td><td><span class="chip" style="color:var(--st-sourced)"><span class="dot"></span>Ready</span></td></tr>
+                <tr><td>Permit readiness</td><td><span class="chip" style="color:var(--st-computed)"><span class="dot"></span>Computed</span></td></tr>
+                <tr><td>Model bridge</td><td><span class="chip" style="color:var(--st-assumption)"><span class="dot"></span>Dry-run</span></td></tr>
+              </tbody>
+            </table>
+          </div>
         </article>
-        <article class="datum-card">
-          <h3>Permit readiness</h3>
-          <p>Complétude dossier, gates phase 33, signaux d'opposition et limites explicites.</p>
-        </article>
-        <article class="datum-card">
-          <h3>Memory & ledger</h3>
-          <p>Décisions, preuves, approbations et report hashes réutilisables phase après phase.</p>
-        </article>
-        <article class="datum-card">
-          <h3>Architecture API</h3>
-          <p>Inspection modèle/dessin, dry-run, approbation, export IFC/PDF/DWG via adapters.</p>
-        </article>
+
+        <aside class="panel panel--ink">
+          <h2>Contrat de lecture.</h2>
+          <p>Préparation sourcée par AEDIFICA. Pas une autorité.</p>
+          <ul>
+            <li>Le rouge Datum marque une référence active, jamais un état de confiance.</li>
+            <li>Les mutations logicielles passent par dry-run, approbation et ledger.</li>
+            <li>Archicad est un premier pont, pas l'identité du produit.</li>
+          </ul>
+        </aside>
       </div>
     </section>
+
+    <footer class="slide__foot">
+      <span><b>Préparation sourcée par AEDIFICA. Pas une autorité.</b></span>
+      <span>§ application · dashboard dérivé</span>
+    </footer>
   </main>
-
-  <footer class="datum-shell datum-footer">
-    <span>Préparation sourcée par AEDIFICA. Pas une autorité.</span>
-    <span>Universal API / MCP · dry-run first</span>
-  </footer>
 </body>
 </html>
