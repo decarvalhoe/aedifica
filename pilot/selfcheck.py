@@ -35,6 +35,9 @@ import validate_compliance  # noqa: E402
 import validate_research  # noqa: E402
 import validate_memory  # noqa: E402
 import validate_ledger  # noqa: E402
+import ledger  # noqa: E402
+import ledger_writer  # noqa: E402
+import approval  # noqa: E402
 import validate_cost    # noqa: E402
 import validate_site    # noqa: E402
 import validate_workspace  # noqa: E402
@@ -332,6 +335,32 @@ check("ledger covers approvals, dry-runs and report generations", any({"approval
 demo_memory = load("memory", "demo_project_memory.json")
 check("carryover query returns permit blockers", len(validate_memory.answer_query(demo_memory, {"intent": "open_blockers_before_permit"})) == 2)
 check("carryover query returns tender/site conditions", len(validate_memory.answer_query(demo_memory, {"intent": "conditions_for_tender_site"})) == 2)
+
+print("Durable ledger writer + approval scopes")
+with tempfile.TemporaryDirectory() as tmp:
+    _pd = os.path.join(tmp, "proj")
+    os.makedirs(_pd)
+    _actor = {"name": "Architecte", "role": "architect"}
+    _rep = {"report_id": "BRIEF-LED", "kind": "parcel_brief", "path": "reports/b.json", "source_refs": [{"source_id": "VD-OEREB", "locator": "x", "valid_as_of": "2026-05-29", "confidence": "high"}], "content_sha256": "a" * 64}
+    ledger_writer.write_ledger_entry(_pd, ledger_writer.report_generation_entry("P", "33", _rep, _actor, "LED-A"))
+    ledger_writer.write_ledger_entry(_pd, ledger_writer.report_generation_entry("P", "33", _rep, _actor, "LED-B"))
+    _led = ledger_writer.read_ledger(_pd)
+    check("durable ledger writer appends, not overwrites", len(_led["entries"]) == 2)
+    try:
+        ledger.validate_ledger(_led)
+        _led_valid = True
+    except ledger.LedgerValidationError:
+        _led_valid = False
+    check("written ledger validates offline", _led_valid)
+    check("report generation entry links back to the report", _led["entries"][0]["inputs"]["report_id"] == "BRIEF-LED")
+_rep_appr = approval.make_approval("Arch", "report_review", "reviewed")
+_dry_appr = approval.make_approval("Arch", "adapter_dry_run", "ok")
+_exec_appr = approval.make_approval("Arch", "adapter_execution", "ok")
+check("report approval cannot authorize an adapter mutation", not approval.authorizes(_rep_appr, "adapter_execution"))
+check("adapter dry-run approval cannot authorize execution", not approval.authorizes(_dry_appr, "adapter_execution"))
+check("adapter execution approval also covers dry-run", approval.authorizes(_exec_appr, "adapter_dry_run"))
+_scope_ok, _scope_msg = approval.check_scope(_dry_appr, "adapter_execution")
+check("failed scope check renders a clear message", (not _scope_ok) and "does NOT authorize" in _scope_msg)
 
 print("Project workspace")
 workspace_report = validate_workspace.validate_all()
