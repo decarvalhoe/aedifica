@@ -39,6 +39,7 @@ import ledger  # noqa: E402
 import ledger_writer  # noqa: E402
 import approval  # noqa: E402
 import adapter_evidence  # noqa: E402
+import permit_carryover  # noqa: E402
 import validate_cost    # noqa: E402
 import validate_site    # noqa: E402
 import validate_workspace  # noqa: E402
@@ -345,6 +346,13 @@ check(
     "open-questions view is UI-stable with provenance refs",
     bool(_open_questions["open_decisions"]) and all(item["source_refs"] and item["evidence_refs"] for item in _open_questions["open_decisions"]),
 )
+_permit_conditions = permit_carryover.permit_conditions(demo_memory)
+check("permit conditions are represented as phase-33 carryover records", any(c["memory_id"] == "MEM-CAMAC-FIRE-OPEN" for c in _permit_conditions))
+check("no permit obligation is silently dropped before tender/site", not permit_carryover.dropped_obligations(demo_memory))
+_carry_record = permit_carryover.build_carryover_record(_permit_conditions[0], "41", "MEM-CARRY-TEST")
+check("a built carryover record stays traceable to its permit condition", _permit_conditions[0]["memory_id"] in _carry_record["links"])
+_tender_site = {r["memory_id"] for r in validate_memory.answer_query(demo_memory, {"intent": "conditions_for_tender_site"})}
+check("permit conditions surface in the tender/site carryover query", {"MEM-HANDOFF-41-001", "MEM-SITE-52-001"}.issubset(_tender_site))
 
 print("Durable ledger writer + approval scopes")
 with tempfile.TemporaryDirectory() as tmp:
