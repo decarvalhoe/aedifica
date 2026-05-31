@@ -2,7 +2,9 @@
 
 This document sketches the first common action surface for agentic architecture workflows.
 
-The goal is not to expose every software command one-to-one. The goal is to expose stable architectural workflow commands that can be implemented by different adapters, including BIM tools, document systems, IFC/Speckle, permit dossier workflows, and construction-management systems.
+The goal is not to expose every software command one-to-one. The goal is to expose stable architectural workflow commands that can be implemented by different adapters, including BIM/CAD/drawing tools, document systems, IFC/Speckle, permit dossier workflows, and construction-management systems.
+
+This API is a native part of Aedifica's product scope. The first regulatory workspace can ship before full adapter implementation, but the product architecture must keep model/drawing assistance as a first-class surface rather than treating it as a detached future experiment.
 
 This API belongs behind the neutral-engine boundary defined in
 [`adr-0001-neutral-engine-and-jurisdiction-packs.md`](adr-0001-neutral-engine-and-jurisdiction-packs.md). Mutating
@@ -66,11 +68,25 @@ create_wall
 create_slab
 create_opening
 place_object
+move_element
+adjust_opening
 update_parameters
 update_bim_properties
 rename_elements
 classify_elements
 generate_variant
+```
+
+### Drawing And Layout Assistance
+
+```text
+create_drawing_view
+update_drawing_annotations
+check_drawing_set
+compare_drawing_versions
+publish_layouts
+export_pdf_set
+export_dwg_set
 ```
 
 ### BIM and IFC
@@ -88,10 +104,6 @@ sync_speckle
 ### Documentation
 
 ```text
-publish_layouts
-export_pdf_set
-publish_pdf_set
-export_dwg_set
 generate_schedule
 generate_report
 check_dossier_completeness
@@ -117,8 +129,8 @@ Early adapter candidates:
 1. Project/document ingestion adapter.
 2. IFC extraction and validation through IfcOpenShell.
 3. Speckle synchronization and version snapshots.
-4. Archicad inspection, export, and BIM property updates.
-5. Revit, Rhino, SketchUp, AutoCAD/BricsCAD, and construction-management adapters.
+4. Archicad inspection, export, drawing/model assistance and BIM property updates.
+5. Revit, Rhino/Grasshopper, SketchUp, AutoCAD/BricsCAD, and construction-management adapters.
 
 ## Voice-to-Design Contract
 

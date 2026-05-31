@@ -1,10 +1,10 @@
-# Later Track Spec — Voice-To-Design
+# Native Track Spec — Voice-To-Design
 
 Issue: #20
 
 ## Goal
 
-Keep the "speak to an AI that works on the project" dream, but route speech through professional safeguards:
+Keep the "speak to an AI that works on the project/drawing/model" dream, but route speech through professional safeguards:
 transcript, structured intent, project context, constraints, dry-run, preview, human approval, API/MCP execution,
 and correction loop.
 
@@ -38,6 +38,10 @@ Voice produces intent, not raw commands:
   "approval_required": true
 }
 ```
+
+The intent type can also describe drawing/model creation or edit actions such as `generate_variant`,
+`create_wall`, `adjust_opening`, `publish_layouts`, `export_dwg_set` or `compare_model_snapshots`. It must still
+be resolved against project context before any adapter receives a command.
 
 ## Safety
 

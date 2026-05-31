@@ -21,6 +21,8 @@ Which source justifies this claim?
 
 Aedifica should answer with sourced project context, then orchestrate the next workflow step. Sometimes that means drafting a brief, asking a question, identifying a risk, preparing a permit checklist, comparing options, updating BIM data, or acting through safe software adapters after approval.
 
+The product scope must not be inferred from current UI surfaces or from the first regulatory wedge. Drawing/model assistance through a multi-software API is a native capability of the operating layer, provided it stays source-aware, dry-run first, approved and logged.
+
 ## Problem
 
 Architecture projects are constrained from the beginning by many sources:
@@ -104,11 +106,11 @@ Tool automation is not the product and not the source of truth. It is the action
 
 ## Strategic Positioning
 
-The first product promise is not "automate Archicad" or "draw by voice". The promise is:
+The first product promise is broader than "automate Archicad" or "draw by voice". The promise is:
 
 > Assist an architect from beginning to end with project-aware, Swiss-aware, evidence-backed agents.
 
-Auto-BIM remains a strong validation track because it is painful, measurable, and connected to downstream value:
+Auto-BIM, model intelligence and controlled drawing assistance remain strong validation tracks because they are painful, measurable, and connected to downstream value:
 
 - Read a model.
 - Detect missing or inconsistent BIM information.

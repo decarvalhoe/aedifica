@@ -26,8 +26,9 @@ The revised sequence is:
 4. MVP3 Fees, Cost & Tender: SIA 102 fees, eCCC/NPK/CFC bridge, offer comparison.
 5. MVP4 Project Memory & Coordination: site, decisions, handover, operation memory.
 
-Auto-BIM/Archicad remains a live hybrid demo track for the partner office, but it is not the product identity
-and should not block the regulatory/project-intelligence wedge.
+The regulatory/project-intelligence wedge comes first because it is evidence-backed and useful before BIM
+maturity. It must not collapse the product into a permit/report tool. Auto-BIM, model intelligence and
+controlled drawing assistance remain a native product track behind the same universal API/MCP.
 
 ## MVP 1: NOMOS Archi Intake
 
@@ -108,14 +109,16 @@ Capabilities:
 
 Spec: [`specs/mvp4-direction-travaux-agentique.md`](specs/mvp4-direction-travaux-agentique.md).
 
-## Later Track: Auto-BIM / Model Intelligence
+## Native Track: Multi-Software Drawing / Model Intelligence
 
-Goal: inspect a BIM/model state, detect missing or inconsistent project information, propose corrections, apply approved updates through the available adapter, and export deliverables.
+Goal: inspect a BIM/CAD/drawing/model state, detect missing or inconsistent project information, generate structured drawing/model intents, propose corrections, apply approved updates through the available adapter, and export deliverables.
 
 Capabilities:
 
 - Connect first through the most practical project adapter: IFC, Speckle, Archicad JSON/Tapir/Add-On, or another available model source.
 - Extract spaces, elements, attributes, properties, and classifications.
+- Translate approved design intent into safe drawing/model commands.
+- Compare drawings/model snapshots and flag inconsistencies against project memory.
 - Run missing metadata checks.
 - Apply property updates after approval.
 - Export IFC/PDF/DWG where supported.
@@ -124,9 +127,9 @@ Capabilities:
 Note: Archicad is an excellent first real-world adapter because of the initial user context, but this track
 should validate a general model-intelligence capability.
 
-Spec: [`specs/later-model-intelligence.md`](specs/later-model-intelligence.md).
+Spec: [`specs/later-model-intelligence.md`](specs/later-model-intelligence.md) and [`specs/later-voice-to-design.md`](specs/later-voice-to-design.md).
 
-## Later Track: Voice-to-Design Workflow
+## Native Track: Voice-To-Design Workflow
 
 Goal: let an architect describe controlled design actions orally and route them through safe structured commands.
 

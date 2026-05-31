@@ -1,0 +1,215 @@
+/* ============================================================================
+   AEDIFICA — DATUM  ·  colors_and_type.css   (v4 · 2026-05-31)
+   Strictly based on the VALIDATED direction 02A "Datum" (source of truth:
+   project 0b56b66b). Canonical tokens carry their validated names + values;
+   a compatibility layer maps the documentation pages' aliases onto them.
+   ----------------------------------------------------------------------------
+   Type lock:  Space Grotesk (display Light 300 / UI 400–600) · IBM Plex Mono
+               (annotations only). IBM Plex Sans is forbidden.
+   Accent:     datum red #C0392B — the active reference line, used sparingly.
+   ========================================================================== */
+
+/* ---- Fonts (self-hosted) ------------------------------------------------- */
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("fonts/SpaceGrotesk-Variable.ttf") format("truetype-variations"),
+       url("fonts/SpaceGrotesk-Variable.ttf") format("truetype");
+  font-weight: 300 700; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("fonts/IBMPlexMono-Regular.ttf") format("truetype");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("fonts/IBMPlexMono-Medium.ttf") format("truetype");
+  font-weight: 500; font-style: normal; font-display: swap;
+}
+
+:root {
+  /* ===================== VALIDATED CANONICAL TOKENS ===================== */
+
+  /* type families */
+  --font-display: "Space Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --font-ui:      "Space Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --font-mono:    "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  /* color · core (Datum) */
+  --surface:   #F3F1EC;   /* paper / app background */
+  --surface-2: #FFFFFF;   /* report sheet / raised paper */
+  --ink:       #16171A;   /* primary text, structure */
+  --accent:    #C0392B;   /* datum red — the active reference line. Sparingly. */
+  --accent-2:  #908E85;   /* concrete grey — secondary / inactive */
+
+  /* color · neutral scale */
+  --ink-90: rgba(22,23,26,0.90);
+  --ink-70: rgba(22,23,26,0.70);
+  --ink-50: rgba(22,23,26,0.50);
+  --mut:    #87867D;
+  --line:   rgba(22,23,26,0.12);
+  --line-2: rgba(22,23,26,0.24);
+
+  /* color · trust states (the six — semantic, fixed) */
+  --ts-sourced:  #1F7A44;   /* adossé à une source citable */
+  --ts-computed: #475569;   /* dérivé par calcul */
+  --ts-assume:   #9A6A10;   /* hypothèse à confirmer */
+  --ts-unknown:  #84847A;   /* vérification humaine requise (dashed) */
+  --ts-conflict: #C1122C;   /* sources en désaccord */
+  --ts-decision: #16171A;   /* choix arbitré et figé (ink, filled) */
+
+  /* spacing (4px base) */
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px; --s-5: 24px;
+  --s-6: 32px; --s-7: 48px; --s-8: 64px; --s-9: 96px; --s-10: 128px;
+  --su: 8px;
+
+  /* radii (épuré — quasi nul) */
+  --r-0: 0px; --r-1: 3px; --r-2: 4px;
+  --radius-0: 0px; --radius-soft: 3px;
+
+  /* elevation — Datum is FLAT: hairline borders, no drop shadows */
+  --elev-0: none;
+  --border-card: 1px solid var(--line-2);
+  --border-hair: 1px solid var(--line);
+  --elev-popover: 0 4px 14px -8px rgba(22,23,26,0.18);
+  --elev-overlay: 0 10px 30px -12px rgba(22,23,26,0.22);
+
+  /* motif · datum / fracture */
+  --datum-gap: 26px;
+  --datum-line: rgba(22,23,26,0.34);
+  --datum-active: var(--accent);
+
+  /* ===================== COMPATIBILITY ALIASES (doc pages) ============== */
+  --ink-2:  var(--ink);
+  --paper:  var(--surface);
+  --paper-2:#E9E5DC;
+  --sheet:  var(--surface-2);
+
+  --n-0:#FFFFFF; --n-50:var(--surface); --n-100:#E9E5DC; --n-200:#D3D0C7;
+  --n-300:#B7B4AA; --n-400:var(--mut); --n-500:#6F6E66; --n-600:#4A4843;
+  --n-700:#2E2D29; --n-900:var(--ink);
+
+  --fg-1: var(--ink); --fg-2: var(--mut); --fg-3: var(--ink-50);
+  --fg-on-ink: var(--surface);
+  --hairline: var(--line); --hairline-strong: var(--ink); --rule: var(--line);
+
+  /* brand/active alias (no blue anywhere) */
+  --trust: var(--accent); --trust-bg:#F6E7E4; --trust-line:#E2B3AC; --trust-ink:#8F2A20;
+
+  /* state aliases → validated trust states (+ tints) */
+  --st-sourced:#1F7A44;    --st-sourced-bg:#E3F0E8;    --st-sourced-line:#A8CEB6;
+  --st-computed:#475569;   --st-computed-bg:#E8EAEE;   --st-computed-line:#B4BBC5;
+  --st-assumption:#9A6A10; --st-assumption-bg:#F2E9D4; --st-assumption-line:#D7C291;
+  --st-unknown:#84847A;    --st-unknown-bg:#ECEBE6;    --st-unknown-line:#C4C3BA;
+  --st-conflict:#C1122C;   --st-conflict-bg:#F7E1E3;   --st-conflict-line:#E6A8AE;
+  --st-decision:#16171A;   --st-decision-bg:#E7E7E4;   --st-decision-line:#BCBBB5;
+  /* secondary workflow statuses (derived, not core trust states) */
+  --st-blocked:#7A2018;    --st-blocked-bg:#F0DCD8;    --st-blocked-line:#D3A39B;
+  --st-ready:#1F7A44;      --st-ready-bg:#E3F0E8;      --st-ready-line:#A8CEB6;
+
+  /* weights */
+  --fw-light:300; --fw-reg:400; --fw-med:500; --fw-semi:600;
+
+  /* type scale (semantic, aligned to validated) */
+  --fs-display-1: clamp(40px, 5.4vw, 50px);
+  --fs-display-2: clamp(30px, 3.6vw, 38px);
+  --fs-title-1:   clamp(26px, 3vw, 34px);
+  --fs-title-2:   24px;
+  --fs-title-3:   17px;
+  --fs-lead:      18px;
+  --fs-body:      15px;
+  --fs-body-sm:   13px;
+  --fs-caption:   13px;
+  --fs-micro:     11px;
+  --fs-anno:      11px;
+  --fs-anno-sm:   10px;
+
+  --lh-tight:1.04; --lh-snug:1.12; --lh-body:1.6;
+  --tracking-display:-0.025em; --tracking-tight:-0.01em;
+  --tracking-anno:0.06em; --tracking-eyebrow:0.16em;
+
+  /* grid & layout */
+  --col-count:12; --gutter:24px; --margin:64px; --margin-sm:24px;
+  --content-max:1200px; --measure:66ch; --baseline:8px;
+
+  /* motion */
+  --ease-datum: cubic-bezier(0.2,0,0,1);
+  --ease-out:   cubic-bezier(0.16,1,0.3,1);
+  --dur-1:120ms; --dur-2:180ms; --dur-3:260ms;
+}
+
+/* ============================================================================
+   BASE TYPE CLASSES (documentation)
+   ========================================================================== */
+.ds-display-1, .ds-display-2 {
+  font-family: var(--font-display); font-weight: var(--fw-light);
+  letter-spacing: var(--tracking-display); line-height: var(--lh-tight);
+  color: var(--fg-1); margin: 0;
+}
+.ds-display-1 { font-size: var(--fs-display-1); }
+.ds-display-2 { font-size: var(--fs-display-2); }
+
+.ds-title-1, .ds-title-2, .ds-title-3 {
+  font-family: var(--font-display); letter-spacing: var(--tracking-tight);
+  line-height: var(--lh-snug); color: var(--fg-1); margin: 0;
+}
+.ds-title-1 { font-size: var(--fs-title-1); font-weight: var(--fw-light); }
+.ds-title-2 { font-size: var(--fs-title-2); font-weight: var(--fw-reg); }
+.ds-title-3 { font-size: var(--fs-title-3); font-weight: var(--fw-semi); font-family: var(--font-ui); letter-spacing: -0.005em; }
+
+.ds-lead { font-family: var(--font-ui); font-weight: var(--fw-reg); font-size: var(--fs-lead); line-height: 1.5; color: var(--ink-90); margin: 0; max-width: var(--measure); }
+.ds-body { font-family: var(--font-ui); font-weight: var(--fw-reg); font-size: var(--fs-body); line-height: var(--lh-body); color: var(--ink-90); margin: 0; max-width: var(--measure); }
+.ds-body-sm { font-size: var(--fs-body-sm); line-height: 1.5; }
+.ds-caption { font-family: var(--font-ui); font-size: var(--fs-caption); line-height: 1.4; color: var(--ink-70); margin: 0; }
+
+.ds-eyebrow, .anno, .ds-label {
+  font-family: var(--font-mono); font-weight: var(--fw-reg); font-size: var(--fs-anno);
+  letter-spacing: var(--tracking-eyebrow); text-transform: uppercase; color: var(--mut); margin: 0;
+}
+.mono, .evidence, .ds-mono {
+  font-family: var(--font-mono); font-size: var(--fs-anno);
+  letter-spacing: var(--tracking-anno); color: var(--ink-90);
+}
+code, kbd, samp { font-family: var(--font-mono); font-size: 0.92em; }
+b, strong { font-weight: var(--fw-med); }
+
+/* ============================================================================
+   WORDMARK — ÆDIFICA. Space Grotesk Light; the Æ ligature slightly heavier.
+   ========================================================================== */
+.ds-wordmark, .brand-wm {
+  font-family: var(--font-display); font-weight: 300; letter-spacing: 0.04em;
+  line-height: 1; color: var(--ink);
+}
+.ds-wordmark .ae, .brand-wm .ae { font-weight: 400; }
+
+/* ============================================================================
+   TRUST CHIP — square, mono, no radius (validated component)
+   ========================================================================== */
+.ds-ts {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em;
+  text-transform: uppercase; padding: 3px 7px; border: 1px solid; line-height: 1;
+}
+.ds-ts .dot { width: 7px; height: 7px; flex: none; }
+.ds-ts.is-sourced  { color: var(--ts-sourced);  border-color: var(--ts-sourced); }  .ds-ts.is-sourced .dot  { background: var(--ts-sourced); }
+.ds-ts.is-computed { color: var(--ts-computed); border-color: var(--ts-computed); }  .ds-ts.is-computed .dot { background: var(--ts-computed); }
+.ds-ts.is-assume   { color: var(--ts-assume);   border-color: var(--ts-assume); }    .ds-ts.is-assume .dot   { background: var(--ts-assume); }
+.ds-ts.is-unknown  { color: var(--ts-unknown);  border-color: var(--ts-unknown); border-style: dashed; } .ds-ts.is-unknown .dot { background: transparent; border: 1px solid var(--ts-unknown); }
+.ds-ts.is-conflict { color: var(--ts-conflict); border-color: var(--ts-conflict); }  .ds-ts.is-conflict .dot { background: var(--ts-conflict); }
+.ds-ts.is-decision { color: #fff; background: var(--ts-decision); border-color: var(--ts-decision); } .ds-ts.is-decision .dot { background: #fff; }
+
+/* ============================================================================
+   BUTTONS — mono uppercase (validated component)
+   ========================================================================== */
+.ds-btn {
+  font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.1em;
+  text-transform: uppercase; padding: 13px 24px; border: 1px solid var(--ink);
+  background: var(--ink); color: var(--surface); border-radius: var(--r-1);
+  cursor: pointer; display: inline-flex; align-items: center; gap: 9px; line-height: 1;
+  transition: background var(--dur-1) var(--ease-datum), color var(--dur-1) var(--ease-datum);
+}
+.ds-btn svg { width: 15px; height: 15px; }
+.ds-btn--accent { background: var(--accent); border-color: var(--accent); color: #fff; }
+.ds-btn--ghost  { background: transparent; color: var(--ink); }
+.ds-btn--ghost:hover { background: rgba(22,23,26,0.05); }
+.ds-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

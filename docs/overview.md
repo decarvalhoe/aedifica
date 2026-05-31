@@ -11,7 +11,7 @@
 Aedifica (**ArchiOS Suisse**) est une **couche d'intelligence réglementaire et projet** qui transforme une
 parcelle + un programme + les registres suisses liants en **savoir de projet sourcé et phase-aware**, le
 porte comme **mémoire continue** sur tout le mandat SIA, et assiste l'architecte dans son travail
-**fiduciaire, de coordination, économique, réglementaire et de responsabilité** — pas seulement le dessin.
+**fiduciaire, de coordination, économique, réglementaire, de dessin/modèle et de responsabilité**.
 
 ## 2 · Le problème
 
@@ -23,16 +23,19 @@ qu'ils n'ont pas.
 
 ## 3 · Le message produit
 
-> Le rêve « parler à une IA qui dessine » ≈ **5 %** de la valeur. Les **95 %** : un gain concret **à chaque
-> étape**, de la gestion documentaire initiale à la livraison finale — sourcé, tracé, dans les outils du bureau.
+> Le rêve « parler à une IA qui dessine » est visible et reste important, mais il ne suffit pas. La valeur est
+> un gain concret **à chaque étape**, de la gestion documentaire initiale à la livraison finale — sourcé, tracé,
+> et capable d'agir dans les outils du bureau quand l'architecte l'approuve.
 
 Produit **généralisable** (pas verrouillé sur Archicad, pas un logiciel de dessin). Le bureau partenaire
-(Archicad/BIM) est le **premier utilisateur pilote**, pas l'identité du produit.
+(Archicad/BIM) est le **premier utilisateur pilote**, pas l'identité du produit. L'API multi-logiciels
+pour assister le dessin, le modèle, les exports et les contrôles reste un axe produit natif.
 
 ## 4 · L'approche
 
 - **Canonical-first (bottom-up)** : sources → unités canoniques traçables (NOMOS), avec provenance + validité temporelle.
 - **Orchestration top-down** : des agents proposent / vérifient / journalisent ; l'humain reste responsable.
+- **Action layer multi-logiciels** : MCP/API pour inspecter, générer, contrôler ou modifier des dessins/modèles/documents après dry-run, approbation et ledger.
 - **Moteur neutre + jurisdiction packs** : la Suisse = 1ᵉ pack (le plus profond). Internationaliser = ajouter un pack.
 - **Route réglementaire (sélecteur)** : par projet, on n'active que `Fédéral + canton choisi + commune choisie`.
 - **Contrat de preuve** : chaque affirmation est sourcée (article + version + date) ou marquée hypothèse — **jamais une autorité**.
@@ -91,7 +94,7 @@ Cette fragmentation est **le fossé concurrentiel** : aucun outil étranger ne l
 | **MVP2 Permis & Opposition** | radar d'opposition + complétude dossier (phase 33) | 🟡 radar + pré-check dossier/compliance prototypes |
 | **MVP3 Honoraires, Coûts & Soumission** | copilote SIA 102 + pont eCCC↔NPK↔CFC | 🔜 |
 | **MVP4 Mémoire & Coordination** | mémoire de projet continue + traçabilité | 🔜 |
-| **Later** | Auto-BIM/Archicad (fil hybride), voice-to-design | 🔜 (fil démo Archicad actif) |
+| **R4 natif** | API dessin/modèle multi-logiciels : Archicad d'abord, IFC/Speckle/Revit/Rhino/SketchUp ensuite | 🔜 (fil démo Archicad actif) |
 
 La traduction logicielle de cette séquence vit désormais dans
 [`planning/software-roadmap.md`](planning/software-roadmap.md) et
@@ -157,8 +160,8 @@ fil Archicad) ; pilote **Vaud / Lausanne** ; cold-start **hybride** (ingestion �
 **route réglementaire** composable ; projet **contexte-first** pour les petits projets.
 
 **Ouvertes pour le passage logiciel** : app locale web vs desktop-local ; stockage `files + manifest` seul vs
-SQLite local ; première démo partenaire après `R1` (permis, Archicad, ou PV chantier) ; prochaine commune à
-ingérer après Lausanne/Pully.
+SQLite local ; première démo partenaire après `R1` (permis, API dessin/modèle Archicad, ou PV chantier) ;
+prochaine commune à ingérer après Lausanne/Pully.
 
 ## 11 · Prochaines étapes
 
@@ -166,18 +169,21 @@ ingérer après Lausanne/Pully.
 2. Construire `R1 Project Workspace` : projet explicite, route réglementaire, brief sourcé, rapport et mémoire.
 3. Ajouter la persistance minimale : manifest, evidence refs, report metadata, premiers records mémoire.
 4. Garder `R2` prêt : complétude dossier, gates phase 33, radar d'opposition et limites explicites.
-5. Préparer le fil partenaire `R4` : inspection Archicad JSON en dry-run, jamais mutation sans ledger/approval.
+5. Préparer le fil partenaire `R4` comme axe natif : inspection Archicad JSON en dry-run, contrats IFC/Speckle/Revit/Rhino/SketchUp, jamais mutation sans ledger/approval.
 
 ## 12 · Carte des documents (où lire quoi)
 
 | Pour… | Lire |
 |---|---|
 | Le pitch visuel (1 page) | [`pitch/aedifica-one-pager.html`](pitch/aedifica-one-pager.html) |
+| Le brand book Datum | [`design-system/aedifica-brand-book.html`](design-system/aedifica-brand-book.html) |
 | Le plan de développement logiciel | [`planning/software-development-plan.md`](planning/software-development-plan.md) |
 | La roadmap d'exécution | [`planning/software-roadmap.md`](planning/software-roadmap.md) |
 | Les épics et le backlog candidat | [`planning/epics-and-backlog.md`](planning/epics-and-backlog.md) |
 | Les listes de delivery | [`planning/development-checklists.md`](planning/development-checklists.md) |
 | La vision complète | [`vision.md`](vision.md) · [`product/holistic-assistance.md`](product/holistic-assistance.md) |
+| Le garde-fou de scope produit | [`product/scope-realignment.md`](product/scope-realignment.md) |
+| Le design system validé | [`design-system/README.md`](design-system/README.md) · [`design-system/design-system-manifest.json`](design-system/design-system-manifest.json) |
 | Le challenge + brainstorm | [`strategy/challenge-and-brainstorm.md`](strategy/challenge-and-brainstorm.md) |
 | Le métier d'architecte (réel, SIA) | [`strategy/architect-reality.md`](strategy/architect-reality.md) |
 | La pile réglementaire suisse | [`strategy/swiss-regulatory-stack.md`](strategy/swiss-regulatory-stack.md) |

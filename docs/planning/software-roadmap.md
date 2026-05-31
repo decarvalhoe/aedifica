@@ -4,9 +4,10 @@ Status: execution roadmap baseline, 2026-05-31.
 
 ## Roadmap Logic
 
-The roadmap follows the existing strategic decision: lead with the no-BIM regulatory/project-intelligence wedge,
-keep the Archicad/model thread alive for the partner office, and reuse the same trust, memory and adapter
-contracts everywhere.
+The roadmap follows the existing strategic decision: lead with the no-BIM regulatory/project-intelligence wedge
+because it is the fastest real proof, while preserving the full ArchiOS scope. The Archicad/model thread is
+the first visible adapter of a broader multi-software drawing/model API, and the same trust, memory and adapter
+contracts must apply everywhere.
 
 Each release must produce a demoable vertical slice, not only documentation.
 
@@ -18,7 +19,7 @@ Each release must produce a demoable vertical slice, not only documentation.
 | R1 | 2-4 weeks | Project workspace + parcel brief | Create project -> parcel -> sourced brief -> report. |
 | R2 | 4-8 weeks | Permit/opposition workflow | Missing dossier evidence + phase-33 gates + opposition risk. |
 | R3 | 6-10 weeks | Project memory and ledger | Decisions, evidence, approvals and carryover queries. |
-| R4 | 8-12 weeks | Partner-office model bridge | Archicad JSON inspection + dry-run metadata update. |
+| R4 | 8-12 weeks | Multi-software drawing/model bridge | Archicad JSON inspection + dry-run metadata update; API contract remains adapter-neutral. |
 | R5 | 12-16 weeks | Cost/tender assistant | SIA 102 fee assumptions + eCCC/NPK/CFC mapping report. |
 | R6 | 16-24 weeks | Site/handover assistant | Site notes/photos -> PV/tasks/defects/handover memory. |
 
@@ -115,15 +116,16 @@ Dependencies:
 - project knowledge regime;
 - R1/R2 generated evidence.
 
-## R4 — Partner-Office Model Bridge
+## R4 — Multi-Software Drawing / Model Bridge
 
-Goal: prove that the same engine can inspect a real model without becoming Archicad-only.
+Goal: prove that the same engine can inspect and assist a real model/drawing workflow without becoming Archicad-only.
 
 Scope:
 
 - Archicad JSON connection check;
 - adapter capability discovery;
 - selected element/space/property extraction;
+- structured drawing/model intent contract;
 - missing metadata audit;
 - dry-run update plan;
 - human-approved execution only if the bridge is verified.
@@ -199,6 +201,7 @@ Dependencies:
 | Source freshness and pack review | R1-R6 | Regulatory correctness decays without review metadata. |
 | Validation and CI | R1-R6 | Every contract must remain testable offline. |
 | Partner-office validation | R1-R6 | Product value depends on real workflow fit. |
+| Universal architecture API | R1-R6 | Regulatory intelligence, drawing assistance, model checks and document exports must share one approved action lifecycle. |
 | Security and privacy | R1-R6 | Project documents, client data and model files are sensitive. |
 | Documentation and issue hygiene | R1-R6 | The project needs traceable work packages and done criteria. |
 
@@ -210,5 +213,5 @@ Pause or re-scope a release if:
 - the release requires paid SIA/CRB text to be hardcoded;
 - the app cannot distinguish assumptions from facts;
 - an adapter would mutate a model without dry-run and approval;
-- the demo depends on BIM maturity before the no-BIM wedge is validated.
-
+- the demo depends on BIM maturity before the no-BIM wedge is validated;
+- the roadmap starts treating the no-BIM wedge or generated UI surfaces as the whole product scope.

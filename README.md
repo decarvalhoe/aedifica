@@ -17,6 +17,8 @@ Aedifica treats architecture as a constraint-led, evidence-based workflow:
 
 The product should behave like a project-aware architectural operating system, not like a generic chatbot or a drawing automation layer. It should know the project, the Swiss regulatory context, the current model state, the relevant SIA phase, the decisions already made, and the deliverable expected next.
 
+**Scope guardrail:** generated design surfaces and the current no-BIM regulatory wedge do not define the product boundary. Aedifica remains a full architectural assistant with a native multi-software API/MCP layer for model, drawing, BIM/CAD, document and construction workflows. See [`docs/product/scope-realignment.md`](docs/product/scope-realignment.md).
+
 ## Core Thesis
 
 Most small and mid-sized architecture offices already draw digitally, but much of the BIM value is lost because metadata, classifications, properties, exports, checks, and documentation are too manual.
@@ -48,6 +50,8 @@ One strong validation track is **Swiss Auto-BIM for small and mid-sized offices*
 - **[`docs/overview.md`](docs/overview.md): up-to-date global plan — start here.**
 - `docs/vision.md`: full product framing.
 - `docs/product/holistic-assistance.md`: end-to-end architect assistance model.
+- `docs/product/scope-realignment.md`: guardrail reaffirming the full product scope and multi-software drawing/model API.
+- `docs/design-system/`: AEDIFICA Datum visual system tokens, assets and manifest from the validated Claude Design pack.
 - `docs/strategy/`: strategy deep-dive — challenge & brainstorm, architect reality, Swiss regulatory stack, knowledge architecture, decisions, Lausanne PoC.
 - `docs/research/`: Swiss architecture lifecycle, phase-agentic matrix, sources.
 - `docs/research/bim-adapter-capability-map.md`: adapter capability map for Archicad, IFC, Speckle, Revit, Rhino, SketchUp, AutoCAD/BricsCAD.

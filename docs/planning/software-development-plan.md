@@ -10,8 +10,8 @@ checklists, phase-aware constraints, project memory fixtures and cost fixtures c
 next step is to productize that proof into a small, reliable application that an architect can use on a real
 pilot project.
 
-The development plan should not start with a broad "AI platform". It should turn the working pilot into a
-project workspace with four hard guarantees:
+The development plan should not start with a broad "AI platform", and it should not shrink Aedifica to the
+current regulatory/report surfaces. It should turn the working pilot into a project workspace with four hard guarantees:
 
 - sourced claims stay sourced;
 - assumptions stay visible;
@@ -57,7 +57,7 @@ create project
   -> export a reviewed report
 ```
 
-This target keeps the no-BIM wedge first while leaving a clean boundary for the partner-office Archicad bridge.
+This target keeps the no-BIM wedge first while preserving the native drawing/model API boundary for the partner-office Archicad bridge and later adapters.
 
 ## Product Principles
 
@@ -66,6 +66,7 @@ This target keeps the no-BIM wedge first while leaving a clean boundary for the 
 - **Phase aware:** a claim is useful only when the system knows when it matters and what action it triggers.
 - **Context-first by default:** small projects use files, manifest and ledger before a heavy RAG/database.
 - **Tool neutral:** Archicad is the first partner bridge, not the core ontology.
+- **Drawing/model assistance is first-class:** the product must keep a universal API for inspected, generated, checked and approved model/drawing actions across tools.
 - **Human accountable:** the architect validates regulatory interpretations, assumptions, dossier readiness and
   model mutations.
 - **Integrate, do not replace:** Messerli, SORBA, BBase, CRB, CAMAC, Archicad, Revit and construction clouds are
@@ -82,7 +83,7 @@ Use the existing Python pilot as the domain core, then wrap it progressively.
 | API | Thin local HTTP API around project and reports | FastAPI service with auth, jobs and storage. |
 | UI | Minimal web workspace for project intake/review/export | Role-aware multi-project app. |
 | Evidence store | Stored extracts, source refs, hashes, generated reports | Versioned object storage and indexed memory. |
-| Adapters | Dry-run local bridge contracts | Archicad JSON, IFC/IfcOpenShell, Speckle and document systems. |
+| Adapters | Dry-run local bridge contracts | Archicad JSON, IFC/IfcOpenShell, Speckle, Revit/Rhino/SketchUp/AutoCAD bridges and document systems. |
 | CI | Current validators and selfcheck | Contract tests, fixture regression tests, UI smoke tests. |
 
 The first production code should remain boring: explicit files, clear schemas, small pure functions, and
@@ -152,14 +153,15 @@ Core capabilities:
 - queries such as changes since version, open blockers before permit, conditions carried to site;
 - report hashes and source refs.
 
-### Track F — Model Intelligence Bridge
+### Track F — Multi-Software Drawing And Model Intelligence Bridge
 
-Goal: prove the partner-office Archicad thread without contaminating the core.
+Goal: prove the partner-office Archicad thread while keeping the core adapter-neutral and ready for drawing/model assistance across software.
 
 Core capabilities:
 
 - adapter capability manifest;
 - Archicad JSON connection check;
+- structured design/drawing intent contract;
 - selected-element and room/space property inspection;
 - dry-run property update plan;
 - approval and verification records.
@@ -202,7 +204,7 @@ Release `R1` should be small enough to demo in one meeting:
 - pass the existing CI plus new project-workspace tests.
 
 `R1` does not need multi-user auth, payments, generic Swiss coverage, production Archicad mutation, full RAG, or
-submission to CAMAC.
+submission to CAMAC. It must, however, avoid decisions that would block the later universal architecture API.
 
 ## Engineering Rules
 
