@@ -37,7 +37,8 @@ The validator builds an in-memory `.crbx`-style ZIP with:
 - `manifest.json`;
 - `exchange.e1s`.
 
-It parses the package back and verifies that row IDs, source refs and taxonomy mappings survive.
+It parses the package back and verifies that row IDs, source refs and taxonomy mappings survive. The demo
+contains multiple sample rows so wall, opening and finish quantities survive the same round trip.
 
 ```bash
 python pilot/validate_cost.py

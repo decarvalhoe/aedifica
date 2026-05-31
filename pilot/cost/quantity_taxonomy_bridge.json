@@ -31,6 +31,36 @@
         "status": "draft_requires_crb_catalog_lookup"
       },
       "assumptions": ["NPK position is not certified until selected in licensed CRB workflow."]
+    },
+    {
+      "row_id": "QTY-OPENING-001",
+      "description": "Interior door opening, demo quantity",
+      "quantity": 6,
+      "unit": "pcs",
+      "source": "model_snapshot_v3",
+      "eccc_code": "C2.03",
+      "cfc_code": "273",
+      "npk_draft": {
+        "catalog": "NPK/CAN",
+        "position_hint": "interior door placeholder",
+        "status": "draft_requires_crb_catalog_lookup"
+      },
+      "assumptions": ["Door type and fire-rating must be confirmed before tender."]
+    },
+    {
+      "row_id": "QTY-FINISH-001",
+      "description": "Wall finish, demo quantity",
+      "quantity": 85,
+      "unit": "m2",
+      "source": "model_snapshot_v3",
+      "eccc_code": "C4.01",
+      "cfc_code": "285",
+      "npk_draft": {
+        "catalog": "NPK/CAN",
+        "position_hint": "paint/plaster finish placeholder",
+        "status": "draft_requires_crb_catalog_lookup"
+      },
+      "assumptions": ["Finish build-up is an allowance until material concept is approved."]
     }
   ],
   "crbx_round_trip_contract": {

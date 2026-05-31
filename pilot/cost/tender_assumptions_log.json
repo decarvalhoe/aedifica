@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "log_id": "TENDER-ASSUMPTIONS-DEMO-V0",
+  "project_id": "DEMO-LAUSANNE-PALUD",
+  "phase_code": "41",
+  "entries": [
+    {
+      "assumption_id": "TA-FIRE-001",
+      "kind": "exclusion",
+      "title": "Fire-safety specialist evidence excluded from base fee",
+      "status": "carry_to_offer_comparison",
+      "source_ref": "MEM-CAMAC-FIRE-OPEN",
+      "offer_comparison_column": "specialist_fire_scope"
+    },
+    {
+      "assumption_id": "TA-OPPOSITION-001",
+      "kind": "allowance",
+      "title": "Opposition response support priced as optional allowance",
+      "status": "carry_to_offer_comparison",
+      "source_ref": "OPP-HERITAGE",
+      "offer_comparison_column": "opposition_support_allowance"
+    }
+  ]
+}

@@ -75,6 +75,7 @@ still performing the live OEREB fetch (shown as byte count).
 - `memory/demo_project_ledger.json` — decision ledger fixture for report generation, decisions, approvals and adapter events.
 - `validate_memory.py`, `validate_ledger.py` — stdlib validators and query demos for project memory and ledger.
 - `cost/` — fee/profitability and eCCC/NPK/CFC bridge fixtures.
+- `cost/tender_assumptions_log.json` — assumptions/exclusions carried into tender offer comparison.
 - `model_bridge_demo.py` — offline dry-run prototype for the local model bridge.
 - `model/archicad_selection_fixture.json` — selected-element fixture for the Archicad JSON bridge contract.
 - `validate_cost.py` — fee/taxonomy validator and in-memory `.crbx` round-trip demo.
