@@ -6,6 +6,8 @@ import json
 import os
 import sys
 
+import ledger
+
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MEMORY_DIR = os.path.join(HERE, "memory")
@@ -95,6 +97,8 @@ def answer_query(memory, query):
             for record in records
             if record.get("phase_code") == phase_code and record.get("status") in OPEN_STATUSES
         ]
+    if intent in {"open_blockers_before_permit", "conditions_for_tender_site", "changes_since_report"}:
+        return ledger.carryover(memory, intent)
     return []
 
 
@@ -187,7 +191,10 @@ def validate_memory(path):
 
 
 def iter_memory_paths():
-    yield from sorted(glob.glob(os.path.join(MEMORY_DIR, "*.json")))
+    for path in sorted(glob.glob(os.path.join(MEMORY_DIR, "*.json"))):
+        if "ledger" in os.path.basename(path):
+            continue
+        yield path
 
 
 def validate_all():

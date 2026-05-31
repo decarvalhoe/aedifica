@@ -48,6 +48,9 @@ jobs:
       - name: Validate project memory
         run: python pilot/validate_memory.py
 
+      - name: Validate project ledger
+        run: python pilot/validate_ledger.py
+
       - name: Validate project workspace
         run: python pilot/validate_workspace.py
 

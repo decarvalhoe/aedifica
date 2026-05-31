@@ -32,6 +32,7 @@ import validate_permit   # noqa: E402
 import validate_compliance  # noqa: E402
 import validate_research  # noqa: E402
 import validate_memory  # noqa: E402
+import validate_ledger  # noqa: E402
 import validate_cost    # noqa: E402
 import validate_workspace  # noqa: E402
 import model_bridge_demo  # noqa: E402
@@ -220,6 +221,12 @@ check(
     "project memory spans permit-to-site phases",
     any({"0", "31", "33", "41", "52"}.issubset(set(item["phase_codes"])) for item in memory_report.items),
 )
+ledger_report = validate_ledger.validate_all()
+check("project ledger validates", not ledger_report.errors)
+check("ledger covers approvals, dry-runs and report generations", any({"approval", "adapter_dry_run", "report_generation"}.issubset(set(item["event_types"])) for item in ledger_report.items))
+demo_memory = load("memory", "demo_project_memory.json")
+check("carryover query returns permit blockers", len(validate_memory.answer_query(demo_memory, {"intent": "open_blockers_before_permit"})) == 2)
+check("carryover query returns tender/site conditions", len(validate_memory.answer_query(demo_memory, {"intent": "conditions_for_tender_site"})) == 2)
 
 print("Project workspace")
 workspace_report = validate_workspace.validate_all()
@@ -265,6 +272,8 @@ with tempfile.TemporaryDirectory() as tmp:
         report_index = json.load(f)
     with open(workspace.report_memory_path(tmp_project), encoding="utf-8") as f:
         report_memory = json.load(f)
+    with open(os.path.join(tmp_project, "memory", "r1_report_memory.json"), encoding="utf-8") as f:
+        claim_memory = json.load(f)
     check("offline workspace brief writes report metadata", tmp_report.items[0]["report_count"] == 2 and not tmp_report.errors)
     check("generated reports carry hashes", all(artifacts.is_sha256(item.get("content_sha256")) for item in report_index["reports"]))
     check(
@@ -274,6 +283,10 @@ with tempfile.TemporaryDirectory() as tmp:
             and artifacts.is_sha256(record["evidence_refs"][0].get("sha256"))
             for record in report_memory["records"]
         ),
+    )
+    check(
+        "R1 report claims survive in memory",
+        {"sourced", "unknown"}.issubset({record["claim_state"] for record in claim_memory["records"]}),
     )
 
 print("Cost and model bridge")

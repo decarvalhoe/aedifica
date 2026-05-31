@@ -352,6 +352,45 @@ def _record_generated_report_memory(project_dir: str, report_entry: dict) -> Non
     _write_json(memory_path, memory)
 
 
+def _record_brief_claim_memory(project_dir: str, brief: dict, report_entry: dict) -> None:
+    manifest = _load_json(project_manifest_path(project_dir))
+    memory_path = os.path.join(project_dir, "memory", "r1_report_memory.json")
+    if os.path.exists(memory_path):
+        memory = _load_json(memory_path)
+    else:
+        memory = {
+            "schema_version": WORKSPACE_VERSION,
+            "memory_id": f"MEMORY-{manifest['project_id']}-R1-CLAIMS",
+            "project_id": manifest["project_id"],
+            "records": [],
+        }
+    records = [item for item in memory.get("records", []) if not item.get("memory_id", "").startswith(f"MEM-CLAIM-{brief['brief_id']}")]
+    for claim in brief.get("claims", []):
+        records.append(
+            {
+                "memory_id": f"MEM-CLAIM-{brief['brief_id']}-{claim['claim_id']}",
+                "record_type": "claim_created",
+                "phase_code": manifest.get("phase_code", "0"),
+                "title": claim["title"],
+                "summary": f"{claim['state']} claim from {brief['brief_id']}: {claim.get('value')}",
+                "claim_state": claim["state"],
+                "status": "pending_human_review" if claim["state"] in {"unknown", "assumption", "conflict"} else "active",
+                "source_refs": claim.get("source_refs", []),
+                "evidence_refs": [
+                    {
+                        "evidence_id": report_entry["report_id"],
+                        "kind": report_entry["kind"],
+                        "file_ref": f"project://{report_entry['path']}",
+                        "sha256": report_entry.get("content_sha256"),
+                    }
+                ],
+                "links": [f"MEM-REPORT-{report_entry['report_id']}"],
+            }
+        )
+    memory["records"] = records
+    _write_json(memory_path, memory)
+
+
 def _constraint_claims(oereb_record: dict, source_ref: dict) -> list[dict]:
     alignment_value = ", ".join(oereb_record.get("alignments") or [])
     constraints = [
@@ -669,6 +708,7 @@ def generate_offline_parcel_brief(project_dir: str, write_report: bool = False) 
     if write_report:
         report_rel = f"reports/{brief['brief_id'].lower()}.json"
         _write_json(os.path.join(project_dir, report_rel), brief)
-        record_report(project_dir, brief["brief_id"], "parcel_brief", report_rel, source_refs, brief["trust_footer"])
+        json_entry = record_report(project_dir, brief["brief_id"], "parcel_brief", report_rel, source_refs, brief["trust_footer"])
+        _record_brief_claim_memory(project_dir, brief, json_entry)
         write_brief_html_report(project_dir, brief)
     return brief

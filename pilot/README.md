@@ -72,7 +72,8 @@ still performing the live OEREB fetch (shown as byte count).
 - Workspace briefs can be saved as JSON and HTML reports with source registry, route, claims, risks, unknowns and
   report-index metadata. Generated report and evidence references carry SHA-256 hashes for later memory/ledger use.
 - `memory/demo_project_memory.json` — cross-phase project memory fixture with provenance-backed demo queries.
-- `validate_memory.py` — stdlib validator and query demo for project memory.
+- `memory/demo_project_ledger.json` — decision ledger fixture for report generation, decisions, approvals and adapter events.
+- `validate_memory.py`, `validate_ledger.py` — stdlib validators and query demos for project memory and ledger.
 - `cost/` — fee/profitability and eCCC/NPK/CFC bridge fixtures.
 - `model_bridge_demo.py` — offline dry-run prototype for the local model bridge.
 - `validate_cost.py` — fee/taxonomy validator and in-memory `.crbx` round-trip demo.

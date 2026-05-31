@@ -116,6 +116,6 @@ The architect verifies the cited sources, assumptions, conflicts, and project-sp
 
 ## Open Implementation Work
 
-- Convert the ledger schema to JSON Schema when the first persistent project record exists.
-- Add hashes for captured official extracts and generated reports.
-- Add an approval store before any mutating adapter is enabled.
+- Promote the stdlib ledger validator to JSON Schema when packaging is introduced.
+- Expand the approval store beyond the current file-backed primitive.
+- Add signing/identity integration for production approvals.

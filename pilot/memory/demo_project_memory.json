@@ -216,6 +216,27 @@
         "phase_code": "33"
       },
       "expected_record_ids": ["MEM-CHANGE-V4-ENERGY", "MEM-CAMAC-FIRE-OPEN"]
+    },
+    {
+      "query_id": "Q-CARRYOVER-PERMIT-BLOCKERS",
+      "question": "Which blockers are still open before permit filing?",
+      "intent": "open_blockers_before_permit",
+      "parameters": {},
+      "expected_record_ids": ["MEM-CHANGE-V4-ENERGY", "MEM-CAMAC-FIRE-OPEN"]
+    },
+    {
+      "query_id": "Q-CARRYOVER-TENDER-SITE",
+      "question": "Which conditions must carry to tender or site?",
+      "intent": "conditions_for_tender_site",
+      "parameters": {},
+      "expected_record_ids": ["MEM-HANDOFF-41-001", "MEM-SITE-52-001"]
+    },
+    {
+      "query_id": "Q-CHANGES-SINCE-REPORT",
+      "question": "Which active changes or generated records occurred since a report?",
+      "intent": "changes_since_report",
+      "parameters": {"report_id": "BRIEF-DEMO-LAUSANNE-PALUD-PARCEL"},
+      "expected_record_ids": ["MEM-CHANGE-V4-ENERGY"]
     }
   ]
 }

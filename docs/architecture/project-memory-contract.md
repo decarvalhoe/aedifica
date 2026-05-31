@@ -46,6 +46,9 @@ The fixture proves three cross-phase queries:
 | `Q-CHANGES-SINCE-V3` | Finds phase `33` changes linked to model snapshot `v3`. |
 | `Q-SOURCE-FIRE` | Returns phase `33` and phase `52` records justified by the same ECA/fire source. |
 | `Q-UNDECIDED-BEFORE-PERMIT` | Lists open items before filing: energy review and fire evidence. |
+| `Q-CARRYOVER-PERMIT-BLOCKERS` | Returns open phase `33` blockers before permit filing. |
+| `Q-CARRYOVER-TENDER-SITE` | Returns handoff/site conditions that must survive beyond authorization. |
+| `Q-CHANGES-SINCE-REPORT` | Returns active changes and generated records after a report baseline. |
 
 These are not natural-language search tricks. Each answer must return record IDs with source/evidence refs.
 
@@ -65,3 +68,7 @@ python pilot/selfcheck.py
 
 The validator fails if records lack source/evidence refs, if required record types are absent, or if the demo
 queries do not return their expected provenance-backed records.
+
+The demo decision ledger lives in `pilot/memory/demo_project_ledger.json` and
+is validated by `python pilot/validate_ledger.py`. It covers decisions,
+approvals, adapter dry-runs, mutating adapter execution and report generation.
