@@ -69,6 +69,8 @@ import adapter_snapshots   # noqa: E402
 import validate_adapter_capability  # noqa: E402
 import adapter_capability  # noqa: E402
 import adapter_transaction  # noqa: E402
+import replay_server  # noqa: E402
+import archicad_harness  # noqa: E402
 import workspace          # noqa: E402
 import trust             # noqa: E402
 
@@ -758,6 +760,21 @@ check("unsupported adapter transaction returns a blocked state", adapter_transac
 check("execution transaction requires a matching approval scope", adapter_transaction.is_blocked(adapter_transaction.authorize_execution(_txn, approval.make_approval("Arch", "adapter_dry_run", "ok"))))
 _txn_approved = adapter_transaction.authorize_execution(_txn, approval.make_approval("Arch", "adapter_execution", "ok"))
 check("execution proceeds only after an execution-scope approval", adapter_transaction.execute(_txn_approved)["status"] == "executed")
+
+print("Archicad live harness + replay server")
+_replay = replay_server.make_server("127.0.0.1", 0)
+_replay_thread = threading.Thread(target=_replay.serve_forever, daemon=True)
+_replay_thread.start()
+try:
+    _harness_live = archicad_harness.run_harness(f"http://127.0.0.1:{_replay.server_port}")
+finally:
+    _replay.shutdown()
+    _replay.server_close()
+check("replay server drives a live harness run without mutation", _harness_live["ok"] and _harness_live["mode"] == "live" and _harness_live["mutated"] is False)
+check("harness runs offline in fixture mode", archicad_harness.run_harness(None)["mode"] == "fixture")
+_harness_unavail = archicad_harness.run_harness("http://127.0.0.1:1", timeout=0.3, fixture_fallback=False)
+check("harness gives an actionable message for an unavailable endpoint", (not _harness_unavail["ok"]) and "unavailable" in _harness_unavail["mode"])
+check("harness transcript is redacted", not redaction.find_sensitive(_harness_live["transcript"]))
 
 print("Site and handover")
 site_report = validate_site.validate_all()

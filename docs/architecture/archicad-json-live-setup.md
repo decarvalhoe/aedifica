@@ -2,6 +2,28 @@
 
 Status: R4 live-adapter setup note, 2026-05-31.
 
+## Test harness command (no mutation)
+
+One repeatable command runs product info, selection read, missing-metadata audit
+and a dry-run diff against the bridge — never mutating the model:
+
+```bash
+# Against a running Archicad JSON bridge (or the fixture replay server)
+python pilot/archicad_harness.py --endpoint http://127.0.0.1:19723
+python pilot/archicad_harness.py --endpoint http://127.0.0.1:8077 --json
+
+# Offline fixture mode (no endpoint)
+python pilot/archicad_harness.py
+
+# Deterministic replay server for CI / local testing (no Archicad seat, no network)
+python pilot/replay_server.py --port 8077
+```
+
+The harness exits non-zero with an actionable message when the endpoint is
+unavailable (use `--no-fallback` to fail instead of using fixtures), and returns
+a redacted transcript. Live acceptance stays blocked by `#105` / `#115` until a
+partner Archicad seat is available.
+
 ## Purpose
 
 This document is the handoff from the R1A fixture demo to a live partner-office Archicad JSON bridge.
