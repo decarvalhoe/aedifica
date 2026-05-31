@@ -46,6 +46,7 @@ import validate_freshness  # noqa: E402
 import validate_commune_packs  # noqa: E402
 import seed_commune  # noqa: E402
 import permit_state  # noqa: E402
+import validate_dossier_evidence  # noqa: E402
 import redaction  # noqa: E402
 import evidence_store  # noqa: E402
 import project_cli  # noqa: E402
@@ -179,6 +180,14 @@ permit_checklist = load("permit", "vd_camac_checklist.json")
 permit_complete = load("permit", "demo_complete_dossier.json")
 permit_rendered = validate_permit.render_completeness_html(validate_permit.completeness_report(permit_checklist, permit_complete))
 check("permit completeness report renders actor/category groups", "architect" in permit_rendered and "specialist" in permit_rendered)
+
+print("Dossier evidence manifest")
+dossier_evidence_report = validate_dossier_evidence.validate_all()
+check("dossier evidence manifest validates", not dossier_evidence_report.errors)
+check(
+    "dossier evidence spans document/form/specialist/assumption categories",
+    {"document_ref", "form", "specialist_note", "assumption"}.issubset(set(dossier_evidence_report.items[0]["categories"])),
+)
 
 print("Permit dossier state machine")
 _permit_checklist = load("permit", "vd_camac_checklist.json")

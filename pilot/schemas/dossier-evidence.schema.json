@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aedifica.dev/schemas/dossier-evidence-1.0.json",
+  "title": "Aedifica permit dossier evidence manifest",
+  "description": "A permit dossier and its evidence records (document refs, drawings, forms, specialist notes, assumptions). Each record links to source refs and a file_ref or external_ref.",
+  "type": "object",
+  "required": ["dossier_id", "checklist_id", "project_context", "evidence_records"],
+  "additionalProperties": true,
+  "properties": {
+    "dossier_id": { "type": "string", "minLength": 1 },
+    "checklist_id": { "type": "string", "minLength": 1 },
+    "project_context": {
+      "type": "object",
+      "required": ["country", "canton_or_region", "commune", "phase_code"],
+      "properties": {
+        "country": { "type": "string", "minLength": 1 },
+        "canton_or_region": { "type": "string", "minLength": 1 },
+        "commune": { "type": "string", "minLength": 1 },
+        "phase_code": { "type": "string", "minLength": 1 }
+      }
+    },
+    "evidence_records": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["evidence_id", "key", "kind", "title", "status", "source_refs"],
+        "anyOf": [
+          { "required": ["file_ref"] },
+          { "required": ["external_ref"] }
+        ],
+        "properties": {
+          "evidence_id": { "type": "string", "minLength": 1 },
+          "key": { "type": "string", "minLength": 1 },
+          "kind": { "type": "string", "minLength": 1 },
+          "title": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["present", "missing", "pending", "not_applicable", "out_of_scope"] },
+          "file_ref": { "type": "string", "minLength": 1 },
+          "external_ref": { "type": "string", "minLength": 1 },
+          "source_refs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["source_id", "locator", "valid_as_of", "confidence"],
+              "properties": {
+                "source_id": { "type": "string", "minLength": 1 },
+                "locator": { "type": "string", "minLength": 1 },
+                "valid_as_of": { "type": "string", "minLength": 1 },
+                "confidence": { "enum": ["high", "medium", "low"] }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

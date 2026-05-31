@@ -8,8 +8,10 @@ PILOT = os.path.join(ROOT, "pilot")
 sys.path.insert(0, PILOT)
 
 import validate_brief  # noqa: E402
+import validate_commune_packs  # noqa: E402
 import validate_compliance  # noqa: E402
 import validate_cost  # noqa: E402
+import validate_dossier_evidence  # noqa: E402
 import validate_evidence_store  # noqa: E402
 import validate_freshness  # noqa: E402
 import validate_ledger  # noqa: E402
@@ -26,12 +28,14 @@ import validate_workspace  # noqa: E402
 
 VALIDATORS = [
     validate_packs.validate_all,
+    validate_commune_packs.validate_all,
     validate_manifest.validate_all,
     validate_evidence_store.validate_all,
     validate_brief.validate_all,
     validate_freshness.validate_all,
     validate_matrix.validate_all,
     validate_permit.validate_all,
+    validate_dossier_evidence.validate_all,
     validate_compliance.validate_all,
     validate_research.validate_all,
     validate_memory.validate_all,

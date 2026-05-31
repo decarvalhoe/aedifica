@@ -33,6 +33,9 @@ jobs:
       - name: Validate jurisdiction packs
         run: python pilot/validate_packs.py
 
+      - name: Validate commune pack regressions
+        run: python pilot/validate_commune_packs.py
+
       - name: Validate project manifest schema
         run: python pilot/validate_manifest.py
 
@@ -50,6 +53,9 @@ jobs:
 
       - name: Validate permit checklists
         run: python pilot/validate_permit.py
+
+      - name: Validate dossier evidence manifest
+        run: python pilot/validate_dossier_evidence.py
 
       - name: Validate compliance gates
         run: python pilot/validate_compliance.py
