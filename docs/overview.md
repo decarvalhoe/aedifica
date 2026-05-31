@@ -151,6 +151,10 @@ et validés par CI.
 - La vague active est définie comme backlog logiciel dans
   [`planning/epics-and-backlog.md`](planning/epics-and-backlog.md) : `AED-081` à `AED-123`, soit 43 issues
   GitHub re-atomisées autour de la productisation R1B, puis R2/R3/R4/R5/R6.
+  **Statut : les 43 issues sont implémentées** (package `aedifica/` + modules pilote, schémas,
+  validateurs et surfaces Datum) avec gate de release vert
+  (`python pilot/release_gate.py R1B` → 19 validateurs + selfcheck). Voir
+  [`architecture/package-boundaries.md`](architecture/package-boundaries.md).
 - Les seules issues plus anciennes encore ouvertes sont les validations live `#105` et `#115`, bloquées par
   l'accès à un endpoint Archicad/modèle partenaire.
 - Les listes de delivery, Definition of Ready/Done, release gates et checklists démo vivent dans
