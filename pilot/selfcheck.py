@@ -47,6 +47,8 @@ import validate_commune_packs  # noqa: E402
 import seed_commune  # noqa: E402
 import permit_state  # noqa: E402
 import validate_dossier_evidence  # noqa: E402
+import permit_mapping  # noqa: E402
+import permit_readiness  # noqa: E402
 import redaction  # noqa: E402
 import evidence_store  # noqa: E402
 import project_cli  # noqa: E402
@@ -205,6 +207,26 @@ except permit_state.PermitStateError:
     _permit_bad_transition = True
 check("permit state machine raises on invalid transition", _permit_bad_transition)
 check("permit state is never an authority decision", permit_state.state_summary("ready_for_review")["is_authority_decision"] is False)
+
+print("ACTIS-CAMAC mapping + permit readiness")
+_map_complete = permit_mapping.map_actis_camac(_permit_checklist, _complete_dossier)
+_sum_complete = permit_mapping.summarize(_map_complete)
+_map_missing = permit_mapping.map_actis_camac(_permit_checklist, _missing_dossier)
+_sum_missing = permit_mapping.summarize(_map_missing)
+check("ACTIS-CAMAC mapping reports no false blockers for a complete dossier", _sum_complete["required_blockers"] == 0)
+check("ACTIS-CAMAC mapping reports known missing items for a missing dossier", len(_sum_missing["missing"]) > 0)
+check("mapping statuses stay within present/missing/assumption/not_applicable", all(r["status"] in permit_mapping.RESULT_STATUSES for r in _map_complete + _map_missing))
+check("every checklist requirement keeps source/checklist provenance", all(r["checklist_provenance"] for r in _map_complete))
+_syn_ck = {"items": [{"item_id": "X", "title": "X", "category": "project", "missing_message": "do X", "required": True, "accepted_evidence": ["k"], "source_ids": ["S"]}]}
+_syn_do = {"evidence_records": [{"evidence_id": "E", "key": "k", "kind": "form", "title": "t", "status": "pending", "source_refs": [{"source_id": "S"}]}]}
+check("matched-but-pending evidence maps to assumption", permit_mapping.map_actis_camac(_syn_ck, _syn_do)[0]["status"] == "assumption")
+_ready_complete = permit_readiness.build_readiness(_permit_checklist, _complete_dossier)
+_ready_missing = permit_readiness.build_readiness(_permit_checklist, _missing_dossier)
+check("permit readiness is ready for a complete dossier", _ready_complete["ready_for_review"] is True)
+check("permit readiness is never ready with required blockers", _ready_missing["ready_for_review"] is False)
+check("permit readiness is never an authority decision", _ready_complete["is_authority_decision"] is False)
+_ready_html = permit_readiness.render_readiness_html(_ready_missing)
+check("permit readiness report groups blockers and shows disclaimers", "Disclaimers" in _ready_html and "NON prêt" in _ready_html)
 
 print("Phase 33 compliance gates")
 compliance_report = validate_compliance.validate_all()
