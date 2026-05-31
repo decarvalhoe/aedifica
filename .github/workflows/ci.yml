@@ -33,6 +33,9 @@ jobs:
       - name: Validate jurisdiction packs
         run: python pilot/validate_packs.py
 
+      - name: Validate project manifest schema
+        run: python pilot/validate_manifest.py
+
       - name: Validate phase-aware constraint matrices
         run: python pilot/validate_matrix.py
 

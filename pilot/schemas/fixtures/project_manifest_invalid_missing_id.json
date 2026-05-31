@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "name": "Fixture missing project_id",
+  "phase_code": "31",
+  "jurisdiction": { "country": "CH", "canton": "VD", "commune": "Lausanne" },
+  "regulatory_route": {
+    "schema_version": "1.0",
+    "route_id": "CH-VD-LAUSANNE",
+    "country": "CH",
+    "canton": "VD",
+    "commune": "Lausanne",
+    "selected_at": "2026-05-31T00:00:00+02:00",
+    "evaluated_at": "2026-05-31T00:00:00+02:00",
+    "active_layers": [
+      { "layer_id": "CH/federal", "level": "federal", "jurisdiction": "CH", "state": "active" }
+    ],
+    "inactive_layers": []
+  },
+  "trust_contract": {
+    "language": "fr",
+    "footer_required": true,
+    "required_claim_states": ["sourced", "computed", "assumption", "unknown"]
+  }
+}

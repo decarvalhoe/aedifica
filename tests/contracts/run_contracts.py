@@ -10,6 +10,7 @@ sys.path.insert(0, PILOT)
 import validate_compliance  # noqa: E402
 import validate_cost  # noqa: E402
 import validate_ledger  # noqa: E402
+import validate_manifest  # noqa: E402
 import validate_matrix  # noqa: E402
 import validate_memory  # noqa: E402
 import validate_packs  # noqa: E402
@@ -21,6 +22,7 @@ import validate_workspace  # noqa: E402
 
 VALIDATORS = [
     validate_packs.validate_all,
+    validate_manifest.validate_all,
     validate_matrix.validate_all,
     validate_permit.validate_all,
     validate_compliance.validate_all,

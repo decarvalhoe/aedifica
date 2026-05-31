@@ -38,6 +38,7 @@ import validate_ledger  # noqa: E402
 import validate_cost    # noqa: E402
 import validate_site    # noqa: E402
 import validate_workspace  # noqa: E402
+import validate_manifest  # noqa: E402
 import model_bridge_demo  # noqa: E402
 import adapter_snapshots   # noqa: E402
 import workspace          # noqa: E402
@@ -295,6 +296,18 @@ with tempfile.TemporaryDirectory() as tmp:
         "R1B report claims survive in memory",
         {"sourced", "unknown"}.issubset({record["claim_state"] for record in claim_memory["records"]}),
     )
+
+print("Project manifest schema (v1)")
+manifest_report = validate_manifest.validate_all()
+check("manifest schema and fixtures validate", not manifest_report.errors)
+manifest_schema = validate_manifest.load_schema()
+check("manifest schema pins version 1.0", manifest_schema["properties"]["schema_version"]["const"] == "1.0")
+demo_manifest = load("projects", "demo_lausanne_palud", "project.json")
+check("real demo manifest satisfies the schema", not validate_manifest.validate_manifest(demo_manifest, manifest_schema))
+check(
+    "manifest schema rejects a manifest missing project_id",
+    any("project_id" in err for err in validate_manifest.validate_manifest({"schema_version": "1.0"}, manifest_schema)),
+)
 
 print("Aedifica product package")
 check("aedifica package declares a version", isinstance(aedifica.__version__, str) and aedifica.__version__)

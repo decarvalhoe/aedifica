@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "project_id": "FIXTURE-NO-ROUTE-001",
+  "name": "Fixture missing regulatory_route",
+  "phase_code": "31",
+  "jurisdiction": { "country": "CH", "canton": "VD", "commune": "Lausanne" },
+  "trust_contract": {
+    "language": "fr",
+    "footer_required": true,
+    "required_claim_states": ["sourced", "computed", "assumption", "unknown"]
+  }
+}
