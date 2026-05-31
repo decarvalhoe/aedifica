@@ -42,6 +42,9 @@ jobs:
       - name: Validate project-scoped constraint brief
         run: python pilot/validate_brief.py
 
+      - name: Validate pack freshness gate
+        run: python pilot/validate_freshness.py
+
       - name: Validate phase-aware constraint matrices
         run: python pilot/validate_matrix.py
 

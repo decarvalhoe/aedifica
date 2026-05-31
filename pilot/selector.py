@@ -262,6 +262,58 @@ def pack_freshness_warnings(route_obj, today=None):
     return warnings
 
 
+def source_freshness_warnings(sources, today=None, max_age_days=540):
+    """Warn when a registered source's valid_as_of is missing, invalid or stale."""
+    today_date = date.fromisoformat(today) if isinstance(today, str) else today
+    today_date = today_date or date.today()
+    warnings = []
+    for src in sources or []:
+        source_id = src.get("source_id")
+        valid_as_of = src.get("valid_as_of")
+        if not valid_as_of:
+            warnings.append(
+                {
+                    "severity": "warning",
+                    "code": "missing_valid_as_of",
+                    "layer_id": source_id,
+                    "source_id": source_id,
+                    "message": f"Source {source_id} has no valid_as_of; re-check before reliance.",
+                }
+            )
+            continue
+        try:
+            as_of = date.fromisoformat(valid_as_of)
+        except ValueError:
+            warnings.append(
+                {
+                    "severity": "warning",
+                    "code": "invalid_valid_as_of",
+                    "layer_id": source_id,
+                    "source_id": source_id,
+                    "valid_as_of": valid_as_of,
+                    "message": f"Source {source_id} valid_as_of is not an ISO date; re-check freshness.",
+                }
+            )
+            continue
+        if (today_date - as_of).days > max_age_days:
+            warnings.append(
+                {
+                    "severity": "warning",
+                    "code": "source_stale",
+                    "layer_id": source_id,
+                    "source_id": source_id,
+                    "valid_as_of": valid_as_of,
+                    "message": f"Source {source_id} valid_as_of {valid_as_of} is older than {max_age_days} days; re-verify.",
+                }
+            )
+    return warnings
+
+
+def report_freshness_warnings(route_obj, sources=None, today=None, max_age_days=540):
+    """Freshness gate for generated reports: pack review_due + source valid_as_of."""
+    return pack_freshness_warnings(route_obj, today) + source_freshness_warnings(sources, today, max_age_days)
+
+
 def route(country="CH", canton="VD", commune="Lausanne"):
     """Compose the regulatory route: only Federal + the chosen canton + the chosen commune are active."""
     route_obj = regulatory_route(country, canton, commune)

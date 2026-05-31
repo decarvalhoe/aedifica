@@ -11,6 +11,7 @@ import validate_brief  # noqa: E402
 import validate_compliance  # noqa: E402
 import validate_cost  # noqa: E402
 import validate_evidence_store  # noqa: E402
+import validate_freshness  # noqa: E402
 import validate_ledger  # noqa: E402
 import validate_manifest  # noqa: E402
 import validate_matrix  # noqa: E402
@@ -28,6 +29,7 @@ VALIDATORS = [
     validate_manifest.validate_all,
     validate_evidence_store.validate_all,
     validate_brief.validate_all,
+    validate_freshness.validate_all,
     validate_matrix.validate_all,
     validate_permit.validate_all,
     validate_compliance.validate_all,

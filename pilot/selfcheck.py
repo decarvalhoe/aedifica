@@ -42,6 +42,7 @@ import validate_manifest  # noqa: E402
 import validate_evidence_store  # noqa: E402
 import validate_brief  # noqa: E402
 import validate_redaction  # noqa: E402
+import validate_freshness  # noqa: E402
 import redaction  # noqa: E402
 import evidence_store  # noqa: E402
 import project_cli  # noqa: E402
@@ -410,6 +411,17 @@ with tempfile.TemporaryDirectory() as tmp:
     check("R1B demo reports unknowns and evidence counts", r1b_summary["unknowns_count"] > 0 and r1b_summary["evidence_count"] >= 1)
     r1b_text = r1b_demo.render_summary(r1b_summary)
     check("R1B demo summary marks offline fixture mode", "OFFLINE FIXTURE MODE" in r1b_text)
+
+print("Pack freshness gate")
+freshness_report = validate_freshness.validate_all()
+check("pack freshness gate validates", not freshness_report.errors)
+_fresh_route = selector.regulatory_route("CH", "VD", "Lausanne")
+_expired = json.loads(json.dumps(_fresh_route))
+_expired["active_layers"][0]["source_version"]["review_due"] = "2000-01-01"
+check(
+    "freshness gate flags expired packs and stale sources",
+    any(w["code"] == "pack_review_overdue" for w in selector.report_freshness_warnings(_expired, [{"source_id": "S", "valid_as_of": "2000-01-01"}], today="2026-05-31")),
+)
 
 print("Regulatory route service")
 laus_route = route_service.select_route("CH", "VD", "Lausanne")

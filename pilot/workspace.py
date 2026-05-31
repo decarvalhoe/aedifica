@@ -613,7 +613,7 @@ def generate_offline_parcel_brief(project_dir: str, write_report: bool = False) 
             jurisdiction.get("canton", "VD"),
             jurisdiction.get("commune", "Lausanne"),
         )
-    freshness_warnings = selector.pack_freshness_warnings(route_obj)
+    freshness_warnings = selector.report_freshness_warnings(route_obj, source_registry.get("sources"))
     oereb_record = parcel_context["oereb_record"]
     area = parcel_context["area_m2"]
 
