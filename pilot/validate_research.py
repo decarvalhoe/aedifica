@@ -15,11 +15,13 @@ RESEARCH_DIR = os.path.join(HERE, "research")
 PHASE_MATRIX_PATH = os.path.join(RESEARCH_DIR, "swiss_phase_lifecycle_matrix.json")
 SOURCE_REGISTRY_PATH = os.path.join(RESEARCH_DIR, "pilot_source_registry.json")
 KNOWLEDGE_REGIME_PATH = os.path.join(RESEARCH_DIR, "project_knowledge_regime.json")
+WORKFLOW_SPECS_PATH = os.path.join(RESEARCH_DIR, "workflow_track_specs.json")
 SCHEMA_VERSION = "1.0"
 REQUIRED_PHASES = {"0", "1", "2", "31", "32", "33", "41", "51", "52", "53", "61-63"}
 REQUIRED_SIZE_VARIANTS = {"small", "medium", "large"}
 REQUIRED_SOURCE_TIERS = {"federal", "cantonal", "communal", "parcel", "sia", "office", "project"}
 REQUIRED_KNOWLEDGE_REGIMES = {"context_first", "hybrid_index", "project_rag_db"}
+REQUIRED_WORKFLOW_TRACKS = {"model_intelligence", "tender_quantity", "construction_management", "voice_to_design"}
 REQUIRED_PHASE_FIELDS = {
     "phase_code",
     "phase_label",
@@ -321,9 +323,76 @@ def validate_project_knowledge_regime(path=KNOWLEDGE_REGIME_PATH):
     return report
 
 
+def validate_workflow_track_specs(path=WORKFLOW_SPECS_PATH):
+    report = ResearchReport()
+    try:
+        data = _load(path)
+    except (OSError, json.JSONDecodeError) as exc:
+        report.add_error(path, f"cannot load JSON: {exc}")
+        return report
+
+    if data.get("schema_version") != SCHEMA_VERSION:
+        report.add_error(path, f"schema_version must be {SCHEMA_VERSION!r}")
+    for key in ("spec_id", "title"):
+        if not _nonempty_string(data.get(key)):
+            report.add_error(path, f"{key} must be a non-empty string")
+
+    tracks = data.get("tracks")
+    if not isinstance(tracks, list) or not tracks:
+        report.add_error(path, "tracks must be a non-empty list")
+        tracks = []
+
+    seen_tracks = set()
+    issues = set()
+    for index, track in enumerate(tracks):
+        owner = f"tracks[{index}]"
+        if not isinstance(track, dict):
+            report.add_error(path, f"{owner} must be an object")
+            continue
+        track_id = track.get("track_id")
+        if track_id in seen_tracks:
+            report.add_error(path, f"duplicate track_id {track_id}")
+        if _nonempty_string(track_id):
+            seen_tracks.add(track_id)
+        issue = track.get("issue")
+        if not isinstance(issue, int) or issue <= 0:
+            report.add_error(path, f"{owner}.issue must be a positive integer")
+        else:
+            issues.add(issue)
+        for key in ("track_id", "title", "purpose"):
+            if not _nonempty_string(track.get(key)):
+                report.add_error(path, f"{owner}.{key} must be a non-empty string")
+        for key in ("phase_focus", "inputs", "outputs", "pipeline", "safety_gates", "success_criteria"):
+            if not _list_of_strings(track.get(key)):
+                report.add_error(path, f"{owner}.{key} must be a non-empty list of strings")
+
+    missing_tracks = REQUIRED_WORKFLOW_TRACKS - seen_tracks
+    if missing_tracks:
+        report.add_error(path, f"missing workflow tracks {sorted(missing_tracks)}")
+    missing_issues = {16, 18, 19, 20} - issues
+    if missing_issues:
+        report.add_error(path, f"missing workflow issue coverage {sorted(missing_issues)}")
+
+    report.items.append(
+        {
+            "path": os.path.relpath(path, HERE),
+            "kind": "workflow_track_specs",
+            "track_count": len(tracks),
+            "tracks": sorted(seen_tracks),
+            "issues": sorted(issues),
+        }
+    )
+    return report
+
+
 def validate_all():
     merged = ResearchReport()
-    for validator in (validate_phase_matrix, validate_source_registry, validate_project_knowledge_regime):
+    for validator in (
+        validate_phase_matrix,
+        validate_source_registry,
+        validate_project_knowledge_regime,
+        validate_workflow_track_specs,
+    ):
         report = validator()
         merged.items.extend(report.items)
         merged.errors.extend(report.errors)
@@ -346,6 +415,8 @@ def main():
                 f"PASS? {item['path']} "
                 f"(default: {item['default_regime']}; regimes: {', '.join(item['regimes'])})"
             )
+        elif item["kind"] == "workflow_track_specs":
+            print(f"PASS? {item['path']} ({item['track_count']} tracks; issues: {', '.join(map(str, item['issues']))})")
     if report.errors:
         print("\nValidation errors:")
         for error in report.errors:

@@ -103,7 +103,7 @@ Code Python (stdlib), ancré sur les **API publiques gratuites** suisses, pouss�
 | `validate_research.py` | validation matrice phases SIA + registre sources pilote | ✅ |
 | `validate_memory.py` | mémoire projet cross-phase + requêtes avec provenance | ✅ |
 | `trust.py` | footer/contrat de rendu non-autoritaire partagé par les sorties pilote | ✅ |
-| `selfcheck.py` | tests hors-ligne | ✅ 40/40 |
+| `selfcheck.py` | tests hors-ligne | ✅ 41/41 |
 
 **Preuve réelle** (parcelle Place de la Palud, Lausanne, nº 10072) : Zone centrale 15 LAT · DS III ·
 alignements · LATC/LAT — en quelques secondes, **sans maquette ni identifiant**. Validé aussi sur Pully.
@@ -163,6 +163,10 @@ fil Archicad) ; pilote **Vaud / Lausanne** ; cold-start **hybride** (ingestion �
 | Le registre de sources pilote | [`research/pilot-source-registry.md`](research/pilot-source-registry.md) |
 | La spec MVP1 | [`specs/mvp1-parcel-constraints-intake.md`](specs/mvp1-parcel-constraints-intake.md) |
 | La spec assistant permis | [`specs/mvp2-permit-dossier-assistant.md`](specs/mvp2-permit-dossier-assistant.md) |
+| La spec Auto-BIM / Model Intelligence | [`specs/later-model-intelligence.md`](specs/later-model-intelligence.md) |
+| La spec tender/quantités | [`specs/later-tender-quantity-workflows.md`](specs/later-tender-quantity-workflows.md) |
+| La spec direction travaux | [`specs/mvp4-direction-travaux-agentique.md`](specs/mvp4-direction-travaux-agentique.md) |
+| La spec voice-to-design | [`specs/later-voice-to-design.md`](specs/later-voice-to-design.md) |
 | La preuve API (Lausanne) | [`strategy/poc-lausanne-parcel.md`](strategy/poc-lausanne-parcel.md) |
 | Le pilote (code) | [`../pilot/README.md`](../pilot/README.md) |
 

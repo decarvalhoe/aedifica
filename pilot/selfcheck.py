@@ -126,6 +126,7 @@ research_report = validate_research.validate_all()
 phase_items = [item for item in research_report.items if item["kind"] == "phase_matrix"]
 source_items = [item for item in research_report.items if item["kind"] == "source_registry"]
 knowledge_items = [item for item in research_report.items if item["kind"] == "project_knowledge_regime"]
+workflow_items = [item for item in research_report.items if item["kind"] == "workflow_track_specs"]
 check("research assets validate", not research_report.errors)
 check(
     "phase lifecycle covers required phases",
@@ -142,6 +143,10 @@ check(
 check(
     "project knowledge defines escalation regimes",
     any(validate_research.REQUIRED_KNOWLEDGE_REGIMES.issubset(set(item["regimes"])) for item in knowledge_items),
+)
+check(
+    "workflow track specs cover remaining tracks",
+    any(validate_research.REQUIRED_WORKFLOW_TRACKS.issubset(set(item["tracks"])) for item in workflow_items),
 )
 
 print("Project memory")

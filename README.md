@@ -66,6 +66,10 @@ One strong validation track is **Swiss Auto-BIM for small and mid-sized offices*
 - `docs/nomos/phase-aware-constraint-matrix.md`: phase-aware matrix contract connecting constraints to SIA-phase actions.
 - `docs/specs/mvp1-parcel-constraints-intake.md`: implementation-ready MVP1 spec.
 - `docs/specs/mvp2-permit-dossier-assistant.md`: implementation-ready permit dossier assistant spec.
+- `docs/specs/later-model-intelligence.md`: Auto-BIM/model-intelligence track spec.
+- `docs/specs/later-tender-quantity-workflows.md`: tender and quantity track spec.
+- `docs/specs/mvp4-direction-travaux-agentique.md`: construction-management track spec.
+- `docs/specs/later-voice-to-design.md`: voice-to-design track spec.
 - `docs/mvp-roadmap.md`: staged MVP plan.
 - `docs/review/foundations-audit.md`: living corrections tracker.
 - `docs/pitch/aedifica-one-pager.html`: visual one-pager (FR).

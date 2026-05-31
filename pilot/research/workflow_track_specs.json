@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0",
+  "spec_id": "AEDIFICA-WORKFLOW-TRACK-SPECS-V0",
+  "title": "Workflow track specifications for model, tender, site and voice",
+  "source_version": {
+    "source_status": "product_specification",
+    "created_at": "2026-05-31",
+    "review_due": "2026-08-31"
+  },
+  "tracks": [
+    {
+      "track_id": "model_intelligence",
+      "issue": 16,
+      "title": "Auto-BIM / Model Intelligence",
+      "phase_focus": ["32", "51"],
+      "purpose": "Inspect model-like sources, detect missing or inconsistent information, propose approved corrections, export deliverables and write a traceable report.",
+      "inputs": ["project_context", "model_snapshot", "bim_requirements", "office_standards", "adapter_capabilities"],
+      "outputs": ["model_audit", "correction_plan", "dry_run_diff", "approval_record", "export_report"],
+      "pipeline": ["inspect", "extract", "compare_requirements", "propose_changes", "dry_run", "approve", "execute", "verify", "ledger"],
+      "safety_gates": ["dry_run_required", "human_approval_required", "before_after_snapshot", "adapter_capability_check"],
+      "success_criteria": ["detects_missing_metadata", "does_not_mutate_without_approval", "produces_traceable_report"]
+    },
+    {
+      "track_id": "tender_quantity",
+      "issue": 18,
+      "title": "Tender and Quantity Workflows",
+      "phase_focus": ["41"],
+      "purpose": "Turn quantities and project assumptions into structured tender packages, comparisons and memory records.",
+      "inputs": ["project_context", "quantity_source", "cost_taxonomy", "office_tender_template", "offer_documents"],
+      "outputs": ["quantity_register", "taxonomy_mapping", "draft_descriptions", "offer_comparison", "assumption_log"],
+      "pipeline": ["collect_quantities", "map_taxonomy", "draft_descriptions", "check_exclusions", "compare_offers", "write_memory_records"],
+      "safety_gates": ["assumptions_visible", "human_review_required", "source_quantities_versioned"],
+      "success_criteria": ["maps_quantities_to_cost_structure", "preserves_assumptions_and_exclusions", "links_offers_to_project_memory"]
+    },
+    {
+      "track_id": "construction_management",
+      "issue": 19,
+      "title": "Direction Travaux Agentique",
+      "phase_focus": ["52", "53"],
+      "purpose": "Support site administration, decisions, defects, cost/schedule signals and handover with traceable records.",
+      "inputs": ["site_notes", "photos", "meeting_minutes", "contracts", "permit_conditions", "project_memory"],
+      "outputs": ["site_report", "task_register", "defect_register", "decision_log", "handover_checklist"],
+      "pipeline": ["capture_site_input", "extract_tasks", "assign_owners", "link_sources", "track_status", "handover"],
+      "safety_gates": ["no_automatic_contractual_commitment", "human_validation_required", "evidence_refs_required"],
+      "success_criteria": ["generates_structured_pv", "tracks_open_defects", "carries_permit_conditions_to_site"]
+    },
+    {
+      "track_id": "voice_to_design",
+      "issue": 20,
+      "title": "Voice-to-Design Workflow",
+      "phase_focus": ["31", "32", "51"],
+      "purpose": "Convert speech into structured architectural intent, then route it through project context, constraints, dry-run preview and approved API execution.",
+      "inputs": ["speech_or_transcript", "project_context", "current_selection", "constraints", "adapter_capabilities"],
+      "outputs": ["structured_intent", "constraint_check", "dry_run_plan", "preview", "execution_report"],
+      "pipeline": ["transcribe", "parse_intent", "resolve_context", "check_constraints", "dry_run", "preview", "approve", "execute", "correct"],
+      "safety_gates": ["never_execute_raw_transcript", "dry_run_required", "human_approval_required", "correction_loop_required"],
+      "success_criteria": ["keeps_voice_as_intent_not_command", "checks_project_context_before_action", "records_approved_execution"]
+    }
+  ]
+}

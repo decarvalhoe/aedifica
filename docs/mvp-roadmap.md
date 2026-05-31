@@ -102,6 +102,8 @@ Capabilities:
 - Cost and schedule alerts.
 - Handover dossier.
 
+Spec: [`specs/mvp4-direction-travaux-agentique.md`](specs/mvp4-direction-travaux-agentique.md).
+
 ## Later Track: Auto-BIM / Model Intelligence
 
 Goal: inspect a BIM/model state, detect missing or inconsistent project information, propose corrections, apply approved updates through the available adapter, and export deliverables.
@@ -118,6 +120,8 @@ Capabilities:
 Note: Archicad is an excellent first real-world adapter because of the initial user context, but this track
 should validate a general model-intelligence capability.
 
+Spec: [`specs/later-model-intelligence.md`](specs/later-model-intelligence.md).
+
 ## Later Track: Voice-to-Design Workflow
 
 Goal: let an architect describe controlled design actions orally and route them through safe structured commands.
@@ -130,3 +134,12 @@ Capabilities:
 - Dry-run preview.
 - Tool execution through MCP/API.
 - Correction loop.
+
+Spec: [`specs/later-voice-to-design.md`](specs/later-voice-to-design.md).
+
+## Later Track: Tender and Quantity Workflows
+
+The tender/quantity track is specified in
+[`specs/later-tender-quantity-workflows.md`](specs/later-tender-quantity-workflows.md). Its current strategic
+placement overlaps MVP3 because #29/#30 are the next cost/honoraires implementation block; this later-track
+spec preserves the workflow boundaries while the MVP3 cost contracts are built.
