@@ -71,6 +71,7 @@ import adapter_capability  # noqa: E402
 import adapter_transaction  # noqa: E402
 import replay_server  # noqa: E402
 import archicad_harness  # noqa: E402
+import export_intent  # noqa: E402
 import workspace          # noqa: E402
 import trust             # noqa: E402
 
@@ -766,6 +767,16 @@ check("unsupported adapter transaction returns a blocked state", adapter_transac
 check("execution transaction requires a matching approval scope", adapter_transaction.is_blocked(adapter_transaction.authorize_execution(_txn, approval.make_approval("Arch", "adapter_dry_run", "ok"))))
 _txn_approved = adapter_transaction.authorize_execution(_txn, approval.make_approval("Arch", "adapter_execution", "ok"))
 check("execution proceeds only after an execution-scope approval", adapter_transaction.execute(_txn_approved)["status"] == "executed")
+_export_pdf = export_intent.build_export_intent("archicad_json", "pdf", "sheet A-01", "EXP-SELF-1")
+check("supported export intent produces a dry-run artifact plan", _export_pdf["status"] == "dry_run" and bool(_export_pdf["expected_artifact_ref"]))
+check("export intent is blocked when the adapter cannot export", export_intent.is_blocked(export_intent.build_export_intent("ifc_ifcopenshell", "pdf", "x", "EXP-SELF-2")))
+try:
+    export_intent.mark_executed(_export_pdf, {})
+    _export_unverified = False
+except export_intent.ExportIntentError:
+    _export_unverified = True
+check("no export is claimed executed without verification evidence", _export_unverified)
+check("a verified export is marked executed", export_intent.mark_executed(_export_pdf, {"artifact_ref": "exports/x.pdf", "hash": "a" * 64})["verified"])
 
 print("Archicad live harness + replay server")
 _replay = replay_server.make_server("127.0.0.1", 0)
