@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "register_id": "DEFECTS-DEMO-LAUSANNE-PALUD",
+  "project_id": "DEMO-LAUSANNE-PALUD",
+  "phase_code": "52",
+  "defects": [
+    {
+      "defect_id": "DEFECT-001",
+      "title": "Main-courante escalier nord non conforme",
+      "severity": "medium",
+      "status": "open",
+      "source_note_id": "SITE-NOTE-2026-05-31-001",
+      "responsible_party": "Entreprise menuiserie",
+      "target_resolution": "2026-06-07"
+    },
+    {
+      "defect_id": "DEFECT-002",
+      "title": "Retouche peinture palier",
+      "severity": "low",
+      "status": "pending_review",
+      "source_note_id": "SITE-NOTE-2026-05-31-001",
+      "responsible_party": "Entreprise peinture",
+      "target_resolution": "2026-06-10"
+    }
+  ]
+}

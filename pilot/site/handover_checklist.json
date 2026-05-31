@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "checklist_id": "HANDOVER-DEMO-LAUSANNE-PALUD",
+  "project_id": "DEMO-LAUSANNE-PALUD",
+  "phase_code": "61-63",
+  "items": [
+    {"item_id": "HO-KEYS", "title": "Remise des clés", "status": "pending", "required_evidence": "project://handover/keys_receipt.pdf"},
+    {"item_id": "HO-DEFECTS", "title": "Défauts ouverts traités ou acceptés", "status": "blocked", "required_evidence": "project://site/defect_register.json"},
+    {"item_id": "HO-DOCS", "title": "Documentation entreprise reçue", "status": "pending", "required_evidence": "project://handover/company_docs.zip"}
+  ]
+}

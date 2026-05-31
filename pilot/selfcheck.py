@@ -34,6 +34,7 @@ import validate_research  # noqa: E402
 import validate_memory  # noqa: E402
 import validate_ledger  # noqa: E402
 import validate_cost    # noqa: E402
+import validate_site    # noqa: E402
 import validate_workspace  # noqa: E402
 import model_bridge_demo  # noqa: E402
 import workspace          # noqa: E402
@@ -313,6 +314,18 @@ check("model bridge inspects selected elements", selection["source_model_version
 check("model bridge audits missing metadata", metadata_audit["missing_count"] >= 1 and metadata_audit["missing"][0]["proposed_fix"])
 check("model bridge blocks property update without approval", dry_run_blocked["blocked"] and dry_run_blocked["required_approval"])
 check("model bridge allows dry-run once ledger approval exists", not dry_run_approved["blocked"])
+
+print("Site and handover")
+site_report = validate_site.validate_all()
+site_note = load("site", "site_note_fixture.json")
+defects = load("site", "defect_register_fixture.json")
+handover = load("site", "handover_checklist.json")
+pv = validate_site.generate_pv_and_task_register(site_note)
+handover_html = validate_site.render_handover_html(handover, defects)
+check("site assets validate", not site_report.errors)
+check("site note generates PV and task register", pv["tasks"] and pv["source_note_id"] == site_note["note_id"])
+check("defect register fixture has open defects", any(d["status"] in {"open", "pending_review"} for d in defects["defects"]))
+check("handover checklist renders blocked defects", "Handover checklist" in handover_html and "blocked" in handover_html)
 
 print("-" * 48)
 print(f"{_n - _fail}/{_n} checks passed" + ("" if not _fail else f"  ({_fail} FAILED)"))
