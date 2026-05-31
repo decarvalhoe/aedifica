@@ -42,7 +42,8 @@ Missing before this can be used as software:
 - no UI for an architect to enter a parcel, review claims, mark assumptions or approve actions;
 - no production data-store decision;
 - no real adapter implementation for Archicad/IFC/Speckle;
-- no post-closure GitHub backlog for the next development wave.
+- active GitHub backlog now exists for the next development wave, but the issues still need execution,
+  sequencing and implementation PRs.
 
 ## Product Target
 

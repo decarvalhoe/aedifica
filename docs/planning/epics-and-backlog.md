@@ -1,6 +1,7 @@
 # Aedifica Epics And Development Backlog
 
-Status: issue-ready backlog baseline after the first 38 GitHub issues were closed.
+Status: active backlog baseline after the first prototype waves were closed and the GitHub backlog was
+re-atomized on 2026-05-31.
 
 ## Backlog Model
 
@@ -12,10 +13,46 @@ Use these fields when opening GitHub issues:
 - `Labels`: `product`, `backend`, `frontend`, `data`, `adapter`, `validation`, `docs`, `research`, `security`
 - `Done`: testable acceptance criteria, not just text written
 
+## Active GitHub Wave
+
+The prototype/specification waves `AED-001` to `AED-080` are closed, except for live partner-environment
+validation that remains tracked separately as blocked external work:
+
+- `#105` / `AED-067`: verify live dry-run against a partner model.
+- `#115` / `AED-077`: run the first partner model audit.
+
+The active implementation wave starts at `AED-081` and turns the proven contracts into product software:
+
+| Epic | GitHub issues | Milestone | Priority | Outcome |
+|---|---:|---|---:|---|
+| AED-E24 R1B Workspace Productization | #119-#130 | R1B | P0 | The pilot becomes a project workspace with manifest, evidence store, reports, API and demo command. |
+| AED-E25 Regulatory Route And Pack Services | #131-#134 | R1B/R2 | P0 | Route selection and commune packs become reusable services with freshness and regression gates. |
+| AED-E26 Permit And Opposition Product Workflow | #135-#140 | R2 | P0 | Permit evidence, ACTIS-CAMAC mapping, phase-33 gates and opposition signals become workspace outputs. |
+| AED-E27 Durable Memory And Ledger | #141-#145 | R3 | P0 | Reports, approvals, adapter evidence and carryover obligations persist across phases. |
+| AED-E28 Multi-Software Adapter Bridge | #146-#152 | R4 | P0 | Adapter capability, transaction, live harness, IFC/Speckle and export intents share one lifecycle. |
+| AED-E29 Cost And Tender Product Slice | #153-#155 | R5 | P1 | Fee assumptions, quantity source versions and tender assumptions become project-backed artifacts. |
+| AED-E30 Site And Handover Product Slice | #156-#158 | R6 | P2 | Site notes, PV/tasks, defects and handover checks enter project memory with evidence refs. |
+| AED-E31 Cross-Cutting Safety And Release Quality | #159-#161 | R1B | P0 | Privacy redaction, release gates and partner feedback capture protect every release. |
+
+Execution order:
+
+1. Clear R1B P0s first: `#119` to `#126`, `#130`, `#131`, plus privacy gate `#159`.
+2. Keep R4 live issues `#105` and `#115` blocked until partner Archicad/model access is available.
+3. Start R2 only after the project manifest, evidence store and report renderer are usable.
+4. Pull R3 approval/ledger work forward whenever an issue creates professional responsibility or adapter action risk.
+
 ## Epic Summary
 
 | Epic | Milestone | Priority | Outcome |
 |---|---|---:|---|
+| AED-E24 R1B Workspace Productization | R1B | P0 | Pilot contracts become a local project workspace and repeatable demo. |
+| AED-E25 Regulatory Route And Pack Services | R1B-R2 | P0 | Route selection and commune packs are reusable, validated and freshness-aware. |
+| AED-E26 Permit And Opposition Product Workflow | R2 | P0 | Dossier readiness, phase gates and opposition risk become project-backed outputs. |
+| AED-E27 Durable Memory And Ledger | R3 | P0 | Decisions, approvals, evidence and carryover obligations persist across phases. |
+| AED-E28 Multi-Software Adapter Bridge | R4 | P0 | Live and neutral adapters share capability, transaction and export contracts. |
+| AED-E29 Cost And Tender Product Slice | R5 | P1 | Cost and tender assumptions become reviewable project artifacts. |
+| AED-E30 Site And Handover Product Slice | R6 | P2 | Site, defects and handover workflows write back to project memory. |
+| AED-E31 Cross-Cutting Safety And Release Quality | R1B-R6 | P0 | Privacy, release and partner-feedback gates stay explicit. |
 | AED-E14 Product Scope Operating Doctrine | R1A | P0 | Scope cannot drift back to regulatory-only or surface-only product framing. |
 | AED-E15 Spectacular Partner Demo | R1A | P0 | Skeptical architect sees the agent-to-software value in one meeting. |
 | AED-E16 Agent CLI Orchestrator | R1A | P0 | One command runs project context, bridge inspection, dry-run diff and safety output. |

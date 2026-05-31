@@ -146,11 +146,13 @@ et validés par CI.
 
 ## 9 · Backlog & gouvernance
 
-- La première vague de **38 issues GitHub** est fermée : elle a servi à transformer les fondations en docs,
-  contrats, fixtures et validations.
-- La vague suivante est définie comme backlog logiciel dans
-  [`planning/epics-and-backlog.md`](planning/epics-and-backlog.md) : 13 épics, 51 tâches candidates,
-  milestones `R1A` à `R6`, priorités et dépendances.
+- Les premières vagues GitHub `AED-001` à `AED-080` sont fermées : elles ont servi à transformer les fondations
+  en docs, contrats, fixtures, validations et preuve offline agent -> logiciel.
+- La vague active est définie comme backlog logiciel dans
+  [`planning/epics-and-backlog.md`](planning/epics-and-backlog.md) : `AED-081` à `AED-123`, soit 43 issues
+  GitHub re-atomisées autour de la productisation R1B, puis R2/R3/R4/R5/R6.
+- Les seules issues plus anciennes encore ouvertes sont les validations live `#105` et `#115`, bloquées par
+  l'accès à un endpoint Archicad/modèle partenaire.
 - Les listes de delivery, Definition of Ready/Done, release gates et checklists démo vivent dans
   [`planning/development-checklists.md`](planning/development-checklists.md).
 - Décisions tracées dans [`strategy/decisions.md`](strategy/decisions.md) ; corrections et dette historique
@@ -168,11 +170,11 @@ prochaine commune à ingérer après Lausanne/Pully.
 
 ## 11 · Prochaines étapes
 
-1. Ouvrir et traiter la vague GitHub `R1A Agent-To-Software Demo` à partir des épics `AED-E14` à `AED-E23`.
-2. Transformer le prototype offline en démo partenaire : agent CLI, inspection modèle, items générés, diff, approbation, ledger.
-3. Connecter le bridge Archicad JSON live dès qu'un poste Archicad partenaire est disponible.
-4. Construire ensuite `R1B Project Workspace` : projet explicite, route réglementaire, brief sourcé, rapport et mémoire.
-5. Garder `R2` prêt : complétude dossier, gates phase 33, radar d'opposition et limites explicites.
+1. Traiter les P0 R1B `#119` à `#126`, `#130`, `#131` et `#159` pour convertir le pilote en workspace projet.
+2. Connecter le bridge Archicad JSON live dès qu'un poste Archicad partenaire est disponible (`#105`, `#115`).
+3. Construire `R2` sur le workspace : complétude dossier, gates phase 33, radar d'opposition et limites explicites.
+4. Tirer `R3` vers l'avant dès qu'une action implique approbation, preuve ou responsabilité professionnelle.
+5. Garder `R4` multi-logiciels actif : Archicad d'abord, mais IFC/Speckle/export intents et futurs adapters dans le meme cycle d'action.
 
 ## 12 · Carte des documents (où lire quoi)
 
