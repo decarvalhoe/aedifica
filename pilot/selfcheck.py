@@ -43,6 +43,9 @@ import adapter_snapshots   # noqa: E402
 import workspace          # noqa: E402
 import trust             # noqa: E402
 
+sys.path.insert(0, os.path.dirname(HERE))
+import aedifica           # noqa: E402
+
 _n = _fail = 0
 
 
@@ -292,6 +295,18 @@ with tempfile.TemporaryDirectory() as tmp:
         "R1B report claims survive in memory",
         {"sourced", "unknown"}.issubset({record["claim_state"] for record in claim_memory["records"]}),
     )
+
+print("Aedifica product package")
+check("aedifica package declares a version", isinstance(aedifica.__version__, str) and aedifica.__version__)
+check("aedifica re-exports domain service", aedifica.domain.calculate_envelope is domain.calculate_envelope)
+pkg_env = aedifica.domain.calculate_envelope(1000, {"ius": 0.5})
+check("aedifica domain service computes through package namespace", pkg_env["max_sbp_m2"] == 500)
+check("aedifica re-exports claim envelope", aedifica.claims.make_claim is claims.make_claim)
+check("aedifica re-exports route service", aedifica.route.regulatory_route is selector.regulatory_route)
+check(
+    "aedifica re-exports workspace brief generator",
+    aedifica.workspace.generate_offline_parcel_brief is workspace.generate_offline_parcel_brief,
+)
 
 print("Cost and model bridge")
 cost_report = validate_cost.validate_all()

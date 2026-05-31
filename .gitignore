@@ -4,6 +4,8 @@ Thumbs.db
 *.log
 *.tmp
 .tmp_*
+.superpowers/
+.claude/
 
 # Ingested source corpus (large binaries; re-downloadable from official URLs — see pilot/lausanne/INGESTION.md)
 /sources/
