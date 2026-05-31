@@ -97,9 +97,55 @@ def answer_query(memory, query):
             for record in records
             if record.get("phase_code") == phase_code and record.get("status") in OPEN_STATUSES
         ]
+    if intent == "open_decisions":
+        return [
+            record
+            for record in records
+            if record.get("record_type") == "decision" and record.get("status") in OPEN_STATUSES
+        ]
+    if intent == "unknown_claims":
+        return [
+            record
+            for record in records
+            if record.get("claim_state") == "unknown" and record.get("status") in OPEN_STATUSES
+        ]
+    if intent == "assumptions_needing_review":
+        return [
+            record
+            for record in records
+            if record.get("claim_state") == "assumption" and record.get("status") == "pending_human_review"
+        ]
+    if intent == "changed_sources":
+        return [
+            record
+            for record in records
+            if record.get("record_type") == "change" and record.get("status") in OPEN_STATUSES
+        ]
     if intent in {"open_blockers_before_permit", "conditions_for_tender_site", "changes_since_report"}:
         return ledger.carryover(memory, intent)
     return []
+
+
+def open_questions(memory: dict) -> dict:
+    """UI-stable view of what is still undecided/unknown, with provenance refs."""
+
+    def project(record):
+        return {
+            "memory_id": record.get("memory_id"),
+            "phase_code": record.get("phase_code"),
+            "title": record.get("title"),
+            "summary": record.get("summary"),
+            "status": record.get("status"),
+            "source_refs": record.get("source_refs", []),
+            "evidence_refs": record.get("evidence_refs", []),
+        }
+
+    return {
+        "open_decisions": [project(r) for r in answer_query(memory, {"intent": "open_decisions"})],
+        "unknown_claims": [project(r) for r in answer_query(memory, {"intent": "unknown_claims"})],
+        "assumptions_needing_review": [project(r) for r in answer_query(memory, {"intent": "assumptions_needing_review"})],
+        "changed_sources": [project(r) for r in answer_query(memory, {"intent": "changed_sources"})],
+    }
 
 
 def validate_memory(path):

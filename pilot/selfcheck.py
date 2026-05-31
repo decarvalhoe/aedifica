@@ -335,6 +335,15 @@ check("ledger covers approvals, dry-runs and report generations", any({"approval
 demo_memory = load("memory", "demo_project_memory.json")
 check("carryover query returns permit blockers", len(validate_memory.answer_query(demo_memory, {"intent": "open_blockers_before_permit"})) == 2)
 check("carryover query returns tender/site conditions", len(validate_memory.answer_query(demo_memory, {"intent": "conditions_for_tender_site"})) == 2)
+_open_decisions = {r["memory_id"] for r in validate_memory.answer_query(demo_memory, {"intent": "open_decisions"})}
+check("memory returns known open decisions", "MEM-DEC-31-OPEN" in _open_decisions)
+check("resolved decisions disappear from the open-decisions query", "MEM-DEC-31-001" not in _open_decisions)
+check("memory returns unknown claims needing review", {r["memory_id"] for r in validate_memory.answer_query(demo_memory, {"intent": "unknown_claims"})} == {"MEM-UNK-32-ENVELOPE"})
+_open_questions = validate_memory.open_questions(demo_memory)
+check(
+    "open-questions view is UI-stable with provenance refs",
+    bool(_open_questions["open_decisions"]) and all(item["source_refs"] and item["evidence_refs"] for item in _open_questions["open_decisions"]),
+)
 
 print("Durable ledger writer + approval scopes")
 with tempfile.TemporaryDirectory() as tmp:
