@@ -266,6 +266,11 @@ check("offline workspace brief includes risks", "overall" in brief["risks"] and 
 check("claim envelope validates", not any(claim.get("state") == "sourced" and not claim.get("source_refs") for claim in brief["claims"]))
 html_report = workspace.render_brief_html(brief)
 check("HTML brief renders trust states", "Inconnues résiduelles" in html_report and "class='claim unknown'" in html_report)
+check(
+    "R1B report separates the five trust states",
+    "Synthèse par état de confiance" in html_report
+    and all(f"chip {state}" in html_report for state in ("sourced", "computed", "assumption", "unknown", "conflict")),
+)
 bad_brief = json.loads(json.dumps(brief))
 bad_brief["claims"][0]["source_refs"] = []
 try:
@@ -300,6 +305,21 @@ with tempfile.TemporaryDirectory() as tmp:
         "R1B report claims survive in memory",
         {"sourced", "unknown"}.issubset({record["claim_state"] for record in claim_memory["records"]}),
     )
+    first_report = report_index["reports"][0]
+    first_hash = first_report["content_sha256"]
+    with open(os.path.join(tmp_project, first_report["path"]), "a", encoding="utf-8") as f:
+        f.write("<!-- mutated for hash test -->")
+    mutated_entry = workspace.record_report(
+        tmp_project,
+        first_report["report_id"],
+        first_report["kind"],
+        first_report["path"],
+        first_report["source_refs"],
+    )
+    with open(os.path.join(tmp_project, "reports", "report_index.json"), encoding="utf-8") as f:
+        index_after = json.load(f)
+    check("report hash changes when report content changes", mutated_entry["content_sha256"] != first_hash)
+    check("re-recording a report does not duplicate its index entry", len(index_after["reports"]) == len(report_index["reports"]))
 
 print("Project manifest schema (v1)")
 manifest_report = validate_manifest.validate_all()

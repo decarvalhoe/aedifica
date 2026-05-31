@@ -565,9 +565,23 @@ def render_brief_html(brief: dict) -> str:
         f"<li>{esc(item.get('topic'))}: {esc(item.get('next_action'))}</li>"
         for item in brief.get("residual_unknowns", [])
     )
+    claims_list = brief.get("claims") or []
+    state_labels = ["sourced", "computed", "assumption", "unknown", "conflict"]
+    state_chips = "".join(
+        f"<span class='chip {esc(state)}'>{esc(state)} · {sum(1 for c in claims_list if c.get('state') == state)}</span> "
+        for state in state_labels
+    )
+    grouped_rows = ""
+    for state in state_labels:
+        members = [c for c in claims_list if c.get("state") == state]
+        if not members:
+            continue
+        items = "".join(f"<li>{esc(c.get('title'))}</li>" for c in members)
+        grouped_rows += f"<h3 class='{esc(state)}'>{esc(state)} ({len(members)})</h3><ul>{items}</ul>"
     body = f"""
   <h1>{title}</h1>
   <p>{esc(brief.get('project_summary', {}).get('name'))} · {esc(brief.get('generated_at'))}</p>
+  <section><h2>Synthèse par état de confiance</h2><p class='chips'>{state_chips}</p>{grouped_rows}</section>
   <section><h2>Route réglementaire</h2><ul>{active_layers}</ul>{'<h3>Avertissements</h3><ul>' + warning_rows + '</ul>' if warning_rows else ''}</section>
   <section><h2>Sources</h2><ul>{source_rows}</ul></section>
   <section><h2>Parcelle</h2><ul>{''.join(render_claim(c) for c in brief.get('constraints', []))}</ul></section>
