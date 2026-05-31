@@ -7,7 +7,13 @@
   "captured_by": "Architect",
   "location": "Escalier nord",
   "summary": "Main-courante non conforme au détail approuvé.",
+  "participants": ["Architect", "Entreprise menuiserie", "Maître d'ouvrage"],
+  "decisions": [
+    {"decision_id": "DEC-SITE-001", "title": "Reprendre la main-courante selon le détail approuvé", "status": "open"}
+  ],
+  "raw_notes": "Visite 31.05: main-courante escalier nord non conforme, à reprendre. Retouche peinture palier à planifier.",
   "source_refs": [{"source_id": "SITE-VISIT", "locator": "PV chantier 2026-05-31", "valid_as_of": "2026-05-31", "confidence": "medium"}],
+  "evidence_refs": [{"evidence_id": "EVID-SITE-NOTE-001", "kind": "site_note", "file_ref": "project://site/notes/SITE-NOTE-2026-05-31-001.json"}],
   "photos": [
     {
       "photo_id": "PHOTO-SITE-001",
