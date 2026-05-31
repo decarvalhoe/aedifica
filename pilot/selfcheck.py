@@ -43,6 +43,8 @@ import validate_evidence_store  # noqa: E402
 import validate_brief  # noqa: E402
 import validate_redaction  # noqa: E402
 import validate_freshness  # noqa: E402
+import validate_commune_packs  # noqa: E402
+import seed_commune  # noqa: E402
 import redaction  # noqa: E402
 import evidence_store  # noqa: E402
 import project_cli  # noqa: E402
@@ -411,6 +413,27 @@ with tempfile.TemporaryDirectory() as tmp:
     check("R1B demo reports unknowns and evidence counts", r1b_summary["unknowns_count"] > 0 and r1b_summary["evidence_count"] >= 1)
     r1b_text = r1b_demo.render_summary(r1b_summary)
     check("R1B demo summary marks offline fixture mode", "OFFLINE FIXTURE MODE" in r1b_text)
+
+print("Next-commune seed workflow")
+seed_pack = seed_commune.build_seed_pack("Vevey", "VD")
+check("seed commune is created without fabricated legal values", seed_pack["status"] == "seed" and seed_pack["zones"] == {})
+check("seed commune carries no numeric indices", all(z == {} for z in seed_pack["zones"].values()))
+seed_checklist = seed_commune.build_ingestion_checklist("Vevey", "VD")
+check("seed checklist names source authority and missing items", "Commune de Vevey" in seed_checklist and "Required inputs" in seed_checklist)
+check("seeded commune stays unsupported (no zero values)", route_service.commune_support_state("Vevey")["state"] == "unsupported")
+with tempfile.TemporaryDirectory() as tmp:
+    seeded = seed_commune.seed_commune("Vevey", "VD", tmp)
+    seeded_files = set(os.listdir(os.path.dirname(seeded["pack_path"])))
+    check("seed writes a .seed scaffold but no active rpga_zones.json", "rpga_zones.seed.json" in seeded_files and "rpga_zones.json" not in seeded_files)
+
+print("Commune pack regressions")
+commune_pack_report = validate_commune_packs.validate_all()
+check("commune pack regressions validate (Lausanne + Pully)", not commune_pack_report.errors)
+check("commune pack regression covers both communes", {item["commune"] for item in commune_pack_report.items} == {"Lausanne", "Pully"})
+_broken_zone = {"ius": 0.9}
+_broken_report = validate_commune_packs.CommunePackReport()
+validate_commune_packs._check_zone("Lausanne", "Zone mixte de faible densité", _broken_zone, {"ius": 0.5}, _broken_report)
+check("commune regression names the affected commune and zone on change", any("Lausanne/Zone mixte de faible densité" in e for e in _broken_report.errors))
 
 print("Pack freshness gate")
 freshness_report = validate_freshness.validate_all()

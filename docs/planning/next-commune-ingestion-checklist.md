@@ -2,6 +2,20 @@
 
 Use this checklist when adding a new commune pack to `pilot/<commune>/rpga_zones.json`.
 
+## Seed (scaffold a new commune)
+
+Bootstrap the folder, a non-authoritative seed pack and a checklist in one step:
+
+```bash
+python pilot/seed_commune.py --commune Vevey --canton VD
+```
+
+This writes `pilot/<slug>/rpga_zones.seed.json` (status `seed`, **no fabricated
+values**, empty zones) and `pilot/<slug>/INGESTION.md`. The commune stays
+`unsupported` in the route service — reports render missing indices as `unknown`,
+never as zero — until you complete the steps below and **promote** the scaffold
+to `rpga_zones.json`.
+
 ## Intake
 
 - Confirm country, canton, commune name and official spelling.
