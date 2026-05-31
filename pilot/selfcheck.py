@@ -45,6 +45,7 @@ import validate_redaction  # noqa: E402
 import validate_freshness  # noqa: E402
 import validate_commune_packs  # noqa: E402
 import seed_commune  # noqa: E402
+import permit_state  # noqa: E402
 import redaction  # noqa: E402
 import evidence_store  # noqa: E402
 import project_cli  # noqa: E402
@@ -178,6 +179,23 @@ permit_checklist = load("permit", "vd_camac_checklist.json")
 permit_complete = load("permit", "demo_complete_dossier.json")
 permit_rendered = validate_permit.render_completeness_html(validate_permit.completeness_report(permit_checklist, permit_complete))
 check("permit completeness report renders actor/category groups", "architect" in permit_rendered and "specialist" in permit_rendered)
+
+print("Permit dossier state machine")
+_permit_checklist = load("permit", "vd_camac_checklist.json")
+_complete_dossier = load("permit", "demo_complete_dossier.json")
+_missing_dossier = load("permit", "demo_missing_dossier.json")
+_cr_complete = validate_permit.completeness_report(_permit_checklist, _complete_dossier)
+_cr_missing = validate_permit.completeness_report(_permit_checklist, _missing_dossier)
+check("permit state derives ready_for_review for a complete dossier", permit_state.derive_state(_cr_complete) == "ready_for_review")
+check("permit state derives missing_evidence for a missing dossier", permit_state.derive_state(_cr_missing) == "missing_evidence")
+check("permit state rejects an invalid transition", not permit_state.is_valid_transition("draft", "submitted_external"))
+try:
+    permit_state.transition("draft", "submitted_external")
+    _permit_bad_transition = False
+except permit_state.PermitStateError:
+    _permit_bad_transition = True
+check("permit state machine raises on invalid transition", _permit_bad_transition)
+check("permit state is never an authority decision", permit_state.state_summary("ready_for_review")["is_authority_decision"] is False)
 
 print("Phase 33 compliance gates")
 compliance_report = validate_compliance.validate_all()
