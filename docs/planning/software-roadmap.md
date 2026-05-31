@@ -4,10 +4,10 @@ Status: execution roadmap baseline, 2026-05-31.
 
 ## Roadmap Logic
 
-The roadmap follows the existing strategic decision: lead with the no-BIM regulatory/project-intelligence wedge
-because it is the fastest real proof, while preserving the full ArchiOS scope. The Archicad/model thread is
-the first visible adapter of a broader multi-software drawing/model API, and the same trust, memory and adapter
-contracts must apply everywhere.
+The roadmap now follows the owner-confirmed correction: keep the no-BIM regulatory/project-intelligence wedge
+as the bottom-up spine, but pull a spectacular agent-to-software proof into the first MVP wave. The
+Archicad/model thread is the first visible adapter of a broader multi-software drawing/model API, and the same
+trust, memory and adapter contracts must apply everywhere.
 
 Each release must produce a demoable vertical slice, not only documentation.
 
@@ -16,10 +16,11 @@ Each release must produce a demoable vertical slice, not only documentation.
 | Release | Horizon | Theme | Demo outcome |
 |---|---:|---|---|
 | R0 | Done | Research + pilot foundation | Python pilot, validators, one-pager, roadmap foundation. |
-| R1 | 2-4 weeks | Project workspace + parcel brief | Create project -> parcel -> sourced brief -> report. |
+| R1A | 1-2 weeks | Agent-to-software demo | Agent CLI -> Archicad-shaped bridge -> generated items -> dry-run diff -> approval boundary. |
+| R1B | 2-4 weeks | Project workspace + parcel brief | Create project -> parcel -> sourced brief -> report. |
 | R2 | 4-8 weeks | Permit/opposition workflow | Missing dossier evidence + phase-33 gates + opposition risk. |
 | R3 | 6-10 weeks | Project memory and ledger | Decisions, evidence, approvals and carryover queries. |
-| R4 | 8-12 weeks | Multi-software drawing/model bridge | Archicad JSON inspection + dry-run metadata update; API contract remains adapter-neutral. |
+| R4 | 8-12 weeks | Live adapters | Live Archicad JSON first, then IFC/Speckle/Revit/Rhino/SketchUp/AutoCAD/BricsCAD/Vectorworks. |
 | R5 | 12-16 weeks | Cost/tender assistant | SIA 102 fee assumptions + eCCC/NPK/CFC mapping report. |
 | R6 | 16-24 weeks | Site/handover assistant | Site notes/photos -> PV/tasks/defects/handover memory. |
 
@@ -39,7 +40,36 @@ Delivered:
 
 Exit gate: passed.
 
-## R1 — Project Workspace And Sourced Parcel Brief
+## R1A — Agent-To-Software Demo
+
+Goal: prove Aedifica's top-down action layer in a way an architect immediately understands.
+
+Scope:
+
+- CLI demo path that loads project context, ledger and model bridge fixtures;
+- Archicad JSON capability check, with fixture fallback when live Archicad is unavailable;
+- selected element/space/property extraction;
+- structured drawing/model intent fixture;
+- generated property and annotation items;
+- before/after dry-run diff;
+- blocked execution unless approval exists;
+- explicit fixture-mode output.
+
+Exit criteria:
+
+- `python pilot/demo_run.py` shows the bridge action count and blocked/approved state;
+- `python pilot/selfcheck.py` verifies design intent, dry-run items and before/after diff;
+- docs and GitHub issues separate completed offline proof from live Archicad work;
+- the demo narrative says "first adapter thread", not "Aedifica is Archicad".
+
+Dependencies:
+
+- adapter capability matrix;
+- model bridge prototype;
+- project ledger fixture;
+- `docs/specs/mvp1a-agent-to-architecture-software-demo.md`.
+
+## R1B — Project Workspace And Sourced Parcel Brief
 
 Goal: transform the pilot into the first usable software slice.
 
@@ -87,7 +117,7 @@ Exit criteria:
 
 Dependencies:
 
-- R1 project context;
+- R1B project context;
 - permit checklist and compliance gates;
 - source registry.
 
@@ -114,7 +144,7 @@ Dependencies:
 
 - trust contract;
 - project knowledge regime;
-- R1/R2 generated evidence.
+- R1B/R2 generated evidence.
 
 ## R4 — Multi-Software Drawing / Model Bridge
 
@@ -198,12 +228,12 @@ Dependencies:
 
 | Workstream | Runs through | Why |
 |---|---|---|
-| Source freshness and pack review | R1-R6 | Regulatory correctness decays without review metadata. |
-| Validation and CI | R1-R6 | Every contract must remain testable offline. |
-| Partner-office validation | R1-R6 | Product value depends on real workflow fit. |
-| Universal architecture API | R1-R6 | Regulatory intelligence, drawing assistance, model checks and document exports must share one approved action lifecycle. |
-| Security and privacy | R1-R6 | Project documents, client data and model files are sensitive. |
-| Documentation and issue hygiene | R1-R6 | The project needs traceable work packages and done criteria. |
+| Source freshness and pack review | R1A-R6 | Regulatory correctness decays without review metadata. |
+| Validation and CI | R1A-R6 | Every contract must remain testable offline. |
+| Partner-office validation | R1A-R6 | Product value depends on real workflow fit. |
+| Universal architecture API | R1A-R6 | Regulatory intelligence, drawing assistance, model checks and document exports must share one approved action lifecycle. |
+| Security and privacy | R1A-R6 | Project documents, client data and model files are sensitive. |
+| Documentation and issue hygiene | R1A-R6 | The project needs traceable work packages and done criteria. |
 
 ## Stop Conditions
 

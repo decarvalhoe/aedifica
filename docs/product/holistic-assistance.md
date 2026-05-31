@@ -43,7 +43,7 @@ Project sources
 
 Tool automation is downstream of that operating layer. The system should first understand what the architect is trying to achieve and what the project allows, then choose whether the next action is a question, a report, a checklist, a model check, a BIM update, an export, a site task, or a human decision.
 
-The multi-software drawing/model API is part of that operating layer's normal action surface, not a side idea. It exists to turn project knowledge into safe architectural work inside Archicad, Revit, Rhino/Grasshopper, SketchUp, AutoCAD/BricsCAD, IFC, Speckle and office documents, with dry-run and approval before any mutation.
+The multi-software drawing/model API is part of that operating layer's normal action surface, not a side idea. It exists to turn project knowledge into safe architectural work inside Archicad, Revit, Rhino/Grasshopper, SketchUp, AutoCAD/BricsCAD, Vectorworks, IFC, Speckle and office documents, with dry-run and approval before any mutation.
 
 ## Generalization Principle
 

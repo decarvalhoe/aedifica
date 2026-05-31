@@ -21,14 +21,47 @@ Deliverables:
 The revised sequence is:
 
 1. MVP0 Foundation: neutral engine, NOMOS, trust contract, packs, source registry.
-2. MVP1 NOMOS Archi Intake: parcel -> sourced constraints + buildable envelope.
-3. MVP2 Permit & Opposition: opposition radar, permit completeness, phase `33` compliance gates.
-4. MVP3 Fees, Cost & Tender: SIA 102 fees, eCCC/NPK/CFC bridge, offer comparison.
-5. MVP4 Project Memory & Coordination: site, decisions, handover, operation memory.
+2. R1A Agent-To-Software Demo: agent CLI -> API/adapter -> model/drawing intent -> dry-run diff -> approval/ledger.
+3. R1B NOMOS Archi Intake: parcel -> sourced constraints + buildable envelope inside a project workspace.
+4. MVP2 Permit & Opposition: opposition radar, permit completeness, phase `33` compliance gates.
+5. MVP3 Fees, Cost & Tender: SIA 102 fees, eCCC/NPK/CFC bridge, offer comparison.
+6. MVP4 Project Memory & Coordination: site, decisions, handover, operation memory.
 
 The regulatory/project-intelligence wedge comes first because it is evidence-backed and useful before BIM
 maturity. It must not collapse the product into a permit/report tool. Auto-BIM, model intelligence and
 controlled drawing assistance remain a native product track behind the same universal API/MCP.
+
+The owner-confirmed adjustment is that the first spectacular proof now ships as `R1A`, before workspace
+productization. This does not make Aedifica Archicad-only; it proves the top-down action layer while the
+bottom-up regulatory spine remains intact.
+
+## R1A: Agent-To-Architecture-Software Demo
+
+Goal: prove that an agent CLI can assist an architect through a multi-software action lifecycle.
+
+Inputs:
+
+- Project context and ledger.
+- Archicad-shaped selected-element fixture, then live Archicad JSON when available.
+- Structured drawing/model intent.
+- Adapter capability matrix.
+
+Outputs:
+
+- Adapter health and capability report.
+- Missing metadata audit.
+- Generated property/annotation action items.
+- Before/after dry-run diff.
+- Approval boundary and ledger evidence.
+
+Success criteria:
+
+- The demo is understandable to a skeptical architect without reading code.
+- The fixture path is clearly marked as fixture mode.
+- The same lifecycle can be reused by live Archicad, IFC, Speckle, Revit, Rhino, SketchUp, AutoCAD/BricsCAD and Vectorworks adapters.
+- No mutation is possible without dry-run and approval.
+
+Spec: [`specs/mvp1a-agent-to-architecture-software-demo.md`](specs/mvp1a-agent-to-architecture-software-demo.md).
 
 ## MVP 1: NOMOS Archi Intake
 

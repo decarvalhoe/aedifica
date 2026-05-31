@@ -7,11 +7,13 @@ Status: planning baseline after reading the full project documentation and `READ
 Aedifica already has a strong product thesis and a runnable Python pilot, but it is not yet a software product.
 The current repository proves that public Swiss registries, Vaud RDPPF/OEREB data, commune packs, permit
 checklists, phase-aware constraints, project memory fixtures and cost fixtures can be validated offline. The
-next step is to productize that proof into a small, reliable application that an architect can use on a real
-pilot project.
+next step is to prove the agent/API/software loop in a partner-demo-safe way, then productize that proof into a
+small, reliable application that an architect can use on a real pilot project.
 
 The development plan should not start with a broad "AI platform", and it should not shrink Aedifica to the
-current regulatory/report surfaces. It should turn the working pilot into a project workspace with four hard guarantees:
+current regulatory/report surfaces. The owner-confirmed correction is to start with a spectacular
+agent-to-software proof, then turn the working pilot into a project workspace. Both slices share four hard
+guarantees:
 
 - sourced claims stay sourced;
 - assumptions stay visible;
@@ -44,7 +46,18 @@ Missing before this can be used as software:
 
 ## Product Target
 
-The first product target is **Aedifica Workspace for Vaud/Lausanne pilot projects**:
+The first demonstrative target is **Aedifica R1A Agent-To-Software Demo**:
+
+```text
+load project context
+  -> inspect Archicad-shaped model selection
+  -> detect missing room/space information
+  -> generate structured model/drawing action items
+  -> render before/after dry-run diff
+  -> require approval and ledger evidence before execution
+```
+
+The first productized workspace target is **Aedifica Workspace for Vaud/Lausanne pilot projects**:
 
 ```text
 create project
@@ -57,7 +70,8 @@ create project
   -> export a reviewed report
 ```
 
-This target keeps the no-BIM wedge first while preserving the native drawing/model API boundary for the partner-office Archicad bridge and later adapters.
+Together, these targets keep the no-BIM wedge as the bottom-up context layer while making the native
+drawing/model API visible immediately for the partner-office Archicad bridge and later adapters.
 
 ## Product Principles
 
@@ -91,6 +105,20 @@ validator-first changes. Do not introduce a vector database, queue, plugin marke
 real project requires it.
 
 ## Development Tracks
+
+### Track 0 — Spectacular Agent-To-Software Demo
+
+Goal: prove the partner-office Archicad thread while keeping the core adapter-neutral and demo-safe.
+
+Core capabilities:
+
+- adapter health/capability check;
+- selected-element and room/space property inspection;
+- structured design/drawing intent contract;
+- generated metadata/annotation items;
+- before/after dry-run diff;
+- approval and verification records;
+- fixture fallback when live Archicad is unavailable.
 
 ### Track A — Product Shell And Project Workspace
 
@@ -155,7 +183,7 @@ Core capabilities:
 
 ### Track F — Multi-Software Drawing And Model Intelligence Bridge
 
-Goal: prove the partner-office Archicad thread while keeping the core adapter-neutral and ready for drawing/model assistance across software.
+Goal: extend the R1A proof into live adapters while keeping the core adapter-neutral and ready for drawing/model assistance across software.
 
 Core capabilities:
 
@@ -192,7 +220,18 @@ Core capabilities:
 
 ## First Release Definition
 
-Release `R1` should be small enough to demo in one meeting:
+Release `R1A` should be small enough to demo in one meeting:
+
+- load a demo project and ledger;
+- inspect an Archicad-shaped model selection;
+- show missing room/space metadata;
+- generate structured property and annotation action items;
+- render a before/after dry-run diff;
+- keep execution blocked unless the approval scope exists;
+- make fixture mode explicit;
+- pass offline selfcheck.
+
+Release `R1B` should then productize the project workspace:
 
 - create a project for a Vaud/Lausanne parcel;
 - fetch or load OEREB/RDPPF evidence;
@@ -203,8 +242,8 @@ Release `R1` should be small enough to demo in one meeting:
 - export an A4 report;
 - pass the existing CI plus new project-workspace tests.
 
-`R1` does not need multi-user auth, payments, generic Swiss coverage, production Archicad mutation, full RAG, or
-submission to CAMAC. It must, however, avoid decisions that would block the later universal architecture API.
+`R1A/R1B` do not need multi-user auth, payments, generic Swiss coverage, production Archicad mutation, full RAG,
+or submission to CAMAC. They must, however, avoid decisions that would block the later universal architecture API.
 
 ## Engineering Rules
 
@@ -217,7 +256,7 @@ submission to CAMAC. It must, however, avoid decisions that would block the late
 
 ## Immediate Product Questions To Resolve
 
-1. Should the first app be desktop-local only, or a local web app that can later be hosted?
-2. Should `R1` persist projects as files only, or introduce SQLite for local project state?
-3. Which partner-office demo should be first after `R1`: permit readiness, Archicad metadata audit, or site PV?
+1. What exact Archicad version and JSON bridge setup can the partner office provide for the first live test?
+2. Should the first app be desktop-local only, or a local web app that can later be hosted?
+3. Should `R1B` persist projects as files only, or introduce SQLite for local project state?
 4. Which commune should be ingested after Lausanne and Pully to prove repeatability?

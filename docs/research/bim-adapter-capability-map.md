@@ -29,7 +29,7 @@ Checked on 2026-05-31.
 | Deep Archicad later | Archicad C++ Add-On | Native events, deeper database access, custom UI, later distribution. |
 | Neutral baseline | IFC + IfcOpenShell | Vendor-independent model reading, validation, quantities, memory snapshots. |
 | Version layer | Speckle | Model versions, automation runs, collaboration when adopted by the office. |
-| Later authoring adapters | Revit, Rhino, SketchUp, AutoCAD/BricsCAD | Add once neutral workflow contracts prove value. |
+| Later authoring adapters | Revit, Rhino, SketchUp, AutoCAD/BricsCAD, Vectorworks | Add once neutral workflow contracts prove value. |
 
 ## Bridge Rule
 

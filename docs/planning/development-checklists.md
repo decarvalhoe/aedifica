@@ -95,11 +95,14 @@ Before calling a release ready:
 
 ## Partner Demo Checklist
 
+- [ ] Start with the R1A agent-to-software loop: context, adapter, selected model data, generated items, dry-run diff.
 - [ ] Start with the no-BIM value: parcel, constraints, envelope, unknowns.
 - [ ] Show source links and trust states before any "AI" language.
 - [ ] Show where the architect approves or decides.
 - [ ] Show one phase handoff: permit blocker, tender assumption or site condition.
-- [ ] If showing Archicad, present it as an adapter thread, not the product identity.
+- [ ] If showing Archicad, present it as the first adapter thread, not the product identity.
+- [ ] If using fixture mode, say so visibly and explain the live bridge replacement path.
+- [ ] Show the before/after diff before any approval.
 - [ ] End with the next real office workflow to validate.
 
 ## Documentation Maintenance Checklist

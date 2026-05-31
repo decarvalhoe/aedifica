@@ -78,6 +78,8 @@ still performing the live OEREB fetch (shown as byte count).
 - `cost/tender_assumptions_log.json` — assumptions/exclusions carried into tender offer comparison.
 - `model_bridge_demo.py` — offline dry-run prototype for the local model bridge.
 - `model/archicad_selection_fixture.json` — selected-element fixture for the Archicad JSON bridge contract.
+- `model/design_intent_fixture.json` — structured architect intent fixture for generated room metadata and drawing annotation items.
+- `agent_software_demo.py` — dedicated R1A CLI demo for agent → adapter → dry-run diff.
 - `site/`, `validate_site.py` — site note, defect register and handover checklist contracts.
 - `ui/` — static reference screens for app shell, project intake and claim review.
 - `demo_run.py`, `demo/fixture_pack_manifest.json` — offline demo script and fixture pack manifest.

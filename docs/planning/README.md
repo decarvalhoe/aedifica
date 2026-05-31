@@ -9,6 +9,5 @@ Read in order:
 3. [`epics-and-backlog.md`](epics-and-backlog.md) — issue-ready epics and development work packages.
 4. [`development-checklists.md`](development-checklists.md) — operating lists for delivery, review, release and demos.
 
-Scope note: these documents are planning artifacts. They do not create GitHub issues by themselves; they define
-the next issue set to open once the owner confirms the sequencing.
-
+Scope note: the owner has confirmed the R1A rebaseline. These documents are now the source for the active GitHub
+issue wave: `R1A Agent-To-Software Demo` first, then `R1B Project Workspace`.

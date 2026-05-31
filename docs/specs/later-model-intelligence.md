@@ -12,7 +12,7 @@ available adapter, export deliverables, and write a traceable report.
 ## Inputs
 
 - Project context: phase, constraints, permit conditions, office standards, decisions.
-- Model/drawing source: IFC, Speckle version, Archicad/Tapir/JSON export, Revit, Rhino/Grasshopper, SketchUp, AutoCAD/BricsCAD or PDF/DWG set where available.
+- Model/drawing source: IFC, Speckle version, Archicad/Tapir/JSON export, Revit, Rhino/Grasshopper, SketchUp, AutoCAD/BricsCAD, Vectorworks or PDF/DWG set where available.
 - Structured drawing/model intent: desired geometry, property, classification, sheet, export or check action.
 - BIM requirements: room/space properties, classification, property sets, IFC/export expectations.
 - Adapter capability manifest: what can be read, written, previewed, exported, or undone.

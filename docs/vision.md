@@ -62,7 +62,7 @@ The system needs:
 - A project memory with authoritative sources and decisions.
 - A canonical constraint matrix.
 - A neutral building/project model.
-- Tool adapters for Archicad, Revit, Rhino, SketchUp, AutoCAD/BricsCAD, IFC, Speckle, office documents, and future construction-management systems.
+- Tool adapters for Archicad, Revit, Rhino, SketchUp, AutoCAD/BricsCAD, Vectorworks, IFC, Speckle, office documents, and future construction-management systems.
 - A universal architecture API/MCP.
 - Agents specialized by project phase and domain.
 - Verification gates before risky actions.

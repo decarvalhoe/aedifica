@@ -286,7 +286,7 @@ with tempfile.TemporaryDirectory() as tmp:
         ),
     )
     check(
-        "R1 report claims survive in memory",
+        "R1B report claims survive in memory",
         {"sourced", "unknown"}.issubset({record["claim_state"] for record in claim_memory["records"]}),
     )
 
@@ -303,6 +303,13 @@ metadata_audit = model_bridge_demo.missing_metadata_audit(selection)
 dry_run_blocked = model_bridge_demo.dry_run_property_update("AC-SPACE-101", "RoomUsage", "office")
 ledger_data = load("memory", "demo_project_ledger.json")
 dry_run_approved = model_bridge_demo.dry_run_property_update("AC-SPACE-101", "RoomUsage", "office", ledger_data)
+design_intent = model_bridge_demo.load_design_intent()
+intent_dry_run = model_bridge_demo.dry_run_design_intent(design_intent, selection, ledger_data)
+intent_diff = model_bridge_demo.render_before_after_diff(intent_dry_run)
+unsupported_intent = json.loads(json.dumps(design_intent))
+unsupported_intent["items"].append({"item_id": "ITEM-UNSUPPORTED-001", "kind": "teleport_wall", "basis": {"confidence": "low"}})
+unsupported_dry_run = model_bridge_demo.dry_run_design_intent(unsupported_intent, selection, ledger_data)
+agent_demo = model_bridge_demo.build_agent_demo(os.path.join(HERE, "memory", "demo_project_ledger.json"))
 check("cost assets validate", not cost_report.errors)
 check("cost assets include fee sample, taxonomy bridge and tender log", {item["kind"] for item in cost_report.items} == {"fee_sample", "quantity_bridge", "tender_assumptions"})
 check("profitability cockpit renders fee risk and assumptions", "Estimated fee" in cockpit_html and cockpit["absorbed_cost_chf"] > 0)
@@ -314,6 +321,11 @@ check("model bridge inspects selected elements", selection["source_model_version
 check("model bridge audits missing metadata", metadata_audit["missing_count"] >= 1 and metadata_audit["missing"][0]["proposed_fix"])
 check("model bridge blocks property update without approval", dry_run_blocked["blocked"] and dry_run_blocked["required_approval"])
 check("model bridge allows dry-run once ledger approval exists", not dry_run_approved["blocked"])
+check("model bridge loads structured design intent", design_intent["intent_id"].startswith("INTENT-") and len(design_intent["items"]) == 3)
+check("model bridge dry-runs generated intent items", intent_dry_run["action_count"] == 3 and intent_dry_run["unsupported_count"] == 0)
+check("model bridge renders before/after diff", "Before/After" in intent_diff and "AC-SPACE-101.RoomUsage" in intent_diff)
+check("model bridge refuses unsupported intent actions", unsupported_dry_run["unsupported_count"] == 1)
+check("agent demo preserves fixture safety", agent_demo["fixture_mode"] and agent_demo["dry_run"]["dry_run"])
 
 print("Site and handover")
 site_report = validate_site.validate_all()
@@ -328,9 +340,10 @@ check("defect register fixture has open defects", any(d["status"] in {"open", "p
 check("handover checklist renders blocked defects", "Handover checklist" in handover_html and "blocked" in handover_html)
 
 print("UI, demo and release hygiene")
-check("app shell screens exist", all(os.path.exists(os.path.join(HERE, "ui", name)) for name in ("app_shell.html", "project_intake.html", "claim_review.html")))
+check("app shell screens exist", all(os.path.exists(os.path.join(HERE, "ui", name)) for name in ("app_shell.html", "project_intake.html", "claim_review.html", "adapter_approval.html")))
 demo_pack = load("demo", "fixture_pack_manifest.json")
 check("demo fixture pack lists commands and fixtures", bool(demo_pack["fixtures"]) and "python pilot/demo_run.py" in demo_pack["demo_commands"])
+check("dedicated agent software demo CLI exists", os.path.exists(os.path.join(HERE, "agent_software_demo.py")))
 check("contract test directory exists", os.path.exists(os.path.join(os.path.dirname(HERE), "tests", "contracts", "run_contracts.py")))
 check("offline/network test split is documented", os.path.exists(os.path.join(os.path.dirname(HERE), "tests", "offline", "README.md")) and os.path.exists(os.path.join(os.path.dirname(HERE), "tests", "network", "README.md")))
 check("privacy and release checklists exist", os.path.exists(os.path.join(os.path.dirname(HERE), "docs", "security", "project-data-privacy-checklist.md")) and os.path.exists(os.path.join(os.path.dirname(HERE), "docs", "release", "release-checklist.md")))

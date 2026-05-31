@@ -28,7 +28,7 @@ The multi-software API is a native product axis. It is the execution and inspect
 - update BIM/CAD properties only after dry-run, approval and ledger entry;
 - export IFC, PDF, DWG, BCF, reports or office deliverables through adapters.
 
-Adapter targets include Archicad, Revit, Rhino/Grasshopper, SketchUp, AutoCAD/BricsCAD, IFC, Speckle, office documents and later construction-management systems. Archicad is a first partner bridge, not the product identity.
+Adapter targets include Archicad, Revit, Rhino/Grasshopper, SketchUp, AutoCAD/BricsCAD, Vectorworks, IFC, Speckle, office documents and later construction-management systems. Archicad is a first partner bridge, not the product identity.
 
 ## Scope Guardrails
 

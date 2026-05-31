@@ -130,7 +130,7 @@ Early adapter candidates:
 2. IFC extraction and validation through IfcOpenShell.
 3. Speckle synchronization and version snapshots.
 4. Archicad inspection, export, drawing/model assistance and BIM property updates.
-5. Revit, Rhino/Grasshopper, SketchUp, AutoCAD/BricsCAD, and construction-management adapters.
+5. Revit, Rhino/Grasshopper, SketchUp, AutoCAD/BricsCAD, Vectorworks, and construction-management adapters.
 
 ## Voice-to-Design Contract
 

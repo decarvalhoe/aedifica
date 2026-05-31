@@ -15,6 +15,7 @@ import urllib.request
 HERE = os.path.dirname(os.path.abspath(__file__))
 MATRIX_PATH = os.path.join(HERE, "research", "adapter_capability_matrix.json")
 SELECTION_FIXTURE = os.path.join(HERE, "model", "archicad_selection_fixture.json")
+DESIGN_INTENT_FIXTURE = os.path.join(HERE, "model", "design_intent_fixture.json")
 REQUIRED_SPACE_PROPERTIES = ("RoomUsage", "SIA416SurfaceType")
 
 
@@ -74,6 +75,17 @@ def inspect_selected_elements(snapshot_path=SELECTION_FIXTURE):
     }
 
 
+def load_design_intent(path=DESIGN_INTENT_FIXTURE):
+    intent = _load_json(path)
+    required = {"intent_id", "project_context", "items"}
+    missing = sorted(required - set(intent))
+    if missing:
+        raise ValueError(f"design intent missing fields: {missing}")
+    if not isinstance(intent.get("items"), list) or not intent["items"]:
+        raise ValueError("design intent requires at least one item")
+    return intent
+
+
 def missing_metadata_audit(selection, required_space_properties=REQUIRED_SPACE_PROPERTIES):
     missing = []
     for element in selection.get("selected_elements", []):
@@ -95,6 +107,92 @@ def missing_metadata_audit(selection, required_space_properties=REQUIRED_SPACE_P
         "missing_count": len(missing),
         "missing": missing,
     }
+
+
+def _selected_element_map(selection):
+    return {item["element_id"]: item for item in selection.get("selected_elements", [])}
+
+
+def dry_run_design_intent(intent=None, selection=None, ledger_data=None):
+    intent = intent or load_design_intent()
+    selection = selection or inspect_selected_elements()
+    approved = _has_ledger_approval(ledger_data, scope_keyword="dry-run")
+    elements = _selected_element_map(selection)
+    actions = []
+    for item in intent["items"]:
+        if item["kind"] == "property_update":
+            target = elements.get(item["target_element_id"], {})
+            before = (target.get("properties") or {}).get(item["property_name"])
+            actions.append(
+                {
+                    "item_id": item["item_id"],
+                    "action": "set_property",
+                    "target_element_id": item["target_element_id"],
+                    "property_name": item["property_name"],
+                    "before": before,
+                    "after": item["proposed_value"],
+                    "basis": item.get("basis", {}),
+                    "supported": bool(target),
+                }
+            )
+        elif item["kind"] == "drawing_annotation":
+            actions.append(
+                {
+                    "item_id": item["item_id"],
+                    "action": "prepare_annotation",
+                    "target_view": item["target_view"],
+                    "before": None,
+                    "after": item["text"],
+                    "basis": item.get("basis", {}),
+                    "supported": True,
+                }
+            )
+        else:
+            actions.append(
+                {
+                    "item_id": item.get("item_id", "unknown"),
+                    "action": "unsupported",
+                    "before": None,
+                    "after": None,
+                    "basis": item.get("basis", {}),
+                    "supported": False,
+                }
+            )
+    return {
+        "intent_id": intent["intent_id"],
+        "adapter_id": intent["project_context"].get("adapter_id"),
+        "source_model_version": selection.get("source_model_version"),
+        "dry_run": True,
+        "blocked": not approved,
+        "approval_scope": "dry-run only",
+        "action_count": len(actions),
+        "unsupported_count": len([action for action in actions if not action["supported"]]),
+        "actions": actions,
+    }
+
+
+def render_before_after_diff(dry_run):
+    lines = [
+        f"Intent: {dry_run['intent_id']}",
+        f"Adapter: {dry_run['adapter_id']}",
+        f"Model: {dry_run['source_model_version']}",
+        f"Blocked: {str(dry_run['blocked']).lower()}",
+    ]
+    for action in dry_run["actions"]:
+        if action["action"] == "set_property":
+            lines.append(
+                "Before/After: "
+                f"{action['target_element_id']}.{action['property_name']} "
+                f"{action['before']!r} -> {action['after']!r}"
+            )
+        elif action["action"] == "prepare_annotation":
+            lines.append(
+                "Before/After: "
+                f"{action['target_view']} annotation None -> {action['after']!r}"
+            )
+        else:
+            lines.append(f"Unsupported: {action['item_id']}")
+    return "\n".join(lines)
 
 
 def _has_ledger_approval(ledger_data, scope_keyword="property update"):
@@ -162,6 +260,28 @@ def build_bridge_plan(adapter_id="archicad_json", action="inspect_selected_eleme
     }
 
 
+def build_agent_demo(ledger_path=None):
+    ledger_data = _load_json(ledger_path) if ledger_path else None
+    health = health_check("archicad_json")
+    selection = inspect_selected_elements()
+    audit = missing_metadata_audit(selection)
+    intent = load_design_intent()
+    dry_run = dry_run_design_intent(intent, selection, ledger_data)
+    return {
+        "demo_id": "AEDIFICA-R1A-AGENT-TO-SOFTWARE",
+        "fixture_mode": True,
+        "health": health,
+        "selection": selection,
+        "missing_metadata": audit,
+        "design_intent": {
+            "intent_id": intent["intent_id"],
+            "item_count": len(intent["items"]),
+        },
+        "dry_run": dry_run,
+        "diff": render_before_after_diff(dry_run),
+    }
+
+
 def main():
     try:
         sys.stdout.reconfigure(encoding="utf-8")
@@ -170,6 +290,7 @@ def main():
     print(json.dumps(health_check("archicad_json"), ensure_ascii=False, indent=2))
     print(json.dumps(inspect_selected_elements(), ensure_ascii=False, indent=2))
     print(json.dumps(missing_metadata_audit(inspect_selected_elements()), ensure_ascii=False, indent=2))
+    print(json.dumps(build_agent_demo(), ensure_ascii=False, indent=2))
     for action in ("inspect_selected_elements", "set_room_usage_property"):
         plan = build_bridge_plan("archicad_json", action)
         print(json.dumps(plan, ensure_ascii=False, indent=2))

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "pack_id": "AEDIFICA-DEMO-PACK-R1",
+  "pack_id": "AEDIFICA-DEMO-PACK-R1A",
   "project_id": "DEMO-LAUSANNE-PALUD",
   "fixtures": [
     "projects/demo_lausanne_palud/project.json",
@@ -8,10 +8,14 @@
     "permit/demo_complete_dossier.json",
     "memory/demo_project_memory.json",
     "memory/demo_project_ledger.json",
+    "model/archicad_selection_fixture.json",
+    "model/design_intent_fixture.json",
     "cost/sia102_fee_sample.json",
     "site/site_note_fixture.json"
   ],
   "demo_commands": [
+    "python pilot/agent_software_demo.py",
+    "python pilot/agent_software_demo.py --json",
     "python pilot/demo_run.py",
     "python pilot/selfcheck.py"
   ]

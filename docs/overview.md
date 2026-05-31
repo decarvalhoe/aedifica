@@ -85,16 +85,17 @@ Références de construction:
 
 Cette fragmentation est **le fossé concurrentiel** : aucun outil étranger ne la couvre.
 
-## 7 · Feuille de route MVP (séquence révisée)
+## 7 · Feuille de route MVP (séquence rebasée)
 
 | Jalon | Cœur | Statut |
 |---|---|---|
 | **MVP0 Foundation** | moteur + schéma NOMOS + packs + contrat de preuve | 🟡 en cours (corpus pilote semé) |
-| **MVP1 Parcelle & Contraintes** | parcelle → contraintes + enveloppe sourcées (sans BIM) | ✅ **prototype fonctionnel** |
-| **MVP2 Permis & Opposition** | radar d'opposition + complétude dossier (phase 33) | 🟡 radar + pré-check dossier/compliance prototypes |
-| **MVP3 Honoraires, Coûts & Soumission** | copilote SIA 102 + pont eCCC↔NPK↔CFC | 🔜 |
-| **MVP4 Mémoire & Coordination** | mémoire de projet continue + traçabilité | 🔜 |
-| **R4 natif** | API dessin/modèle multi-logiciels : Archicad d'abord, IFC/Speckle/Revit/Rhino/SketchUp ensuite | 🔜 (fil démo Archicad actif) |
+| **R1A Agent → API → logiciel d'architecture** | CLI agentique, bridge Archicad-shaped, intention de dessin/modèle, dry-run diff, approval/ledger | ✅ **contrat offline fonctionnel**, live Archicad à connecter |
+| **R1B Workspace projet** | parcelle → contraintes + enveloppe sourcées, rapport, mémoire projet | ✅ **prototype fonctionnel**, productisation à durcir |
+| **R2 Permis & Opposition** | radar d'opposition + complétude dossier (phase 33) | 🟡 radar + pré-check dossier/compliance prototypes |
+| **R3 Mémoire & Ledger** | décisions, preuves, approvals, handoffs | 🟡 fixtures/validators en place |
+| **R4 Adapters live** | Archicad JSON réel d'abord, puis IFC/Speckle/Revit/Rhino/SketchUp/AutoCAD/BricsCAD/Vectorworks | 🔜 |
+| **R5/R6 Économie + chantier** | honoraires, coûts, soumissions, PV, défauts, handover | 🟡 contrats pilotes |
 
 La traduction logicielle de cette séquence vit désormais dans
 [`planning/software-roadmap.md`](planning/software-roadmap.md) et
@@ -120,6 +121,8 @@ Code Python (stdlib), ancré sur les **API publiques gratuites** suisses, pouss�
 | `validate_memory.py` | mémoire projet cross-phase + requêtes avec provenance | ✅ |
 | `validate_cost.py` | honoraires SIA 102 + pont eCCC/NPK/CFC + round-trip `.crbx` | ✅ |
 | `model_bridge_demo.py` | prototype dry-run du bridge modèle local Archicad JSON | ✅ |
+| `model/design_intent_fixture.json` | intention structurée de dessin/modèle pour le demo agent → API → logiciel | ✅ |
+| `agent_software_demo.py` | CLI dédié R1A : inspection modèle, items générés, dry-run diff, état d'approbation | ✅ |
 | `trust.py` | footer/contrat de rendu non-autoritaire partagé par les sorties pilote | ✅ |
 | `selfcheck.py` | tests hors-ligne | ✅ 48/48 |
 
@@ -147,7 +150,7 @@ et validés par CI.
   contrats, fixtures et validations.
 - La vague suivante est définie comme backlog logiciel dans
   [`planning/epics-and-backlog.md`](planning/epics-and-backlog.md) : 13 épics, 51 tâches candidates,
-  milestones `R1` à `R6`, priorités et dépendances.
+  milestones `R1A` à `R6`, priorités et dépendances.
 - Les listes de delivery, Definition of Ready/Done, release gates et checklists démo vivent dans
   [`planning/development-checklists.md`](planning/development-checklists.md).
 - Décisions tracées dans [`strategy/decisions.md`](strategy/decisions.md) ; corrections et dette historique
@@ -160,16 +163,16 @@ fil Archicad) ; pilote **Vaud / Lausanne** ; cold-start **hybride** (ingestion �
 **route réglementaire** composable ; projet **contexte-first** pour les petits projets.
 
 **Ouvertes pour le passage logiciel** : app locale web vs desktop-local ; stockage `files + manifest` seul vs
-SQLite local ; première démo partenaire après `R1` (permis, API dessin/modèle Archicad, ou PV chantier) ;
+SQLite local ; version Archicad live disponible pour le `R1A` réel ; prochaine commune à ingérer après Lausanne/Pully ;
 prochaine commune à ingérer après Lausanne/Pully.
 
 ## 11 · Prochaines étapes
 
-1. Ouvrir la prochaine vague GitHub à partir des épics `AED-E01` à `AED-E13`.
-2. Construire `R1 Project Workspace` : projet explicite, route réglementaire, brief sourcé, rapport et mémoire.
-3. Ajouter la persistance minimale : manifest, evidence refs, report metadata, premiers records mémoire.
-4. Garder `R2` prêt : complétude dossier, gates phase 33, radar d'opposition et limites explicites.
-5. Préparer le fil partenaire `R4` comme axe natif : inspection Archicad JSON en dry-run, contrats IFC/Speckle/Revit/Rhino/SketchUp, jamais mutation sans ledger/approval.
+1. Ouvrir et traiter la vague GitHub `R1A Agent-To-Software Demo` à partir des épics `AED-E14` à `AED-E23`.
+2. Transformer le prototype offline en démo partenaire : agent CLI, inspection modèle, items générés, diff, approbation, ledger.
+3. Connecter le bridge Archicad JSON live dès qu'un poste Archicad partenaire est disponible.
+4. Construire ensuite `R1B Project Workspace` : projet explicite, route réglementaire, brief sourcé, rapport et mémoire.
+5. Garder `R2` prêt : complétude dossier, gates phase 33, radar d'opposition et limites explicites.
 
 ## 12 · Carte des documents (où lire quoi)
 
@@ -203,6 +206,7 @@ prochaine commune à ingérer après Lausanne/Pully.
 | Le copilote honoraires | [`cost/sia102-fee-profitability-copilot.md`](cost/sia102-fee-profitability-copilot.md) |
 | Le pont eCCC/NPK/CFC | [`cost/eccc-npk-cfc-bridge.md`](cost/eccc-npk-cfc-bridge.md) |
 | La spec MVP1 | [`specs/mvp1-parcel-constraints-intake.md`](specs/mvp1-parcel-constraints-intake.md) |
+| La spec R1A agent → logiciel | [`specs/mvp1a-agent-to-architecture-software-demo.md`](specs/mvp1a-agent-to-architecture-software-demo.md) |
 | La spec assistant permis | [`specs/mvp2-permit-dossier-assistant.md`](specs/mvp2-permit-dossier-assistant.md) |
 | La spec Auto-BIM / Model Intelligence | [`specs/later-model-intelligence.md`](specs/later-model-intelligence.md) |
 | La spec tender/quantités | [`specs/later-tender-quantity-workflows.md`](specs/later-tender-quantity-workflows.md) |
