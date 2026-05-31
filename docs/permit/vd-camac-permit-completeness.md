@@ -10,6 +10,7 @@ Product spec: [`../specs/mvp2-permit-dossier-assistant.md`](../specs/mvp2-permit
 
 - Checklist: `pilot/permit/vd_camac_checklist.json`
 - Demo incomplete dossier: `pilot/permit/demo_missing_dossier.json`
+- Demo complete dossier: `pilot/permit/demo_complete_dossier.json`
 - Validator/report: `pilot/validate_permit.py`
 
 ## Sources Checked
@@ -38,8 +39,20 @@ These sources were checked on 2026-05-29 and are recorded in the JSON checklist 
 }
 ```
 
-The `accepted_evidence` keys are the bridge to a future project dossier object. The current demo dossier uses
-booleans to prove missing-item detection.
+The `accepted_evidence` keys are mapped to dossier `evidence_records`. Each
+record must include an evidence ID, accepted key, status, title, kind, source
+refs, and either a project file reference or an external reference.
+
+```json
+{
+  "evidence_id": "EVID-COMPLETE-PLANS",
+  "key": "signed_plans",
+  "kind": "project_document",
+  "title": "Signed permit plans",
+  "status": "present",
+  "file_ref": "project://permit/signed_plans.pdf"
+}
+```
 
 ## Missing-Item Detection
 
@@ -54,6 +67,9 @@ The demo incomplete dossier currently reports:
 - missing fire-safety evidence.
 
 This is intentional: the validator must prove it can fail a dossier before it can be trusted to pass one.
+
+The complete fixture has zero required blockers while optional/scope-dependent
+questionnaires remain visible as conditional or out-of-scope items.
 
 ## Boundaries
 

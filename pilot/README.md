@@ -53,7 +53,7 @@ still performing the live OEREB fetch (shown as byte count).
 - `constraints/mvp1_lausanne_matrix.json` — phase-aware constraint matrix for the Lausanne/VD pilot.
 - `validate_matrix.py` — stdlib validator for the phase-aware matrix.
 - `permit/vd_camac_checklist.json` — Vaud ACTIS-CAMAC baseline permit completeness checklist.
-- `permit/demo_missing_dossier.json` — intentionally incomplete demo dossier proving missing-item detection.
+- `permit/demo_missing_dossier.json`, `permit/demo_complete_dossier.json` — evidence-record demo dossiers proving missing-item detection and zero-blocker completeness.
 - `compliance/ch_phase33_gates.json` — phase-33 compliance gates with legal/contractual typing.
 - `validate_permit.py`, `validate_compliance.py` — stdlib validators for permit and compliance contracts.
 - `research/swiss_phase_lifecycle_matrix.json` — Swiss/SIA-oriented phase lifecycle matrix with
