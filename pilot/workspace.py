@@ -8,11 +8,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+import html
 import json
 import os
 import re
 
+import claims
 import domain
+import opposition_radar as radar
+import parcel_intake
 import selector
 import trust
 
@@ -69,6 +73,13 @@ def _source_ref(source_id: str, locator: str, valid_as_of: str, confidence: str 
         "valid_as_of": valid_as_of,
         "confidence": confidence,
     }
+
+
+def _load_source_manifest(project_dir: str) -> dict:
+    path = os.path.join(project_dir, "sources", "source_manifest.json")
+    if not os.path.exists(path):
+        return {"schema_version": WORKSPACE_VERSION, "sources": []}
+    return _load_json(path)
 
 
 def _validate_route_layer(layer: dict, path: str, report: WorkspaceValidationReport, prefix: str, active: bool) -> None:
@@ -291,8 +302,224 @@ def record_report(
     return entry
 
 
+def _constraint_claims(oereb_record: dict, source_ref: dict) -> list[dict]:
+    alignment_value = ", ".join(oereb_record.get("alignments") or [])
+    constraints = [
+        claims.make_claim(
+            "CLAIM-OEREB-ZONE",
+            "Zone d'affectation",
+            "sourced",
+            oereb_record.get("zone"),
+            confidence="high",
+            source_refs=[source_ref],
+        ),
+        claims.make_claim(
+            "CLAIM-OEREB-NOISE",
+            "Degré de sensibilité au bruit",
+            "sourced",
+            oereb_record.get("noise_ds"),
+            confidence="high",
+            source_refs=[source_ref],
+        ),
+    ]
+    if alignment_value:
+        constraints.append(
+            claims.make_claim(
+                "CLAIM-OEREB-ALIGNMENTS",
+                "Alignements / limites des constructions",
+                "sourced",
+                alignment_value,
+                confidence="high",
+                source_refs=[source_ref],
+            )
+        )
+    else:
+        constraints.append(
+            claims.unknown_claim(
+                "CLAIM-OEREB-ALIGNMENTS",
+                "Alignements / limites des constructions",
+                "Verifier la couche RDPPF/OEREB et le plan communal avant depot.",
+            )
+        )
+    return constraints
+
+
+def _envelope_claims(envelope: dict, source_refs: list[dict]) -> list[dict]:
+    computed_refs = source_refs or []
+    out = []
+    if envelope.get("max_sbp_m2") is not None:
+        out.append(
+            claims.make_claim(
+                "CLAIM-ENVELOPE-SBP",
+                "Surface de plancher maximale",
+                "computed",
+                envelope["max_sbp_m2"],
+                confidence="medium",
+                source_refs=computed_refs,
+                formula="surface_parcelle_m2 * indice_IUS_ou_IBUS",
+                inputs={"area_m2": envelope.get("area_m2"), "index_value": envelope.get("index_value")},
+            )
+        )
+    else:
+        out.append(
+            claims.unknown_claim(
+                "CLAIM-ENVELOPE-SBP",
+                "Surface de plancher maximale",
+                "Aucun IUS/IBUS numerique n'est disponible; verifier le gabarit communal et le contexte bati.",
+            )
+        )
+    if envelope.get("max_footprint_m2") is not None:
+        out.append(
+            claims.make_claim(
+                "CLAIM-ENVELOPE-FOOTPRINT",
+                "Emprise au sol maximale",
+                "computed",
+                envelope["max_footprint_m2"],
+                confidence="medium",
+                source_refs=computed_refs,
+                formula="surface_parcelle_m2 * IOS",
+                inputs={"area_m2": envelope.get("area_m2"), "ios": envelope.get("ios")},
+            )
+        )
+    else:
+        out.append(
+            claims.unknown_claim(
+                "CLAIM-ENVELOPE-FOOTPRINT",
+                "Emprise au sol maximale",
+                "Aucun IOS numerique n'est disponible; verifier les distances, longueurs et gabarits applicables.",
+            )
+        )
+    for key, title, action in (
+        ("height_corniche_m", "Hauteur a la corniche", "Verifier la regle de hauteur dans le reglement communal."),
+        ("height_faite_m", "Hauteur au faite", "Verifier la regle de hauteur dans le reglement communal."),
+        ("levels_max", "Nombre de niveaux maximal", "Verifier niveaux, combles et attiques dans le reglement communal."),
+        ("setback_min_m", "Distance minimale aux limites", "Verifier limites, mitoyennete et alignements avant esquisse."),
+    ):
+        if envelope.get(key) is not None:
+            out.append(
+                claims.make_claim(
+                    f"CLAIM-ENVELOPE-{key.upper()}",
+                    title,
+                    "sourced",
+                    envelope[key],
+                    confidence="medium",
+                    source_refs=computed_refs,
+                )
+            )
+        else:
+            out.append(claims.unknown_claim(f"CLAIM-ENVELOPE-{key.upper()}", title, action))
+    return out
+
+
+def _residual_unknowns(claims_list: list[dict]) -> list[dict]:
+    unknowns = [
+        {
+            "claim_id": claim["claim_id"],
+            "topic": claim["title"],
+            "state": claim["state"],
+            "next_action": claim.get("next_action") or claim.get("required_human_check"),
+        }
+        for claim in claims_list
+        if claim.get("state") in {"unknown", "assumption", "conflict"}
+    ]
+    unknowns.append(
+        {
+            "topic": "Servitudes du registre foncier",
+            "state": "unknown",
+            "next_action": "Consulter l'extrait du registre foncier et les servitudes avant toute decision.",
+        }
+    )
+    return unknowns
+
+
+def render_brief_html(brief: dict) -> str:
+    claims.validate_claims(brief.get("claims") or [])
+    title = html.escape(brief.get("brief_id", "Aedifica brief"))
+    route = brief.get("regulatory_route") or {}
+    warnings = brief.get("freshness_warnings") or []
+    risks = brief.get("risks") or {}
+    source_registry = brief.get("source_registry") or {}
+
+    def esc(value):
+        return html.escape("" if value is None else str(value))
+
+    def render_claim(claim):
+        value = "Inconnu" if claim.get("value") is None else esc(claim.get("value"))
+        meta = []
+        if claim.get("formula"):
+            meta.append(f"formule: {esc(claim['formula'])}")
+        if claim.get("next_action"):
+            meta.append(f"action: {esc(claim['next_action'])}")
+        return (
+            f"<li class='claim {esc(claim['state'])}'>"
+            f"<span class='state'>{esc(claim['state'])}</span>"
+            f"<b>{esc(claim['title'])}</b><br><span>{value}</span>"
+            + (f"<small>{' · '.join(meta)}</small>" if meta else "")
+            + "</li>"
+        )
+
+    source_rows = "".join(
+        f"<li><b>{esc(src.get('source_id'))}</b> — {esc(src.get('title'))} ({esc(src.get('valid_as_of'))})</li>"
+        for src in source_registry.get("sources", [])
+    )
+    active_layers = "".join(
+        f"<li>{esc(layer.get('layer_id'))} · {esc(layer.get('source_version_id'))}</li>"
+        for layer in route.get("active_layers", [])
+    )
+    warning_rows = "".join(f"<li>{esc(w.get('layer_id'))}: {esc(w.get('message'))}</li>" for w in warnings)
+    risk_rows = "".join(
+        f"<li><b>{esc(item.get('level'))}</b> {esc(item.get('ground'))}: {esc(item.get('basis'))}</li>"
+        for item in risks.get("grounds", [])
+    )
+    unknown_rows = "".join(
+        f"<li>{esc(item.get('topic'))}: {esc(item.get('next_action'))}</li>"
+        for item in brief.get("residual_unknowns", [])
+    )
+    return f"""<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>{title}</title>
+  <style>
+    body {{ font-family: Arial, sans-serif; margin: 32px; color: #17202a; line-height: 1.35; }}
+    h1, h2 {{ margin: 0 0 10px; }}
+    section {{ border-top: 1px solid #d9dee7; padding-top: 16px; margin-top: 18px; }}
+    ul {{ padding-left: 18px; }}
+    .claim {{ margin: 9px 0; }}
+    .state {{ display: inline-block; min-width: 86px; font-size: 12px; text-transform: uppercase; color: #4f5b67; }}
+    .unknown .state, .assumption .state, .conflict .state {{ color: #9a5b00; font-weight: bold; }}
+    small {{ display: block; color: #5d6975; margin-top: 2px; }}
+    footer {{ white-space: pre-line; color: #4f5b67; margin-top: 24px; font-size: 12px; }}
+  </style>
+</head>
+<body>
+  <h1>{title}</h1>
+  <p>{esc(brief.get('project_summary', {}).get('name'))} · {esc(brief.get('generated_at'))}</p>
+  <section><h2>Route réglementaire</h2><ul>{active_layers}</ul>{'<h3>Avertissements</h3><ul>' + warning_rows + '</ul>' if warning_rows else ''}</section>
+  <section><h2>Sources</h2><ul>{source_rows}</ul></section>
+  <section><h2>Parcelle</h2><ul>{''.join(render_claim(c) for c in brief.get('constraints', []))}</ul></section>
+  <section><h2>Enveloppe</h2><ul>{''.join(render_claim(c) for c in brief.get('envelope_claims', []))}</ul></section>
+  <section><h2>Risques indicatifs</h2><p>Global: {esc(risks.get('overall'))} ({esc(risks.get('score'))})</p><ul>{risk_rows or '<li>Aucun facteur saillant dans le fixture.</li>'}</ul></section>
+  <section><h2>Inconnues résiduelles</h2><ul>{unknown_rows}</ul></section>
+  <footer>{esc(brief.get('trust_footer'))}</footer>
+</body>
+</html>
+"""
+
+
+def write_brief_html_report(project_dir: str, brief: dict) -> dict:
+    report_rel = f"reports/{brief['brief_id'].lower()}.html"
+    report_path = os.path.join(project_dir, report_rel)
+    os.makedirs(os.path.dirname(report_path), exist_ok=True)
+    with open(report_path, "w", encoding="utf-8") as f:
+        f.write(render_brief_html(brief))
+    return record_report(project_dir, f"{brief['brief_id']}-HTML", "parcel_brief_html", report_rel, brief["source_refs"], brief["trust_footer"])
+
+
 def generate_offline_parcel_brief(project_dir: str, write_report: bool = False) -> dict:
     manifest = _load_json(project_manifest_path(project_dir))
+    parcel_context = parcel_intake.from_project_fixture(project_dir)
+    source_registry = _load_source_manifest(project_dir)
     route_obj = manifest.get("regulatory_route")
     if not isinstance(route_obj, dict):
         jurisdiction = manifest.get("jurisdiction") or {}
@@ -302,16 +529,8 @@ def generate_offline_parcel_brief(project_dir: str, write_report: bool = False) 
             jurisdiction.get("commune", "Lausanne"),
         )
     freshness_warnings = selector.pack_freshness_warnings(route_obj)
-    evidence_rel = manifest.get("parcel", {}).get("oereb_parsed_evidence")
-    if not evidence_rel:
-        raise ValueError("project parcel.oereb_parsed_evidence is required for offline brief generation")
-    evidence_path = os.path.join(project_dir, evidence_rel)
-    oereb_record = _load_json(evidence_path)
-    area = oereb_record.get("area_m2")
-    try:
-        area = float(area)
-    except (TypeError, ValueError):
-        area = None
+    oereb_record = parcel_context["oereb_record"]
+    area = parcel_context["area_m2"]
 
     commune = manifest["jurisdiction"]["commune"]
     rpga = domain.load_commune_ruleset(commune)
@@ -333,14 +552,47 @@ def generate_offline_parcel_brief(project_dir: str, write_report: bool = False) 
                 provenance.get("confidence", "medium"),
             )
         )
+    source_refs_by_id = {item["source_id"]: item for item in source_refs}
+    constraint_claims = _constraint_claims(oereb_record, source_refs_by_id["VD-OEREB"])
+    zone_claim = (
+        claims.make_claim(
+            "CLAIM-COMMUNAL-ZONE",
+            "Zone communale retenue",
+            "sourced",
+            zone_name,
+            confidence=provenance.get("confidence", "medium") if provenance else "medium",
+            source_refs=[source_refs_by_id["COMMUNE-RPGA"]],
+        )
+        if zone_name and "COMMUNE-RPGA" in source_refs_by_id
+        else claims.unknown_claim(
+            "CLAIM-COMMUNAL-ZONE",
+            "Zone communale retenue",
+            "Cartographier la zone OEREB vers un pack communal vérifié avant de calculer l'enveloppe.",
+        )
+    )
+    envelope = domain.calculate_envelope(area, zone_params)
+    envelope_claims = _envelope_claims(envelope, source_refs)
+    all_claims = constraint_claims + [zone_claim] + envelope_claims
+    claims.validate_claims(all_claims)
+    risks = radar.score(oereb_record, None, None, area)
+    residual_unknowns = _residual_unknowns(all_claims)
 
     brief = {
         "schema_version": WORKSPACE_VERSION,
         "brief_id": f"BRIEF-{manifest['project_id']}-PARCEL",
         "project_id": manifest["project_id"],
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "claim_state_summary": ["sourced", "computed", "unknown"],
+        "project_summary": {
+            "project_id": manifest["project_id"],
+            "name": manifest.get("name"),
+            "phase_code": manifest.get("phase_code"),
+            "knowledge_regime": manifest.get("knowledge_regime"),
+            "jurisdiction": manifest.get("jurisdiction"),
+        },
+        "claim_state_summary": sorted({claim["state"] for claim in all_claims}),
         "source_refs": source_refs,
+        "source_registry": source_registry,
+        "parcel_context": {key: value for key, value in parcel_context.items() if key != "oereb_record"},
         "regulatory_route": route_obj,
         "freshness_warnings": freshness_warnings,
         "parcel": {
@@ -349,25 +601,23 @@ def generate_offline_parcel_brief(project_dir: str, write_report: bool = False) 
             "commune": oereb_record.get("commune"),
             "area_m2": area,
         },
-        "constraints": [
-            {"claim": f"Zone d'affectation: {oereb_record.get('zone')}", "claim_state": "sourced"},
-            {"claim": f"Degré de sensibilité au bruit: {oereb_record.get('noise_ds')}", "claim_state": "sourced"},
-            {"claim": f"Alignements: {', '.join(oereb_record.get('alignments') or [])}", "claim_state": "sourced"},
-        ],
+        "constraints": constraint_claims,
         "communal_zone": {
             "name": zone_name,
             "match_method": match_method,
             "claim_state": "sourced" if zone_name else "unknown",
         },
-        "envelope": domain.calculate_envelope(area, zone_params),
-        "unknowns": [
-            "Servitudes du registre foncier à vérifier manuellement.",
-            "Toute valeur non exposée par API doit rester liée au règlement communal ingéré.",
-        ],
+        "envelope": envelope,
+        "envelope_claims": envelope_claims,
+        "claims": all_claims,
+        "risks": risks,
+        "residual_unknowns": residual_unknowns,
+        "unknowns": [item["next_action"] for item in residual_unknowns if item.get("next_action")],
         "trust_footer": trust.render_footer(manifest.get("trust_contract", {}).get("language", "fr")),
     }
     if write_report:
         report_rel = f"reports/{brief['brief_id'].lower()}.json"
         _write_json(os.path.join(project_dir, report_rel), brief)
         record_report(project_dir, brief["brief_id"], "parcel_brief", report_rel, source_refs, brief["trust_footer"])
+        write_brief_html_report(project_dir, brief)
     return brief

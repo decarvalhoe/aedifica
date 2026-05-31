@@ -47,6 +47,8 @@ still performing the live OEREB fetch (shown as byte count).
 - `opposition_radar.py` — MVP2 opposition/recours-risk radar (`python pilot/opposition_radar.py [addr] [height_m]`).
 - `fiche.py` — printable **A4 HTML fiche** per parcel combining constraints + envelope + radar (`python pilot/fiche.py [addr] [height_m]` → `pilot/out/`).
 - `selector.py` — the **regulatory route**: composes Federal + canton + commune layers (`python pilot/selector.py`).
+- `parcel_intake.py` — normalizes parcel fixtures, EGRID queries and address queries into one parcel context.
+- `claims.py` — trust-claim envelope validation; sourced regulatory claims require source refs before rendering.
 - `trust.py` — shared non-authority output contract footer and provenance tags.
 - `constraints/mvp1_lausanne_matrix.json` — phase-aware constraint matrix for the Lausanne/VD pilot.
 - `validate_matrix.py` — stdlib validator for the phase-aware matrix.
@@ -67,12 +69,14 @@ still performing the live OEREB fetch (shown as byte count).
 - `projects/demo_lausanne_palud/` — first project workspace fixture with manifest, sources, evidence,
   reports and memory folders.
 - `workspace.py`, `validate_workspace.py` — stdlib project-workspace contract and offline brief generation.
+- Workspace briefs can be saved as JSON and HTML reports with source registry, route, claims, risks, unknowns and
+  report-index metadata.
 - `memory/demo_project_memory.json` — cross-phase project memory fixture with provenance-backed demo queries.
 - `validate_memory.py` — stdlib validator and query demo for project memory.
 - `cost/` — fee/profitability and eCCC/NPK/CFC bridge fixtures.
 - `model_bridge_demo.py` — offline dry-run prototype for the local model bridge.
 - `validate_cost.py` — fee/taxonomy validator and in-memory `.crbx` round-trip demo.
-- `selfcheck.py` — offline smoke test of the pure logic, no network (`python pilot/selfcheck.py`, 48 checks).
+- `selfcheck.py` — offline smoke test of the pure logic, no network (`python pilot/selfcheck.py`).
 - `registry/federal.json`, `registry/canton_vd.json` — shared CH core + VD cantonal layer (refs verified from a live OEREB extract).
 - `lausanne/`, `pully/` — per-commune ingested rulesets (`rpga_zones.json`) + `INGESTION.md` (sources, in-force status, gaps).
   Lausanne is **geometric/IUS**; Pully is **IOS 20 %** — the same engine absorbs both styles (run `selector.py` to see it).

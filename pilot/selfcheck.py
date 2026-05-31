@@ -19,7 +19,9 @@ except Exception:
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import oereb              # noqa: E402
+import claims             # noqa: E402
 import domain             # noqa: E402
+import parcel_intake      # noqa: E402
 import selector          # noqa: E402
 import opposition_radar as radar  # noqa: E402
 import mvp1_demo as demo  # noqa: E402
@@ -218,17 +220,33 @@ check(
         for item in workspace_report.items
     ),
 )
+parcel_ctx = parcel_intake.from_project_fixture(os.path.join(HERE, "projects", "demo_lausanne_palud"))
+check("parcel intake normalizes fixture", parcel_ctx["input_type"] == "parcel_fixture" and parcel_ctx["egrid"] == "CH915772367853")
 brief = workspace.generate_offline_parcel_brief(os.path.join(HERE, "projects", "demo_lausanne_palud"))
 check("offline workspace brief has source refs", bool(brief["source_refs"]))
+check("offline workspace brief has source registry", bool(brief["source_registry"]["sources"]))
+check("offline workspace brief has project summary", brief["project_summary"]["project_id"] == "DEMO-LAUSANNE-PALUD")
 check("offline workspace brief includes regulatory route", len(brief["regulatory_route"]["active_layers"]) == 3)
 check("offline workspace brief exposes freshness warnings", isinstance(brief["freshness_warnings"], list))
+check("offline workspace brief includes risks", "overall" in brief["risks"] and "grounds" in brief["risks"])
+check("claim envelope validates", not any(claim.get("state") == "sourced" and not claim.get("source_refs") for claim in brief["claims"]))
+html_report = workspace.render_brief_html(brief)
+check("HTML brief renders trust states", "Inconnues résiduelles" in html_report and "class='claim unknown'" in html_report)
+bad_brief = json.loads(json.dumps(brief))
+bad_brief["claims"][0]["source_refs"] = []
+try:
+    workspace.render_brief_html(bad_brief)
+    refused_bad_claim = False
+except claims.ClaimValidationError:
+    refused_bad_claim = True
+check("HTML renderer refuses unsourced regulatory facts", refused_bad_claim)
 check("offline workspace brief keeps unknowns visible", bool(brief["unknowns"]))
 with tempfile.TemporaryDirectory() as tmp:
     tmp_project = os.path.join(tmp, "demo_lausanne_palud")
     shutil.copytree(os.path.join(HERE, "projects", "demo_lausanne_palud"), tmp_project)
     workspace.generate_offline_parcel_brief(tmp_project, write_report=True)
     tmp_report = workspace.validate_project(tmp_project)
-    check("offline workspace brief writes report metadata", tmp_report.items[0]["report_count"] == 1 and not tmp_report.errors)
+    check("offline workspace brief writes report metadata", tmp_report.items[0]["report_count"] == 2 and not tmp_report.errors)
 
 print("Cost and model bridge")
 cost_report = validate_cost.validate_all()
