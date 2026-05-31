@@ -38,6 +38,7 @@ import validate_ledger  # noqa: E402
 import ledger  # noqa: E402
 import ledger_writer  # noqa: E402
 import approval  # noqa: E402
+import adapter_evidence  # noqa: E402
 import validate_cost    # noqa: E402
 import validate_site    # noqa: E402
 import validate_workspace  # noqa: E402
@@ -370,6 +371,21 @@ check("adapter dry-run approval cannot authorize execution", not approval.author
 check("adapter execution approval also covers dry-run", approval.authorizes(_exec_appr, "adapter_dry_run"))
 _scope_ok, _scope_msg = approval.check_scope(_dry_appr, "adapter_execution")
 check("failed scope check renders a clear message", (not _scope_ok) and "does NOT authorize" in _scope_msg)
+
+print("Adapter evidence into ledger")
+_adapter_sel = model_bridge_demo.inspect_selected_elements()
+_adapter_ev = adapter_evidence.build_adapter_evidence("DEMO-LAUSANNE-PALUD", "33", "ACT-SELF-1", "archicad_json", _adapter_sel["selected_elements"], "memory://before/sel.json", "memory://dryrun/plan.json")
+check("adapter dry-run links action to project, phase and selected elements", _adapter_ev["phase"]["phase_code"] == "33" and len(_adapter_ev["selected_elements"]) >= 1)
+check("adapter dry-run produces a ledger-ready evidence record", len(_adapter_ev["evidence_refs"]) >= 2)
+check("adapter execution is blocked without an execution approval", not adapter_evidence.can_execute(_adapter_ev)[0])
+_adapter_ev_exec = adapter_evidence.build_adapter_evidence("P", "33", "ACT-2", "archicad_json", _adapter_sel["selected_elements"], "m://b", "m://p", approval=approval.make_approval("Arch", "adapter_execution", "ok"))
+check("adapter execution is allowed with an execution approval", adapter_evidence.can_execute(_adapter_ev_exec)[0])
+with tempfile.TemporaryDirectory() as tmp:
+    _pd2 = os.path.join(tmp, "p")
+    os.makedirs(_pd2)
+    adapter_evidence.write_dry_run_to_ledger(_pd2, _adapter_ev, {"name": "Architecte", "role": "architect"}, "LED-DRY-SELF")
+    _led2 = ledger_writer.read_ledger(_pd2)
+    check("adapter dry-run is written as a ledger entry linked to the action", _led2["entries"][0]["event_type"] == "adapter_dry_run" and _led2["entries"][0]["inputs"]["action_id"] == "ACT-SELF-1")
 
 print("Project workspace")
 workspace_report = validate_workspace.validate_all()
