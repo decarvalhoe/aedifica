@@ -1,0 +1,89 @@
+{
+  "schema_version": "1.0",
+  "graph_id": "AEDIFICA-MULTILINGUAL-REGULATORY-GRAPH-V0",
+  "title": "Canonical multilingual regulatory graph contract",
+  "source_version": {
+    "source_status": "contract_specification",
+    "created_at": "2026-05-31",
+    "review_due": "2026-08-31"
+  },
+  "languages": ["fr", "de", "it"],
+  "adoption_state_dimensions": ["authority", "canton", "instrument", "status", "valid_as_of", "review_due"],
+  "terms": [
+    {
+      "canonical_key": "permit.opposition",
+      "domain": "permit",
+      "renderings": {
+        "fr": "opposition",
+        "de": "Einsprache",
+        "it": "opposizione"
+      },
+      "source_refs": [
+        {
+          "source_id": "VD-LATC",
+          "locator": "procedure permis/oppositions",
+          "valid_as_of": "2026-05-31",
+          "confidence": "medium"
+        }
+      ],
+      "adoption_state": {
+        "authority": "canton",
+        "canton": "VD",
+        "instrument": "LATC/RLATC",
+        "status": "pilot_tracked",
+        "valid_as_of": "2026-05-31",
+        "review_due": "2026-08-31"
+      }
+    },
+    {
+      "canonical_key": "zoning.utilization_index",
+      "domain": "zoning",
+      "renderings": {
+        "fr": "indice d'utilisation du sol",
+        "de": "Ausnützungsziffer",
+        "it": "indice di sfruttamento"
+      },
+      "source_refs": [
+        {
+          "source_id": "LSN-RPGA",
+          "locator": "zone parameters",
+          "valid_as_of": "2026-05-31",
+          "confidence": "medium"
+        }
+      ],
+      "adoption_state": {
+        "authority": "commune",
+        "canton": "VD",
+        "instrument": "RPGA/PGA",
+        "status": "pilot_tracked",
+        "valid_as_of": "2026-05-31",
+        "review_due": "2026-08-31"
+      }
+    },
+    {
+      "canonical_key": "energy.model_prescriptions",
+      "domain": "energy",
+      "renderings": {
+        "fr": "MoPEC",
+        "de": "MuKEn",
+        "it": "MoPEC"
+      },
+      "source_refs": [
+        {
+          "source_id": "VD-ENERGY-FORMS",
+          "locator": "cantonal energy authorization forms",
+          "valid_as_of": "2026-05-31",
+          "confidence": "medium"
+        }
+      ],
+      "adoption_state": {
+        "authority": "canton",
+        "canton": "VD",
+        "instrument": "cantonal energy law/forms",
+        "status": "adoption_state_to_verify_per_canton",
+        "valid_as_of": "2026-05-31",
+        "review_due": "2026-08-31"
+      }
+    }
+  ]
+}

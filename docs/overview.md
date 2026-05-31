@@ -60,6 +60,11 @@ Références de construction:
 [`research/swiss-phase-lifecycle-matrix.md`](research/swiss-phase-lifecycle-matrix.md),
 [`research/pilot-source-registry.md`](research/pilot-source-registry.md),
 [`research/bim-adapter-capability-map.md`](research/bim-adapter-capability-map.md),
+[`research/swiss-competitions-and-study-mandates.md`](research/swiss-competitions-and-study-mandates.md),
+[`research/swiss-construction-management-tools.md`](research/swiss-construction-management-tools.md),
+[`research/competitive-positioning.md`](research/competitive-positioning.md),
+[`product/business-model-and-pricing.md`](product/business-model-and-pricing.md),
+[`architecture/multilingual-regulatory-graph.md`](architecture/multilingual-regulatory-graph.md),
 [`cost/sia102-fee-profitability-copilot.md`](cost/sia102-fee-profitability-copilot.md),
 [`cost/eccc-npk-cfc-bridge.md`](cost/eccc-npk-cfc-bridge.md),
 [`permit/vd-camac-permit-completeness.md`](permit/vd-camac-permit-completeness.md),
@@ -109,7 +114,7 @@ Code Python (stdlib), ancré sur les **API publiques gratuites** suisses, pouss�
 | `validate_cost.py` | honoraires SIA 102 + pont eCCC/NPK/CFC + round-trip `.crbx` | ✅ |
 | `model_bridge_demo.py` | prototype dry-run du bridge modèle local Archicad JSON | ✅ |
 | `trust.py` | footer/contrat de rendu non-autoritaire partagé par les sorties pilote | ✅ |
-| `selfcheck.py` | tests hors-ligne | ✅ 45/45 |
+| `selfcheck.py` | tests hors-ligne | ✅ 48/48 |
 
 **Preuve réelle** (parcelle Place de la Palud, Lausanne, nº 10072) : Zone centrale 15 LAT · DS III ·
 alignements · LATC/LAT — en quelques secondes, **sans maquette ni identifiant**. Validé aussi sur Pully.
@@ -169,6 +174,11 @@ fil Archicad) ; pilote **Vaud / Lausanne** ; cold-start **hybride** (ingestion �
 | Le registre de sources pilote | [`research/pilot-source-registry.md`](research/pilot-source-registry.md) |
 | Les adapters BIM/CAD | [`research/bim-adapter-capability-map.md`](research/bim-adapter-capability-map.md) |
 | Le prototype de bridge modèle | [`architecture/local-model-bridge-prototype.md`](architecture/local-model-bridge-prototype.md) |
+| Concours et MEP | [`research/swiss-competitions-and-study-mandates.md`](research/swiss-competitions-and-study-mandates.md) |
+| Outils direction travaux | [`research/swiss-construction-management-tools.md`](research/swiss-construction-management-tools.md) |
+| Positionnement concurrentiel | [`research/competitive-positioning.md`](research/competitive-positioning.md) |
+| Business/pricing | [`product/business-model-and-pricing.md`](product/business-model-and-pricing.md) |
+| Graphe multilingue | [`architecture/multilingual-regulatory-graph.md`](architecture/multilingual-regulatory-graph.md) |
 | Le copilote honoraires | [`cost/sia102-fee-profitability-copilot.md`](cost/sia102-fee-profitability-copilot.md) |
 | Le pont eCCC/NPK/CFC | [`cost/eccc-npk-cfc-bridge.md`](cost/eccc-npk-cfc-bridge.md) |
 | La spec MVP1 | [`specs/mvp1-parcel-constraints-intake.md`](specs/mvp1-parcel-constraints-intake.md) |

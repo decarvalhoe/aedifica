@@ -130,6 +130,9 @@ source_items = [item for item in research_report.items if item["kind"] == "sourc
 knowledge_items = [item for item in research_report.items if item["kind"] == "project_knowledge_regime"]
 workflow_items = [item for item in research_report.items if item["kind"] == "workflow_track_specs"]
 adapter_items = [item for item in research_report.items if item["kind"] == "adapter_capability_matrix"]
+practice_items = [item for item in research_report.items if item["kind"] == "practice_workflows"]
+business_items = [item for item in research_report.items if item["kind"] == "business_positioning"]
+graph_items = [item for item in research_report.items if item["kind"] == "multilingual_graph"]
 check("research assets validate", not research_report.errors)
 check(
     "phase lifecycle covers required phases",
@@ -154,6 +157,18 @@ check(
 check(
     "adapter matrix covers target adapters",
     any(validate_research.REQUIRED_ADAPTERS.issubset(set(item["adapters"])) for item in adapter_items),
+)
+check(
+    "practice workflows cover competitions and site tools",
+    any(validate_research.REQUIRED_PRACTICE_PACKS.issubset(set(item["packs"])) for item in practice_items),
+)
+check(
+    "business positioning covers competitive categories",
+    any(validate_research.REQUIRED_BUSINESS_CATEGORIES.issubset(set(item["categories"])) for item in business_items),
+)
+check(
+    "multilingual graph covers FR/DE/IT",
+    any(validate_research.REQUIRED_GRAPH_LANGUAGES.issubset(set(item["languages"])) for item in graph_items),
 )
 
 print("Project memory")

@@ -1,0 +1,26 @@
+name: Implementation / Contract
+description: Validator, pilot contract, spec, or code implementation.
+title: "[Implementation] "
+labels: ["mvp"]
+body:
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: What should change?
+    validations:
+      required: true
+  - type: textarea
+    id: contract
+    attributes:
+      label: Contract / Data Shape
+      description: Structured files, schemas, commands, or trust rules involved.
+    validations:
+      required: false
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation
+      description: Commands or CI checks expected.
+    validations:
+      required: true

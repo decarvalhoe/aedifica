@@ -1,0 +1,68 @@
+{
+  "schema_version": "1.0",
+  "research_id": "AEDIFICA-PRACTICE-WORKFLOWS-V0",
+  "title": "Swiss competition and construction-management workflow research",
+  "source_version": {
+    "source_status": "public_sources_reviewed",
+    "checked_at": "2026-05-31",
+    "review_due": "2026-08-31"
+  },
+  "packs": [
+    {
+      "pack_id": "competitions_study_mandates",
+      "issue": 4,
+      "title": "SIA 142 competitions and SIA 143 study mandates",
+      "source_refs": [
+        {
+          "source_id": "SIA-142-2025-ANCHOR",
+          "title": "SIA 142 public appendix anchor",
+          "url": "https://shop.sia.ch/3b237fb4-1b4f-43fd-9020-e0ef8e7dc087/D/DownloadAnhang",
+          "valid_as_of": "2026-05-31"
+        },
+        {
+          "source_id": "SIA-142-143-REVISION",
+          "title": "Espazium / SIA revision context",
+          "url": "https://www.espazium.ch/fr/node/28672",
+          "valid_as_of": "2026-05-31"
+        }
+      ],
+      "workflow_steps": ["program", "procedure_choice", "jury_or_college", "submission", "questions_answers", "evaluation", "report", "handoff"],
+      "aedifica_roles": ["program_checklist", "conflict_of_interest_register", "submission_completeness", "decision_memory"],
+      "limits": ["paid_sia_text_not_embedded", "jury_judgement_not_automated", "procurement_law_needs_human_review"]
+    },
+    {
+      "pack_id": "construction_management_tools",
+      "issue": 5,
+      "title": "Swiss construction-management and bauadministration tools",
+      "source_refs": [
+        {
+          "source_id": "MESSERLI-BAUADMIN",
+          "title": "Messerli Bauadministration",
+          "url": "https://messerli.ch/de/bauadministration",
+          "valid_as_of": "2026-05-31"
+        },
+        {
+          "source_id": "SORBA-BAUSOFTWARE",
+          "title": "SORBA Bausoftware",
+          "url": "https://www.sorba.ch/",
+          "valid_as_of": "2026-05-31"
+        },
+        {
+          "source_id": "BBASE-BAUADMIN",
+          "title": "BBase Bauadministration",
+          "url": "https://www.bbase.ch/",
+          "valid_as_of": "2026-05-31"
+        },
+        {
+          "source_id": "AUTODESK-CONSTRUCTION-CLOUD",
+          "title": "Autodesk Construction Cloud",
+          "url": "https://construction.autodesk.com/",
+          "valid_as_of": "2026-05-31"
+        }
+      ],
+      "workflow_steps": ["cost_control", "tendering", "contracts", "site_minutes", "defects", "invoices", "handover"],
+      "aedifica_roles": ["memory_layer", "source_linked_tasks", "permit_condition_carryover", "adapter_not_replacement"],
+      "limits": ["incumbents_own_transactional_bauadmin", "small_offices_resist_heavy_platforms", "aedifica_should_integrate_not_replace"]
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "schema_version": "1.0",
+  "positioning_id": "AEDIFICA-BUSINESS-POSITIONING-V0",
+  "title": "Business model and competitive positioning",
+  "source_version": {
+    "source_status": "public_sources_reviewed",
+    "checked_at": "2026-05-31",
+    "review_due": "2026-08-31"
+  },
+  "pricing_hypothesis": {
+    "primary_buyer": "small_to_mid_swiss_architecture_office",
+    "initial_model": "office_subscription_plus_project_packs",
+    "mvp_sequence": [
+      {
+        "mvp": "MVP1/MVP2",
+        "buyer": "architect_office",
+        "pricing_unit": "seat + active project pack",
+        "value_driver": "faster regulatory/permit orientation and fewer unpaid dossier loops"
+      },
+      {
+        "mvp": "MVP3",
+        "buyer": "architect_office_or_economist_partner",
+        "pricing_unit": "cost/tender module",
+        "value_driver": "fee erosion visibility and tender assumption control"
+      },
+      {
+        "mvp": "MVP4",
+        "buyer": "office_or_owner_project_team",
+        "pricing_unit": "project memory / site coordination module",
+        "value_driver": "traceable decisions, defects and handover memory"
+      }
+    ],
+    "later_options": ["insurer_or_liability_partner_subsidy", "enterprise_owner_project_memory", "jurisdiction_pack_maintenance"]
+  },
+  "competitive_map": [
+    {
+      "category": "authoring_tools",
+      "examples": ["Archicad", "Revit", "Vectorworks"],
+      "decision": "integrate",
+      "reason": "They own drawing/model authoring; Aedifica owns evidence, workflow memory and safe orchestration."
+    },
+    {
+      "category": "bauadministration",
+      "examples": ["Messerli", "SORBA", "BBase", "BauPlus"],
+      "decision": "integrate",
+      "reason": "They own Swiss transaction workflows; Aedifica prepares assumptions, evidence and memory."
+    },
+    {
+      "category": "standards_rails",
+      "examples": ["CRB", "SIA", "CAMAC", "simap/eBau"],
+      "decision": "respect_and_link",
+      "reason": "They are standards/procedure rails, not competitors to replace."
+    },
+    {
+      "category": "permit_ai",
+      "examples": ["PermitFlow", "Archistar eCheck", "Canibuild", "Ichi", "UptoCode"],
+      "decision": "differentiate_by_swiss_pack_depth",
+      "reason": "Most visible AI permit/compliance players are US/AU/global; Aedifica's wedge is Swiss federal/cantonal/communal/parcel depth plus project memory."
+    },
+    {
+      "category": "construction_clouds",
+      "examples": ["Autodesk Construction Cloud", "PlanRadar", "Procore"],
+      "decision": "integrate_later",
+      "reason": "They own large construction collaboration; Aedifica should feed source-linked tasks and decisions where adopted."
+    }
+  ],
+  "source_refs": [
+    {
+      "source_id": "PERMITFLOW",
+      "title": "PermitFlow",
+      "url": "https://www.permitflow.com/",
+      "valid_as_of": "2026-05-31"
+    },
+    {
+      "source_id": "ARCHISTAR-ECHECK",
+      "title": "Archistar eCheck",
+      "url": "https://www.archistar.ai/en-us/echeck/",
+      "valid_as_of": "2026-05-31"
+    },
+    {
+      "source_id": "CANIBUILD",
+      "title": "Canibuild",
+      "url": "https://canibuild.com/en-us/",
+      "valid_as_of": "2026-05-31"
+    },
+    {
+      "source_id": "AUTODESK-CONSTRUCTION-CLOUD",
+      "title": "Autodesk Construction Cloud",
+      "url": "https://construction.autodesk.com/",
+      "valid_as_of": "2026-05-31"
+    },
+    {
+      "source_id": "CRB",
+      "title": "CRB standards",
+      "url": "https://www.crb.ch/",
+      "valid_as_of": "2026-05-31"
+    }
+  ]
+}

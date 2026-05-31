@@ -1,0 +1,26 @@
+name: Research / Strategy
+description: Research pack, source mapping, positioning, or business decision.
+title: "[Research] "
+labels: ["research"]
+body:
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: What decision or research gap should this close?
+    validations:
+      required: true
+  - type: textarea
+    id: sources
+    attributes:
+      label: Sources
+      description: Official/current sources to check.
+    validations:
+      required: false
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: What artefact proves this is done?
+    validations:
+      required: true

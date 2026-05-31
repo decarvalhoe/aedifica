@@ -51,6 +51,11 @@ One strong validation track is **Swiss Auto-BIM for small and mid-sized offices*
 - `docs/strategy/`: strategy deep-dive — challenge & brainstorm, architect reality, Swiss regulatory stack, knowledge architecture, decisions, Lausanne PoC.
 - `docs/research/`: Swiss architecture lifecycle, phase-agentic matrix, sources.
 - `docs/research/bim-adapter-capability-map.md`: adapter capability map for Archicad, IFC, Speckle, Revit, Rhino, SketchUp, AutoCAD/BricsCAD.
+- `docs/research/swiss-competitions-and-study-mandates.md`: SIA 142/143 workflow research.
+- `docs/research/swiss-construction-management-tools.md`: Swiss bauadministration/construction-management tool landscape.
+- `docs/research/competitive-positioning.md`: integrate-vs-compete positioning map.
+- `docs/product/business-model-and-pricing.md`: pricing hypothesis tied to MVP sequence.
+- `docs/architecture/multilingual-regulatory-graph.md`: FR/DE/IT canonical regulatory graph contract.
 - `docs/research/swiss-phase-lifecycle-matrix.md`: validated Swiss/SIA phase lifecycle matrix with
   small/medium/large project variants.
 - `docs/research/pilot-source-registry.md`: prioritized CH/VD/Lausanne source registry compatible with NOMOS.

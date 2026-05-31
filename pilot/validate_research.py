@@ -17,6 +17,9 @@ SOURCE_REGISTRY_PATH = os.path.join(RESEARCH_DIR, "pilot_source_registry.json")
 KNOWLEDGE_REGIME_PATH = os.path.join(RESEARCH_DIR, "project_knowledge_regime.json")
 WORKFLOW_SPECS_PATH = os.path.join(RESEARCH_DIR, "workflow_track_specs.json")
 ADAPTER_MATRIX_PATH = os.path.join(RESEARCH_DIR, "adapter_capability_matrix.json")
+PRACTICE_WORKFLOWS_PATH = os.path.join(RESEARCH_DIR, "practice_workflow_research.json")
+BUSINESS_POSITIONING_PATH = os.path.join(RESEARCH_DIR, "business_positioning.json")
+MULTILINGUAL_GRAPH_PATH = os.path.join(RESEARCH_DIR, "multilingual_regulatory_graph.json")
 SCHEMA_VERSION = "1.0"
 REQUIRED_PHASES = {"0", "1", "2", "31", "32", "33", "41", "51", "52", "53", "61-63"}
 REQUIRED_SIZE_VARIANTS = {"small", "medium", "large"}
@@ -33,6 +36,9 @@ REQUIRED_ADAPTERS = {
     "sketchup_ruby",
     "autocad_bricscad",
 }
+REQUIRED_PRACTICE_PACKS = {"competitions_study_mandates", "construction_management_tools"}
+REQUIRED_BUSINESS_CATEGORIES = {"authoring_tools", "bauadministration", "standards_rails", "permit_ai", "construction_clouds"}
+REQUIRED_GRAPH_LANGUAGES = {"fr", "de", "it"}
 REQUIRED_PHASE_FIELDS = {
     "phase_code",
     "phase_label",
@@ -468,6 +474,151 @@ def validate_adapter_capability_matrix(path=ADAPTER_MATRIX_PATH):
     return report
 
 
+def validate_practice_workflows(path=PRACTICE_WORKFLOWS_PATH):
+    report = ResearchReport()
+    try:
+        data = _load(path)
+    except (OSError, json.JSONDecodeError) as exc:
+        report.add_error(path, f"cannot load JSON: {exc}")
+        return report
+    if data.get("schema_version") != SCHEMA_VERSION:
+        report.add_error(path, f"schema_version must be {SCHEMA_VERSION!r}")
+    packs = data.get("packs")
+    if not isinstance(packs, list) or not packs:
+        report.add_error(path, "packs must be a non-empty list")
+        packs = []
+    seen_packs = set()
+    covered_issues = set()
+    for index, pack in enumerate(packs):
+        owner = f"packs[{index}]"
+        if not isinstance(pack, dict):
+            report.add_error(path, f"{owner} must be an object")
+            continue
+        pack_id = pack.get("pack_id")
+        if _nonempty_string(pack_id):
+            seen_packs.add(pack_id)
+        issue = pack.get("issue")
+        if isinstance(issue, int):
+            covered_issues.add(issue)
+        for key in ("pack_id", "title"):
+            if not _nonempty_string(pack.get(key)):
+                report.add_error(path, f"{owner}.{key} must be a non-empty string")
+        for key in ("workflow_steps", "aedifica_roles", "limits"):
+            if not _list_of_strings(pack.get(key)):
+                report.add_error(path, f"{owner}.{key} must be a non-empty list")
+        if not isinstance(pack.get("source_refs"), list) or not pack.get("source_refs"):
+            report.add_error(path, f"{owner}.source_refs must be a non-empty list")
+    missing = REQUIRED_PRACTICE_PACKS - seen_packs
+    if missing:
+        report.add_error(path, f"missing practice packs {sorted(missing)}")
+    if {4, 5} - covered_issues:
+        report.add_error(path, f"missing practice issue coverage {sorted({4, 5} - covered_issues)}")
+    report.items.append(
+        {
+            "path": os.path.relpath(path, HERE),
+            "kind": "practice_workflows",
+            "packs": sorted(seen_packs),
+            "issues": sorted(covered_issues),
+        }
+    )
+    return report
+
+
+def validate_business_positioning(path=BUSINESS_POSITIONING_PATH):
+    report = ResearchReport()
+    try:
+        data = _load(path)
+    except (OSError, json.JSONDecodeError) as exc:
+        report.add_error(path, f"cannot load JSON: {exc}")
+        return report
+    if data.get("schema_version") != SCHEMA_VERSION:
+        report.add_error(path, f"schema_version must be {SCHEMA_VERSION!r}")
+    pricing = data.get("pricing_hypothesis")
+    if not isinstance(pricing, dict):
+        report.add_error(path, "pricing_hypothesis must be an object")
+        pricing = {}
+    for key in ("primary_buyer", "initial_model"):
+        if not _nonempty_string(pricing.get(key)):
+            report.add_error(path, f"pricing_hypothesis.{key} must be a non-empty string")
+    if not isinstance(pricing.get("mvp_sequence"), list) or not pricing.get("mvp_sequence"):
+        report.add_error(path, "pricing_hypothesis.mvp_sequence must be a non-empty list")
+    categories = set()
+    for index, entry in enumerate(data.get("competitive_map") or []):
+        owner = f"competitive_map[{index}]"
+        if not isinstance(entry, dict):
+            report.add_error(path, f"{owner} must be an object")
+            continue
+        category = entry.get("category")
+        if _nonempty_string(category):
+            categories.add(category)
+        for key in ("category", "decision", "reason"):
+            if not _nonempty_string(entry.get(key)):
+                report.add_error(path, f"{owner}.{key} must be a non-empty string")
+        if not _list_of_strings(entry.get("examples")):
+            report.add_error(path, f"{owner}.examples must be a non-empty list")
+    missing_categories = REQUIRED_BUSINESS_CATEGORIES - categories
+    if missing_categories:
+        report.add_error(path, f"missing competitive categories {sorted(missing_categories)}")
+    if not isinstance(data.get("source_refs"), list) or not data.get("source_refs"):
+        report.add_error(path, "source_refs must be a non-empty list")
+    report.items.append(
+        {
+            "path": os.path.relpath(path, HERE),
+            "kind": "business_positioning",
+            "categories": sorted(categories),
+            "pricing_model": pricing.get("initial_model"),
+        }
+    )
+    return report
+
+
+def validate_multilingual_graph(path=MULTILINGUAL_GRAPH_PATH):
+    report = ResearchReport()
+    try:
+        data = _load(path)
+    except (OSError, json.JSONDecodeError) as exc:
+        report.add_error(path, f"cannot load JSON: {exc}")
+        return report
+    if data.get("schema_version") != SCHEMA_VERSION:
+        report.add_error(path, f"schema_version must be {SCHEMA_VERSION!r}")
+    languages = set(data.get("languages") or [])
+    if not REQUIRED_GRAPH_LANGUAGES.issubset(languages):
+        report.add_error(path, f"languages must include {sorted(REQUIRED_GRAPH_LANGUAGES)}")
+    terms = data.get("terms")
+    if not isinstance(terms, list) or not terms:
+        report.add_error(path, "terms must be a non-empty list")
+        terms = []
+    for index, term in enumerate(terms):
+        owner = f"terms[{index}]"
+        if not isinstance(term, dict):
+            report.add_error(path, f"{owner} must be an object")
+            continue
+        for key in ("canonical_key", "domain"):
+            if not _nonempty_string(term.get(key)):
+                report.add_error(path, f"{owner}.{key} must be a non-empty string")
+        renderings = term.get("renderings")
+        if not isinstance(renderings, dict) or not REQUIRED_GRAPH_LANGUAGES.issubset(set(renderings)):
+            report.add_error(path, f"{owner}.renderings must include fr/de/it")
+        adoption = term.get("adoption_state")
+        if not isinstance(adoption, dict):
+            report.add_error(path, f"{owner}.adoption_state must be an object")
+        else:
+            for key in ("authority", "canton", "instrument", "status", "valid_as_of", "review_due"):
+                if not _nonempty_string(adoption.get(key)):
+                    report.add_error(path, f"{owner}.adoption_state.{key} must be a non-empty string")
+        if not isinstance(term.get("source_refs"), list) or not term.get("source_refs"):
+            report.add_error(path, f"{owner}.source_refs must be a non-empty list")
+    report.items.append(
+        {
+            "path": os.path.relpath(path, HERE),
+            "kind": "multilingual_graph",
+            "term_count": len(terms),
+            "languages": sorted(languages),
+        }
+    )
+    return report
+
+
 def validate_all():
     merged = ResearchReport()
     for validator in (
@@ -476,6 +627,9 @@ def validate_all():
         validate_project_knowledge_regime,
         validate_workflow_track_specs,
         validate_adapter_capability_matrix,
+        validate_practice_workflows,
+        validate_business_positioning,
+        validate_multilingual_graph,
     ):
         report = validator()
         merged.items.extend(report.items)
@@ -506,6 +660,12 @@ def main():
                 f"PASS? {item['path']} "
                 f"({item['adapter_count']} adapters; first bridge: {item['first_bridge']})"
             )
+        elif item["kind"] == "practice_workflows":
+            print(f"PASS? {item['path']} (packs: {', '.join(item['packs'])})")
+        elif item["kind"] == "business_positioning":
+            print(f"PASS? {item['path']} (pricing: {item['pricing_model']})")
+        elif item["kind"] == "multilingual_graph":
+            print(f"PASS? {item['path']} ({item['term_count']} terms; languages: {', '.join(item['languages'])})")
     if report.errors:
         print("\nValidation errors:")
         for error in report.errors:
