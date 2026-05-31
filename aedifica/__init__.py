@@ -14,13 +14,14 @@ from . import _bootstrap  # noqa: F401  (side effect: puts pilot/ on sys.path)
 __version__ = "0.1.0"
 SCHEMA_VERSION = "1.0"
 
-from . import claims, domain, route, workspace  # noqa: E402
+from . import claims, domain, evidence, route, workspace  # noqa: E402
 
 __all__ = [
     "__version__",
     "SCHEMA_VERSION",
     "claims",
     "domain",
+    "evidence",
     "route",
     "workspace",
 ]

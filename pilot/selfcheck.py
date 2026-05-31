@@ -39,6 +39,8 @@ import validate_cost    # noqa: E402
 import validate_site    # noqa: E402
 import validate_workspace  # noqa: E402
 import validate_manifest  # noqa: E402
+import validate_evidence_store  # noqa: E402
+import evidence_store  # noqa: E402
 import project_cli  # noqa: E402
 import model_bridge_demo  # noqa: E402
 import adapter_snapshots   # noqa: E402
@@ -308,6 +310,20 @@ check("real demo manifest satisfies the schema", not validate_manifest.validate_
 check(
     "manifest schema rejects a manifest missing project_id",
     any("project_id" in err for err in validate_manifest.validate_manifest({"schema_version": "1.0"}, manifest_schema)),
+)
+
+print("Source and evidence store")
+evidence_store_report = validate_evidence_store.validate_all()
+check("evidence store writer validates", not evidence_store_report.errors)
+demo_project_dir = os.path.join(HERE, "projects", "demo_lausanne_palud")
+demo_brief = workspace.generate_offline_parcel_brief(demo_project_dir)
+check(
+    "brief source_refs resolve to the project source store",
+    not evidence_store.unresolved_source_refs(demo_project_dir, demo_brief["source_refs"]),
+)
+check(
+    "report locators never leak a local path",
+    not any(evidence_store.looks_like_local_path(ref.get("locator")) for ref in demo_brief["source_refs"]),
 )
 
 print("Create/open project CLI")
