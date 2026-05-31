@@ -92,3 +92,6 @@ jobs:
 
       - name: Run offline pilot selfcheck
         run: python pilot/selfcheck.py
+
+      - name: Run R1B milestone release gate
+        run: python pilot/release_gate.py R1B --no-selfcheck

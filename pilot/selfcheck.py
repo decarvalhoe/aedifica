@@ -849,6 +849,14 @@ check("dedicated agent software demo CLI exists", os.path.exists(os.path.join(HE
 check("contract test directory exists", os.path.exists(os.path.join(os.path.dirname(HERE), "tests", "contracts", "run_contracts.py")))
 check("offline/network test split is documented", os.path.exists(os.path.join(os.path.dirname(HERE), "tests", "offline", "README.md")) and os.path.exists(os.path.join(os.path.dirname(HERE), "tests", "network", "README.md")))
 check("privacy and release checklists exist", os.path.exists(os.path.join(os.path.dirname(HERE), "docs", "security", "project-data-privacy-checklist.md")) and os.path.exists(os.path.join(os.path.dirname(HERE), "docs", "release", "release-checklist.md")))
+import release_gate  # noqa: E402
+_gate_r1b = release_gate.run_gate("R1B")
+check("R1B release gate passes the contract validators", _gate_r1b["contracts_passed"] and _gate_r1b["validator_count"] >= 1)
+check("release gate separates blocked live deps from code failures", _gate_r1b["blocked_live"] == [])
+_gate_r4 = release_gate.run_gate("R4")
+check("R4 release gate lists blocked live deps (#105/#115) as non-failures", {d["id"] for d in _gate_r4["blocked_live"]} == {"#105", "#115"})
+check("release gate output is pasteable markdown", "Release gate" in release_gate.render_markdown(_gate_r1b))
+check("partner feedback template exists", os.path.exists(os.path.join(os.path.dirname(HERE), "docs", "validation", "partner-feedback-template.md")))
 
 print("-" * 48)
 print(f"{_n - _fail}/{_n} checks passed" + ("" if not _fail else f"  ({_fail} FAILED)"))
