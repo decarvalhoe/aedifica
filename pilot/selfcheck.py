@@ -43,6 +43,7 @@ import validate_evidence_store  # noqa: E402
 import validate_brief  # noqa: E402
 import evidence_store  # noqa: E402
 import project_cli  # noqa: E402
+import route_service  # noqa: E402
 import model_bridge_demo  # noqa: E402
 import adapter_snapshots   # noqa: E402
 import workspace          # noqa: E402
@@ -332,6 +333,20 @@ check(
     "manifest schema rejects a manifest missing project_id",
     any("project_id" in err for err in validate_manifest.validate_manifest({"schema_version": "1.0"}, manifest_schema)),
 )
+
+print("Regulatory route service")
+laus_route = route_service.select_route("CH", "VD", "Lausanne")
+pully_route = route_service.select_route("CH", "VD", "Pully")
+check("route service resolves Lausanne with 3 active layers", laus_route["supported"] and len(laus_route["active_layers"]) == 3)
+check("route service resolves Pully with 3 active layers", pully_route["supported"] and len(pully_route["active_layers"]) == 3)
+check("route service exposes pack versions and warnings", isinstance(laus_route["pack_versions"], list) and isinstance(laus_route["freshness_warnings"], list))
+unsupported_route = route_service.select_route("CH", "GE", "Genève")
+check(
+    "unsupported commune returns a structured unsupported state",
+    unsupported_route["support_state"] == "unsupported" and unsupported_route["unsupported"]["state"] == "unsupported",
+)
+check("route service still exposes the federal layer for unsupported commune", len(unsupported_route["active_layers"]) >= 1)
+check("selector CLI route() still composes active layers", len(selector.route("CH", "VD", "Lausanne")["active"]) == 3)
 
 print("Project-scoped constraint brief")
 brief_report = validate_brief.validate_all()
