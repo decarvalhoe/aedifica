@@ -143,6 +143,25 @@ check("offline neighbour geometry is unknown, not asserted", any(sig["signal_id"
 opposition_report = radar.report(opposition)
 opposition_html = radar.render_report_html(opposition_report)
 check("opposition report renders checks and confidence", "Contrôles requis" in opposition_html and "confiance" in opposition_html)
+opposition_evidence = radar.evidence_model(opposition)
+check(
+    "opposition evidence model supports heritage/noise/neighbor/shadow/visibility",
+    {"heritage", "noise", "neighbor", "shadow", "visibility"}.issubset(set(opposition_evidence["supported_categories"])),
+)
+check("opposition report does not claim prediction", opposition_report["claims_prediction"] is False and bool(opposition_report["disclaimer"]))
+check("opposition signals carry evidence category and missing evidence fields", all("evidence_category" in sig and "missing_evidence" in sig for sig in opposition["signals"]))
+check(
+    "opposition missing evidence stays visible as unknown/assumption",
+    all(sig["evidence_state"] in {"unknown", "assumption"} for sig in opposition["signals"] if sig.get("missing_evidence")),
+)
+_opp_full = radar.score(
+    {"commune": "Lausanne", "zone": "Centre historique 15 LAT", "parcel": "10072", "egrid": "CH915772367853", "noise_ds": "Degré de sensibilité II", "alignments": ["Limite des constructions"], "valid_as_of": "2026-05-29", "area_m2": 1000, "concerned_themes": ["site construit protégé"]},
+    None, None, 1000, project_height_m=20,
+)
+check(
+    "opposition model can categorize heritage/noise/neighbor/shadow/visibility together",
+    {"heritage", "noise", "neighbor", "shadow", "visibility"}.issubset(set(radar.evidence_model(_opp_full)["categories"])),
+)
 communes = selector.list_communes()
 check("selector discovers Lausanne + Pully", "Lausanne" in communes and "Pully" in communes)
 r = selector.route("CH", "VD", "Lausanne")

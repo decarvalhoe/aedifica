@@ -34,6 +34,24 @@ import trust            # noqa: E402
 _LEVEL = {"faible": 1, "modéré": 2, "élevé": 3}
 _ICON = {"faible": "·", "modéré": "▲", "élevé": "■"}
 
+# Structured evidence category per signal (heritage / noise / neighbor / shadow / visibility).
+SIGNAL_EVIDENCE_CATEGORY = {
+    "OPP-HERITAGE": "heritage",
+    "OPP-NOISE": "noise",
+    "OPP-ALIGNMENTS": "alignment",
+    "OPP-NEIGHBOURS": "neighbor",
+    "OPP-NEIGHBOURS-DENSE": "neighbor",
+    "OPP-NEIGHBOURS-UNKNOWN": "neighbor",
+    "OPP-SHADOW": "shadow",
+    "OPP-SHADOW-UNKNOWN": "shadow",
+    "OPP-MITOYENNETE": "visibility",
+}
+EVIDENCE_CATEGORIES = {"heritage", "noise", "neighbor", "shadow", "visibility", "alignment", "other"}
+NON_PREDICTION_DISCLAIMER = (
+    "Indicatif: fondé sur parcelle, zone et voisinage. Ce n'est pas une prédiction de la "
+    "décision de l'autorité ni un avis juridique."
+)
+
 
 def _source_ref(source_id, locator, confidence="medium", valid_as_of="live"):
     return {
@@ -45,6 +63,7 @@ def _source_ref(source_id, locator, confidence="medium", valid_as_of="live"):
 
 
 def _signal(signal_id, ground, level, basis, mitigation, evidence_state, source_refs=None, confidence="medium", affected=None, required_check=None):
+    missing_evidence = [required_check] if (evidence_state in {"unknown", "assumption"} and required_check) else []
     return {
         "signal_id": signal_id,
         "ground": ground,
@@ -52,10 +71,33 @@ def _signal(signal_id, ground, level, basis, mitigation, evidence_state, source_
         "basis": basis,
         "mitigation": mitigation,
         "evidence_state": evidence_state,
+        "evidence_category": SIGNAL_EVIDENCE_CATEGORY.get(signal_id, "other"),
         "confidence": confidence,
         "affected": affected or {},
         "source_refs": source_refs or [],
         "required_check": required_check,
+        "missing_evidence": missing_evidence,
+        "claims_prediction": False,
+    }
+
+
+def evidence_model(score_result):
+    """Structured opposition evidence model: categories, missing evidence, no prediction."""
+    signals = score_result.get("signals", [])
+    by_category = {}
+    for signal in signals:
+        by_category.setdefault(signal.get("evidence_category", "other"), []).append(signal["signal_id"])
+    return {
+        "claims_prediction": False,
+        "disclaimer": NON_PREDICTION_DISCLAIMER,
+        "categories": sorted(by_category),
+        "signals_by_category": by_category,
+        "supported_categories": sorted(set(SIGNAL_EVIDENCE_CATEGORY.values())),
+        "missing_evidence": [
+            {"signal_id": s["signal_id"], "category": s["evidence_category"], "missing": s["missing_evidence"]}
+            for s in signals
+            if s.get("missing_evidence")
+        ],
     }
 
 
@@ -235,6 +277,9 @@ def report(r):
         "parcel": {"parcel": r.get("parcel"), "egrid": r.get("egrid"), "commune": r.get("commune"), "zone": r.get("zone")},
         "summary": {"overall": r.get("overall"), "score": r.get("score"), "signal_count": len(r.get("signals", []))},
         "signals": r.get("signals", []),
+        "evidence_model": evidence_model(r),
+        "claims_prediction": False,
+        "disclaimer": NON_PREDICTION_DISCLAIMER,
         "required_checks": r.get("required_checks", []),
         "trust_footer": trust.render_footer("fr"),
     }
