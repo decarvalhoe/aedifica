@@ -53,7 +53,7 @@ track, scheduled after the first proof points rather than removed from scope.
 7. [`poc-lausanne-parcel.md`](poc-lausanne-parcel.md) — **real, executed proof**: binding constraints for a Lausanne parcel from free Swiss APIs (validates the MVP1 pipeline).
 8. [`../specs/mvp1-parcel-constraints-intake.md`](../specs/mvp1-parcel-constraints-intake.md) — implementation-ready MVP1 spec.
 9. [`../pitch/aedifica-one-pager.html`](../pitch/aedifica-one-pager.html) — the viewport-fit visual one-pager (FR) to show the partner office.
-10. [`../design-system/aedifica-brand-book.html`](../design-system/aedifica-brand-book.html) — the Datum brand book: identity defense, fracture, tokens, design system and surface rules.
+10. [`../design-system/aedifica-brand-book.html`](../design-system/aedifica-brand-book.html) — the canonical corrected Datum brand book export: identity defense, fracture, tokens, design system and surface rules.
 
 ## Relationship to the rest of the repo
 

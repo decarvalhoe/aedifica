@@ -176,7 +176,7 @@ prochaine commune à ingérer après Lausanne/Pully.
 | Pour… | Lire |
 |---|---|
 | Le pitch visuel (1 page) | [`pitch/aedifica-one-pager.html`](pitch/aedifica-one-pager.html) |
-| Le brand book Datum | [`design-system/aedifica-brand-book.html`](design-system/aedifica-brand-book.html) |
+| Le brand book Datum canonique | [`design-system/aedifica-brand-book.html`](design-system/aedifica-brand-book.html) |
 | Le plan de développement logiciel | [`planning/software-development-plan.md`](planning/software-development-plan.md) |
 | La roadmap d'exécution | [`planning/software-roadmap.md`](planning/software-roadmap.md) |
 | Les épics et le backlog candidat | [`planning/epics-and-backlog.md`](planning/epics-and-backlog.md) |

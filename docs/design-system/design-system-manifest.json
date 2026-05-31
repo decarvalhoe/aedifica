@@ -5,11 +5,20 @@
   "status": "validated",
   "basedOn": "Validated direction 02A Datum (source of truth: project 0b56b66b)",
   "direction": "02A — Datum · radical Swiss · architectonic · evidence-backed",
+  "brandBook": {
+    "file": "aedifica-brand-book.html",
+    "status": "canonical corrected Claude Design export",
+    "sourceProject": "https://claude.ai/design/p/d3d361b0-a9a7-4219-a7fb-d87cba4135a1",
+    "format": "offline HTML deck",
+    "slideCount": 20,
+    "rule": "This brand book is the visual source of truth. Downstream repo surfaces must derive from it, not reinterpret it."
+  },
   "posture": "Préparation sourcée par AEDIFICA. Pas une autorité. L'architecte reste responsable de la décision et du dépôt.",
   "surfaceConstraint": {
     "model": "viewport-fit by default",
-    "bodyScrollbars": "forbidden",
-    "overflowPolicy": "split material into states, spreads, chapters, tabs, or export templates instead of extending the page"
+    "bodyScrollbars": "forbidden on product surfaces",
+    "overflowPolicy": "split material into states, slides, chapters, tabs, or export templates instead of extending the page",
+    "brandBookNote": "the brand book is a fixed-slide deck; slide viewport fit is canonical, deck navigation is a reading aid"
   },
   "notAuthority": true,
   "notGenericAssistant": true,
