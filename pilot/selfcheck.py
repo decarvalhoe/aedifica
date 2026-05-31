@@ -44,6 +44,7 @@ import validate_brief  # noqa: E402
 import evidence_store  # noqa: E402
 import project_cli  # noqa: E402
 import route_service  # noqa: E402
+import r1b_demo  # noqa: E402
 import model_bridge_demo  # noqa: E402
 import adapter_snapshots   # noqa: E402
 import workspace          # noqa: E402
@@ -333,6 +334,15 @@ check(
     "manifest schema rejects a manifest missing project_id",
     any("project_id" in err for err in validate_manifest.validate_manifest({"schema_version": "1.0"}, manifest_schema)),
 )
+
+print("R1B end-to-end demo")
+with tempfile.TemporaryDirectory() as tmp:
+    r1b_summary = r1b_demo.build_r1b_demo(tmp)
+    check("R1B demo runs offline in fixture mode", r1b_summary["fixture_mode"] is True)
+    check("R1B demo names project, route and reports", r1b_summary["project_id"] == "DEMO-LAUSANNE-PALUD" and r1b_summary["report_count"] == 2)
+    check("R1B demo reports unknowns and evidence counts", r1b_summary["unknowns_count"] > 0 and r1b_summary["evidence_count"] >= 1)
+    r1b_text = r1b_demo.render_summary(r1b_summary)
+    check("R1B demo summary marks offline fixture mode", "OFFLINE FIXTURE MODE" in r1b_text)
 
 print("Regulatory route service")
 laus_route = route_service.select_route("CH", "VD", "Lausanne")
