@@ -12,7 +12,7 @@ import json
 import os
 import re
 
-import mvp1_demo
+import domain
 import trust
 
 
@@ -218,25 +218,6 @@ def record_report(
     return entry
 
 
-def _envelope_from_zone(zone_params: dict, area: float | None) -> dict:
-    ibus = zone_params.get("ibus")
-    ius = zone_params.get("ius")
-    ios = zone_params.get("ios")
-    index = ibus if ibus is not None else ius
-    index_name = "IBUS" if ibus is not None else "IUS"
-    return {
-        "index_name": index_name if index is not None else None,
-        "index_value": index,
-        "ios": ios,
-        "max_sbp_m2": round(area * index, 2) if area and index is not None else None,
-        "max_footprint_m2": round(area * ios, 2) if area and ios is not None else None,
-        "height_corniche_m": zone_params.get("height_corniche_m"),
-        "height_faite_m": zone_params.get("height_faite_m"),
-        "levels_max": zone_params.get("levels_max"),
-        "setback_min_m": zone_params.get("setback_min_m"),
-    }
-
-
 def generate_offline_parcel_brief(project_dir: str, write_report: bool = False) -> dict:
     manifest = _load_json(project_manifest_path(project_dir))
     evidence_rel = manifest.get("parcel", {}).get("oereb_parsed_evidence")
@@ -251,8 +232,8 @@ def generate_offline_parcel_brief(project_dir: str, write_report: bool = False) 
         area = None
 
     commune = manifest["jurisdiction"]["commune"]
-    rpga = mvp1_demo.load_rpga(commune)
-    zone_name, zone_params, match_method = mvp1_demo.match_zone(
+    rpga = domain.load_commune_ruleset(commune)
+    zone_name, zone_params, match_method = domain.match_communal_zone(
         rpga,
         {"zone": oereb_record.get("zone"), "parcel": oereb_record.get("parcel")},
     )
@@ -294,7 +275,7 @@ def generate_offline_parcel_brief(project_dir: str, write_report: bool = False) 
             "match_method": match_method,
             "claim_state": "sourced" if zone_name else "unknown",
         },
-        "envelope": _envelope_from_zone(zone_params, area),
+        "envelope": domain.calculate_envelope(area, zone_params),
         "unknowns": [
             "Servitudes du registre foncier à vérifier manuellement.",
             "Toute valeur non exposée par API doit rester liée au règlement communal ingéré.",
@@ -306,4 +287,3 @@ def generate_offline_parcel_brief(project_dir: str, write_report: bool = False) 
         _write_json(os.path.join(project_dir, report_rel), brief)
         record_report(project_dir, brief["brief_id"], "parcel_brief", report_rel, source_refs, brief["trust_footer"])
     return brief
-

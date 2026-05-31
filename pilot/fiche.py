@@ -19,6 +19,7 @@ except Exception:
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import oereb              # noqa: E402
+import domain             # noqa: E402
 import mvp1_demo as demo  # noqa: E402
 import opposition_radar as radar  # noqa: E402
 import trust              # noqa: E402
@@ -43,8 +44,8 @@ def collect(query, height=None):
         area = float(area)
     except (TypeError, ValueError):
         area = None
-    rpga = demo.load_rpga(o.get("commune"))
-    zname, zp, how = demo.match_zone(rpga, {"zone": o.get("zone"), "parcel": o.get("parcel")})
+    rpga = domain.load_commune_ruleset(o.get("commune"))
+    zname, zp, how = domain.match_communal_zone(rpga, {"zone": o.get("zone"), "parcel": o.get("parcel")})
     rad = radar.score(o, e, n, area, height)
     return {"o": o, "area": area, "zname": zname, "zp": zp or {}, "how": how, "rad": rad}
 

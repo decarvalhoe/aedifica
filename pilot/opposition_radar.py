@@ -26,6 +26,7 @@ except Exception:
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import oereb            # noqa: E402
+import domain           # noqa: E402
 import mvp1_demo as demo  # noqa: E402  (reuse geocode/identify/area/zone matching)
 import trust            # noqa: E402
 
@@ -67,14 +68,14 @@ def resolve(query):
         e, n, _ = g
         p = demo.identify_parcel(e, n)
         if p:
-            egrid, area = p["egrid"], demo.polygon_area_m2(p.get("rings"))
+            egrid, area = p["egrid"], domain.polygon_area_m2(p.get("rings"))
     return oereb.get(egrid), e, n, area
 
 
 def score(o, e, n, area, project_height_m=None):
     commune, zone_label = o.get("commune"), (o.get("zone") or "")
-    rpga = demo.load_rpga(commune)
-    zname, zp, _ = demo.match_zone(rpga, {"zone": zone_label, "parcel": o.get("parcel")})
+    rpga = domain.load_commune_ruleset(commune)
+    zname, zp, _ = domain.match_communal_zone(rpga, {"zone": zone_label, "parcel": o.get("parcel")})
     zp = zp or {}
     nb = neighbours(e, n) if e else set()
 

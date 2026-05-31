@@ -19,6 +19,7 @@ except Exception:
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import oereb              # noqa: E402
+import domain             # noqa: E402
 import selector          # noqa: E402
 import opposition_radar as radar  # noqa: E402
 import mvp1_demo as demo  # noqa: E402
@@ -74,6 +75,7 @@ check("law (RS 700) detected", any(law["number"] == "RS 700" for law in p["laws"
 check("plan (numeric) not counted as law", all(law["number"] != "12345" for law in p["laws"]))
 check("not-concerned label", "Sites pollués" in p["not_concerned"])
 check("_text handles int Language & plain str", oereb._text([{"Language": 1, "Text": "x"}]) == "x" and oereb._text("y") == "y")
+check("domain OEREB parser wrapper", domain.parse_oereb_extract(fixture)["zone"] == "Zone test 15 LAT")
 
 print("Envelope math (ingested rulesets)")
 laus = load("lausanne", "rpga_zones.json")
@@ -84,6 +86,8 @@ check("Lausanne Centre historique has no index", laus["zones"]["Centre historiqu
 check("Pully moyenne densité IOS = 0.2", pully["zones"]["Zone d'habitation à moyenne densité"]["ios"] == 0.2)
 check("SBP calc 1000 m² × IUS 0.5 = 500", round(1000 * laus["zones"]["Zone mixte de faible densité"]["ius"]) == 500)
 check("emprise calc 1673 m² × IOS 0.2 = 335", round(1673 * pully["zones"]["Zone d'habitation à moyenne densité"]["ios"]) == 335)
+env = domain.calculate_envelope(1000, laus["zones"]["Zone mixte de faible densité"])
+check("domain envelope service computes SBP", env["max_sbp_m2"] == 500)
 
 print("Zone signal-matching (harmonized OEREB label -> communal zone)")
 nm, zp, how = demo.match_zone(pully, {"zone": "Zone d'habitation de moyenne densité 15 LAT", "parcel": "x"})
@@ -91,6 +95,12 @@ check("Pully moyenne matched (not faible)", nm == "Zone d'habitation à moyenne 
 check("match flagged keyword", how == "keyword")
 nm2, _, _ = demo.match_zone(laus, {"zone": "Zone d'habitation de forte densité 15 LAT", "parcel": "x"})
 check("Lausanne forte matched", nm2 == "Zone mixte de forte densité")
+try:
+    domain.load_commune_ruleset("Commune Inconnue", required=True)
+    missing_pack_error = None
+except domain.AedificaDomainError as exc:
+    missing_pack_error = exc.to_dict()
+check("domain errors are structured", missing_pack_error["code"] == "MISSING_PACK")
 
 print("Shadow + selector")
 s = radar.winter_shadow_len(15)

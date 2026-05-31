@@ -26,6 +26,7 @@ except Exception:
     pass
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import domain  # noqa: E402
 import oereb  # noqa: E402  (local module in pilot/)
 import trust  # noqa: E402
 
@@ -89,15 +90,7 @@ def identify_parcel(e, n):
 
 def polygon_area_m2(rings):
     """Shoelace area (m²) of the outer ring; coords already in metres (LV95)."""
-    if not rings:
-        return None
-    ring = rings[0]
-    s = 0.0
-    for i in range(len(ring) - 1):
-        x1, y1 = ring[i][0], ring[i][1]
-        x2, y2 = ring[i + 1][0], ring[i + 1][1]
-        s += x1 * y2 - x2 * y1
-    return abs(s) / 2.0
+    return domain.polygon_area_m2(rings)
 
 
 def _walk_strings(obj):
@@ -136,39 +129,13 @@ def fetch_constraints(egrid):
 
 def load_rpga(commune):
     """Load the ingested ruleset for a commune (pilot/<slug>/rpga_zones.json)."""
-    slug = (commune or "").strip().lower()
-    path = os.path.join(HERE, slug, "rpga_zones.json")
-    if not slug or not os.path.exists(path):
-        return None
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)
+    return domain.load_commune_ruleset(commune)
 
 
 def match_zone(rpga, constraints):
     """Map the OEREB harmonized zone designation to a communal zone entry.
     Returns (zone_name, params, how) where how in {demo, exact, keyword}."""
-    if not rpga:
-        return None, None, None
-    zones = rpga.get("zones", {})
-    dpz = rpga.get("demo_parcel_zone") or {}
-    # Verified demo mapping — ONLY for the exact demo parcel.
-    if dpz.get("communal_zone") and str(dpz.get("parcel")) == str(constraints.get("parcel")):
-        name = dpz["communal_zone"]
-        for z in zones:
-            if name == z or name.lower().startswith(z.lower()):
-                return z, zones[z], "demo"
-    zt = (constraints.get("zone") or "").lower()
-    for name, params in zones.items():
-        if name.lower() in zt:
-            return name, params, "exact"
-    # heuristic: match on a DISCRIMINATING signal (density/type), not common words like "habitation"
-    signals = ("villa", "faible", "moyenne", "forte", "centr", "historique",
-               "publique", "ferrov", "parc", "rives", "forest", "verdure", "détente", "sportif")
-    zt_sig = [s for s in signals if s in zt]
-    for name, params in zones.items():
-        if any(s in name.lower() for s in zt_sig):
-            return name, params, "keyword"
-    return None, None, None
+    return domain.match_communal_zone(rpga, constraints)
 
 
 def tag(provenance):
