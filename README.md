@@ -50,6 +50,7 @@ One strong validation track is **Swiss Auto-BIM for small and mid-sized offices*
 - `docs/product/holistic-assistance.md`: end-to-end architect assistance model.
 - `docs/strategy/`: strategy deep-dive — challenge & brainstorm, architect reality, Swiss regulatory stack, knowledge architecture, decisions, Lausanne PoC.
 - `docs/research/`: Swiss architecture lifecycle, phase-agentic matrix, sources.
+- `docs/research/bim-adapter-capability-map.md`: adapter capability map for Archicad, IFC, Speckle, Revit, Rhino, SketchUp, AutoCAD/BricsCAD.
 - `docs/research/swiss-phase-lifecycle-matrix.md`: validated Swiss/SIA phase lifecycle matrix with
   small/medium/large project variants.
 - `docs/research/pilot-source-registry.md`: prioritized CH/VD/Lausanne source registry compatible with NOMOS.
@@ -59,6 +60,8 @@ One strong validation track is **Swiss Auto-BIM for small and mid-sized offices*
 - `docs/architecture/jurisdiction-pack-contract.md`: versioned regulatory-pack contract + CI validation rules.
 - `docs/architecture/project-knowledge-regime.md`: context-first vs hybrid index vs project RAG thresholds.
 - `docs/architecture/project-memory-contract.md`: cross-phase project memory and provenance-backed query contract.
+- `docs/architecture/local-model-bridge-prototype.md`: first local model bridge dry-run contract.
+- `docs/cost/`: SIA 102 fee/profitability and eCCC/NPK/CFC bridge contracts.
 - `docs/permit/vd-camac-permit-completeness.md`: Vaud ACTIS-CAMAC permit dossier completeness contract.
 - `docs/compliance/phase33-compliance-gates.md`: phase-33 compliance gates with binding-vs-contractual typing.
 - `docs/nomos/nomos-archi.md`: NOMOS adaptation for architecture.

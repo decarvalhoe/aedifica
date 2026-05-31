@@ -56,8 +56,12 @@ Références de construction:
 [`architecture/trust-contract-and-ledger.md`](architecture/trust-contract-and-ledger.md),
 [`architecture/project-knowledge-regime.md`](architecture/project-knowledge-regime.md),
 [`architecture/project-memory-contract.md`](architecture/project-memory-contract.md),
+[`architecture/local-model-bridge-prototype.md`](architecture/local-model-bridge-prototype.md),
 [`research/swiss-phase-lifecycle-matrix.md`](research/swiss-phase-lifecycle-matrix.md),
 [`research/pilot-source-registry.md`](research/pilot-source-registry.md),
+[`research/bim-adapter-capability-map.md`](research/bim-adapter-capability-map.md),
+[`cost/sia102-fee-profitability-copilot.md`](cost/sia102-fee-profitability-copilot.md),
+[`cost/eccc-npk-cfc-bridge.md`](cost/eccc-npk-cfc-bridge.md),
 [`permit/vd-camac-permit-completeness.md`](permit/vd-camac-permit-completeness.md),
 [`compliance/phase33-compliance-gates.md`](compliance/phase33-compliance-gates.md),
 [`specs/mvp2-permit-dossier-assistant.md`](specs/mvp2-permit-dossier-assistant.md).
@@ -102,8 +106,10 @@ Code Python (stdlib), ancré sur les **API publiques gratuites** suisses, pouss�
 | `validate_compliance.py` | gates phase 33 énergie/incendie/accessibilité/structure + BIM contractuel | ✅ |
 | `validate_research.py` | validation matrice phases SIA + registre sources pilote | ✅ |
 | `validate_memory.py` | mémoire projet cross-phase + requêtes avec provenance | ✅ |
+| `validate_cost.py` | honoraires SIA 102 + pont eCCC/NPK/CFC + round-trip `.crbx` | ✅ |
+| `model_bridge_demo.py` | prototype dry-run du bridge modèle local Archicad JSON | ✅ |
 | `trust.py` | footer/contrat de rendu non-autoritaire partagé par les sorties pilote | ✅ |
-| `selfcheck.py` | tests hors-ligne | ✅ 41/41 |
+| `selfcheck.py` | tests hors-ligne | ✅ 45/45 |
 
 **Preuve réelle** (parcelle Place de la Palud, Lausanne, nº 10072) : Zone centrale 15 LAT · DS III ·
 alignements · LATC/LAT — en quelques secondes, **sans maquette ni identifiant**. Validé aussi sur Pully.
@@ -161,6 +167,10 @@ fil Archicad) ; pilote **Vaud / Lausanne** ; cold-start **hybride** (ingestion �
 | La valeur phase par phase | [`strategy/phase-value-catalog.md`](strategy/phase-value-catalog.md) |
 | La matrice phase par phase validée | [`research/swiss-phase-lifecycle-matrix.md`](research/swiss-phase-lifecycle-matrix.md) |
 | Le registre de sources pilote | [`research/pilot-source-registry.md`](research/pilot-source-registry.md) |
+| Les adapters BIM/CAD | [`research/bim-adapter-capability-map.md`](research/bim-adapter-capability-map.md) |
+| Le prototype de bridge modèle | [`architecture/local-model-bridge-prototype.md`](architecture/local-model-bridge-prototype.md) |
+| Le copilote honoraires | [`cost/sia102-fee-profitability-copilot.md`](cost/sia102-fee-profitability-copilot.md) |
+| Le pont eCCC/NPK/CFC | [`cost/eccc-npk-cfc-bridge.md`](cost/eccc-npk-cfc-bridge.md) |
 | La spec MVP1 | [`specs/mvp1-parcel-constraints-intake.md`](specs/mvp1-parcel-constraints-intake.md) |
 | La spec assistant permis | [`specs/mvp2-permit-dossier-assistant.md`](specs/mvp2-permit-dossier-assistant.md) |
 | La spec Auto-BIM / Model Intelligence | [`specs/later-model-intelligence.md`](specs/later-model-intelligence.md) |

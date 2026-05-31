@@ -26,6 +26,8 @@ import validate_permit   # noqa: E402
 import validate_compliance  # noqa: E402
 import validate_research  # noqa: E402
 import validate_memory  # noqa: E402
+import validate_cost    # noqa: E402
+import model_bridge_demo  # noqa: E402
 import trust             # noqa: E402
 
 _n = _fail = 0
@@ -127,6 +129,7 @@ phase_items = [item for item in research_report.items if item["kind"] == "phase_
 source_items = [item for item in research_report.items if item["kind"] == "source_registry"]
 knowledge_items = [item for item in research_report.items if item["kind"] == "project_knowledge_regime"]
 workflow_items = [item for item in research_report.items if item["kind"] == "workflow_track_specs"]
+adapter_items = [item for item in research_report.items if item["kind"] == "adapter_capability_matrix"]
 check("research assets validate", not research_report.errors)
 check(
     "phase lifecycle covers required phases",
@@ -148,6 +151,10 @@ check(
     "workflow track specs cover remaining tracks",
     any(validate_research.REQUIRED_WORKFLOW_TRACKS.issubset(set(item["tracks"])) for item in workflow_items),
 )
+check(
+    "adapter matrix covers target adapters",
+    any(validate_research.REQUIRED_ADAPTERS.issubset(set(item["adapters"])) for item in adapter_items),
+)
 
 print("Project memory")
 memory_report = validate_memory.validate_all()
@@ -160,6 +167,13 @@ check(
     "project memory spans permit-to-site phases",
     any({"0", "31", "33", "41", "52"}.issubset(set(item["phase_codes"])) for item in memory_report.items),
 )
+
+print("Cost and model bridge")
+cost_report = validate_cost.validate_all()
+mutating_plan = model_bridge_demo.build_bridge_plan("archicad_json", "set_room_usage_property")
+check("cost assets validate", not cost_report.errors)
+check("cost assets include fee sample and taxonomy bridge", {item["kind"] for item in cost_report.items} == {"fee_sample", "quantity_bridge"})
+check("model bridge dry-run protects mutating actions", mutating_plan["mutating"] and mutating_plan["dry_run_required"] and mutating_plan["approval_required"])
 
 print("-" * 48)
 print(f"{_n - _fail}/{_n} checks passed" + ("" if not _fail else f"  ({_fail} FAILED)"))

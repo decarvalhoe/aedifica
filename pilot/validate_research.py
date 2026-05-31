@@ -16,12 +16,23 @@ PHASE_MATRIX_PATH = os.path.join(RESEARCH_DIR, "swiss_phase_lifecycle_matrix.jso
 SOURCE_REGISTRY_PATH = os.path.join(RESEARCH_DIR, "pilot_source_registry.json")
 KNOWLEDGE_REGIME_PATH = os.path.join(RESEARCH_DIR, "project_knowledge_regime.json")
 WORKFLOW_SPECS_PATH = os.path.join(RESEARCH_DIR, "workflow_track_specs.json")
+ADAPTER_MATRIX_PATH = os.path.join(RESEARCH_DIR, "adapter_capability_matrix.json")
 SCHEMA_VERSION = "1.0"
 REQUIRED_PHASES = {"0", "1", "2", "31", "32", "33", "41", "51", "52", "53", "61-63"}
 REQUIRED_SIZE_VARIANTS = {"small", "medium", "large"}
 REQUIRED_SOURCE_TIERS = {"federal", "cantonal", "communal", "parcel", "sia", "office", "project"}
 REQUIRED_KNOWLEDGE_REGIMES = {"context_first", "hybrid_index", "project_rag_db"}
 REQUIRED_WORKFLOW_TRACKS = {"model_intelligence", "tender_quantity", "construction_management", "voice_to_design"}
+REQUIRED_ADAPTERS = {
+    "archicad_json",
+    "archicad_cpp_addon",
+    "ifc_ifcopenshell",
+    "speckle",
+    "revit",
+    "rhino_compute",
+    "sketchup_ruby",
+    "autocad_bricscad",
+}
 REQUIRED_PHASE_FIELDS = {
     "phase_code",
     "phase_label",
@@ -385,6 +396,78 @@ def validate_workflow_track_specs(path=WORKFLOW_SPECS_PATH):
     return report
 
 
+def validate_adapter_capability_matrix(path=ADAPTER_MATRIX_PATH):
+    report = ResearchReport()
+    try:
+        data = _load(path)
+    except (OSError, json.JSONDecodeError) as exc:
+        report.add_error(path, f"cannot load JSON: {exc}")
+        return report
+
+    if data.get("schema_version") != SCHEMA_VERSION:
+        report.add_error(path, f"schema_version must be {SCHEMA_VERSION!r}")
+    for key in ("matrix_id", "title"):
+        if not _nonempty_string(data.get(key)):
+            report.add_error(path, f"{key} must be a non-empty string")
+    first_bridge = data.get("first_bridge")
+    if not isinstance(first_bridge, dict):
+        report.add_error(path, "first_bridge must be an object")
+    elif first_bridge.get("target_adapter") != "archicad_json":
+        report.add_error(path, "first_bridge.target_adapter must be archicad_json")
+
+    source_refs = data.get("source_refs")
+    if not isinstance(source_refs, list) or not source_refs:
+        report.add_error(path, "source_refs must be a non-empty list")
+
+    adapters = data.get("adapters")
+    if not isinstance(adapters, list) or not adapters:
+        report.add_error(path, "adapters must be a non-empty list")
+        adapters = []
+
+    seen_adapters = set()
+    covered_issues = set()
+    for index, adapter in enumerate(adapters):
+        owner = f"adapters[{index}]"
+        if not isinstance(adapter, dict):
+            report.add_error(path, f"{owner} must be an object")
+            continue
+        adapter_id = adapter.get("adapter_id")
+        if adapter_id in seen_adapters:
+            report.add_error(path, f"duplicate adapter_id {adapter_id}")
+        if _nonempty_string(adapter_id):
+            seen_adapters.add(adapter_id)
+        issues = adapter.get("issues")
+        if isinstance(issues, list):
+            covered_issues.update(item for item in issues if isinstance(item, int))
+        else:
+            report.add_error(path, f"{owner}.issues must be a list")
+        for key in ("adapter_id", "kind", "recommended_use"):
+            if not _nonempty_string(adapter.get(key)):
+                report.add_error(path, f"{owner}.{key} must be a non-empty string")
+        for key in ("read_capabilities", "write_capabilities", "export_capabilities", "limits"):
+            if not _list_of_strings(adapter.get(key)):
+                report.add_error(path, f"{owner}.{key} must be a non-empty list of strings")
+
+    missing_adapters = REQUIRED_ADAPTERS - seen_adapters
+    if missing_adapters:
+        report.add_error(path, f"missing adapters {sorted(missing_adapters)}")
+    missing_issues = {10, 11, 13, 14} - covered_issues
+    if missing_issues:
+        report.add_error(path, f"missing adapter issue coverage {sorted(missing_issues)}")
+
+    report.items.append(
+        {
+            "path": os.path.relpath(path, HERE),
+            "kind": "adapter_capability_matrix",
+            "adapter_count": len(adapters),
+            "adapters": sorted(seen_adapters),
+            "issues": sorted(covered_issues),
+            "first_bridge": first_bridge.get("target_adapter") if isinstance(first_bridge, dict) else None,
+        }
+    )
+    return report
+
+
 def validate_all():
     merged = ResearchReport()
     for validator in (
@@ -392,6 +475,7 @@ def validate_all():
         validate_source_registry,
         validate_project_knowledge_regime,
         validate_workflow_track_specs,
+        validate_adapter_capability_matrix,
     ):
         report = validator()
         merged.items.extend(report.items)
@@ -417,6 +501,11 @@ def main():
             )
         elif item["kind"] == "workflow_track_specs":
             print(f"PASS? {item['path']} ({item['track_count']} tracks; issues: {', '.join(map(str, item['issues']))})")
+        elif item["kind"] == "adapter_capability_matrix":
+            print(
+                f"PASS? {item['path']} "
+                f"({item['adapter_count']} adapters; first bridge: {item['first_bridge']})"
+            )
     if report.errors:
         print("\nValidation errors:")
         for error in report.errors:

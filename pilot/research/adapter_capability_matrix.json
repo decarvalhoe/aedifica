@@ -1,0 +1,141 @@
+{
+  "schema_version": "1.0",
+  "matrix_id": "AEDIFICA-ADAPTER-CAPABILITY-MATRIX-V0",
+  "title": "BIM/CAD/model adapter capability matrix",
+  "source_version": {
+    "source_status": "official_docs_reviewed",
+    "checked_at": "2026-05-31",
+    "review_due": "2026-08-31"
+  },
+  "first_bridge": {
+    "target_adapter": "archicad_json",
+    "fallbacks": ["ifc_ifcopenshell", "speckle"],
+    "reason": "Archicad JSON gives a local HTTP bridge for the partner office; IFC/IfcOpenShell keeps the core neutral and vendor-independent."
+  },
+  "source_refs": [
+    {
+      "source_id": "GRAPHISOFT-ARCHICAD-JSON",
+      "title": "Archicad JSON Interface",
+      "url": "https://archicadapi.graphisoft.com/JSONInterfaceDocumentation/",
+      "valid_as_of": "2026-05-31"
+    },
+    {
+      "source_id": "GRAPHISOFT-ARCHICAD-CPP",
+      "title": "Archicad C++ API DevKit",
+      "url": "https://graphisoft.github.io/archicad-api-devkit/",
+      "valid_as_of": "2026-05-31"
+    },
+    {
+      "source_id": "IFCOPENSHELL-DOCS",
+      "title": "IfcOpenShell documentation",
+      "url": "https://docs.ifcopenshell.org/",
+      "valid_as_of": "2026-05-31"
+    },
+    {
+      "source_id": "SPECKLE-AUTOMATE",
+      "title": "Speckle Automate documentation",
+      "url": "https://docs.speckle.systems/developers/automate/introduction",
+      "valid_as_of": "2026-05-31"
+    },
+    {
+      "source_id": "AUTODESK-REVIT-API",
+      "title": "Autodesk Revit API",
+      "url": "https://aps.autodesk.com/developer/overview/revit-api",
+      "valid_as_of": "2026-05-31"
+    },
+    {
+      "source_id": "RHINO-COMPUTE",
+      "title": "Rhino Compute",
+      "url": "https://developer.rhino3d.com/en/guides/compute/features/",
+      "valid_as_of": "2026-05-31"
+    },
+    {
+      "source_id": "SKETCHUP-RUBY-API",
+      "title": "SketchUp Ruby API",
+      "url": "https://help.sketchup.com/en/sketchup/developing-tools-sketchup-ruby-api-and-console",
+      "valid_as_of": "2026-05-31"
+    }
+  ],
+  "adapters": [
+    {
+      "adapter_id": "archicad_json",
+      "issues": [10, 11],
+      "kind": "local_http_json",
+      "read_capabilities": ["product_info", "selection", "elements", "classifications", "properties", "navigator", "layouts", "components"],
+      "write_capabilities": ["set_properties", "set_classifications", "create_layouts", "rename_navigator_items"],
+      "export_capabilities": ["publisher_sets_when_configured"],
+      "limits": ["requires_running_archicad", "localhost_port_range", "command_surface_not_full_addon_surface"],
+      "recommended_use": "First partner-office bridge for inspection, property/classification updates and dry-run plans."
+    },
+    {
+      "adapter_id": "archicad_cpp_addon",
+      "issues": [10, 11],
+      "kind": "native_addon",
+      "read_capabilities": ["database", "selection", "events", "attributes", "geometry"],
+      "write_capabilities": ["database_mutation", "custom_ui", "event_hooks"],
+      "export_capabilities": ["custom_publishers", "native_integration"],
+      "limits": ["compiled_per_archicad_version", "distribution_and_mdid_overhead"],
+      "recommended_use": "Later deeper integration when JSON bridge cannot expose required operations."
+    },
+    {
+      "adapter_id": "ifc_ifcopenshell",
+      "issues": [13],
+      "kind": "neutral_file_runtime",
+      "read_capabilities": ["ifc_entities", "properties", "relationships", "quantities", "geometry"],
+      "write_capabilities": ["ifc_attributes", "property_sets", "patches"],
+      "export_capabilities": ["ifc_round_trip", "derived_reports"],
+      "limits": ["depends_on_export_quality", "not_live_authoring_tool", "geometry_mutation_is_limited"],
+      "recommended_use": "Neutral baseline for model intelligence, validation, quantities and vendor-independent memory."
+    },
+    {
+      "adapter_id": "speckle",
+      "issues": [13],
+      "kind": "versioned_model_platform",
+      "read_capabilities": ["model_versions", "object_graph", "automation_context", "metadata"],
+      "write_capabilities": ["new_versions", "automation_results"],
+      "export_capabilities": ["version_links", "federated_views"],
+      "limits": ["requires_speckle_project_and_auth", "depends_on_connector_quality"],
+      "recommended_use": "Versioned collaboration and automation layer when office already uses Speckle or model snapshots."
+    },
+    {
+      "adapter_id": "revit",
+      "issues": [14],
+      "kind": "native_dotnet_api",
+      "read_capabilities": ["elements", "parameters", "views", "documents", "families"],
+      "write_capabilities": ["parameters", "transactions", "addins", "macros"],
+      "export_capabilities": ["ifc_export", "sheets_when_configured"],
+      "limits": ["requires_revit_runtime_for_native_api", "windows_dotnet_stack", "versioned_sdk"],
+      "recommended_use": "Important later adapter, not first Swiss pilot dependency."
+    },
+    {
+      "adapter_id": "rhino_compute",
+      "issues": [14],
+      "kind": "geometry_compute_service",
+      "read_capabilities": ["rhino_geometry", "grasshopper_definitions", "compute_results"],
+      "write_capabilities": ["computed_geometry", "grasshopper_outputs"],
+      "export_capabilities": ["geometry_files", "analysis_results"],
+      "limits": ["not_bim_authority_by_default", "requires_geometry_to_project_mapping"],
+      "recommended_use": "Useful for variants and geometry analysis, not for permit truth."
+    },
+    {
+      "adapter_id": "sketchup_ruby",
+      "issues": [14],
+      "kind": "desktop_plugin_api",
+      "read_capabilities": ["entities", "components", "materials", "layers_tags"],
+      "write_capabilities": ["tools", "components", "attributes", "menu_commands"],
+      "export_capabilities": ["model_exports_when_configured"],
+      "limits": ["weak_bim_semantics", "plugin_distribution_and_support"],
+      "recommended_use": "Later small-office adapter for geometry/context capture."
+    },
+    {
+      "adapter_id": "autocad_bricscad",
+      "issues": [14],
+      "kind": "cad_command_api_family",
+      "read_capabilities": ["dwg_entities", "layers", "blocks", "attributes"],
+      "write_capabilities": ["drawings", "attributes", "batch_commands"],
+      "export_capabilities": ["dwg_pdf_batches"],
+      "limits": ["cad_semantics_are_layer/block_based", "bim_context_must_be_inferred"],
+      "recommended_use": "Later drawing/document automation, not canonical project memory."
+    }
+  ]
+}

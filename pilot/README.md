@@ -59,10 +59,14 @@ still performing the live OEREB fetch (shown as byte count).
 - `research/pilot_source_registry.json` — prioritized NOMOS-compatible source registry for CH/VD/Lausanne.
 - `research/project_knowledge_regime.json` — context-first vs hybrid-index vs project-RAG decision model.
 - `research/workflow_track_specs.json` — structured specs for model intelligence, tender, site and voice tracks.
+- `research/adapter_capability_matrix.json` — BIM/CAD adapter capability map and first bridge decision.
 - `validate_research.py` — stdlib validator for the research backbone.
 - `memory/demo_project_memory.json` — cross-phase project memory fixture with provenance-backed demo queries.
 - `validate_memory.py` — stdlib validator and query demo for project memory.
-- `selfcheck.py` — offline smoke test of the pure logic, no network (`python pilot/selfcheck.py`, 41 checks).
+- `cost/` — fee/profitability and eCCC/NPK/CFC bridge fixtures.
+- `model_bridge_demo.py` — offline dry-run prototype for the local model bridge.
+- `validate_cost.py` — fee/taxonomy validator and in-memory `.crbx` round-trip demo.
+- `selfcheck.py` — offline smoke test of the pure logic, no network (`python pilot/selfcheck.py`, 45 checks).
 - `registry/federal.json`, `registry/canton_vd.json` — shared CH core + VD cantonal layer (refs verified from a live OEREB extract).
 - `lausanne/`, `pully/` — per-commune ingested rulesets (`rpga_zones.json`) + `INGESTION.md` (sources, in-force status, gaps).
   Lausanne is **geometric/IUS**; Pully is **IOS 20 %** — the same engine absorbs both styles (run `selector.py` to see it).
@@ -77,6 +81,7 @@ python pilot/validate_permit.py
 python pilot/validate_compliance.py
 python pilot/validate_research.py
 python pilot/validate_memory.py
+python pilot/validate_cost.py
 ```
 Adding a commune = drop a `<slug>/rpga_zones.json`. Adding a country = add a federal/canton/commune layer set;
 the selector logic is unchanged (see docs/strategy/knowledge-architecture.md).

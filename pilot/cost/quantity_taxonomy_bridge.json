@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "bridge_id": "ECCC-NPK-CFC-BRIDGE-DEMO-V0",
+  "title": "Demo metre to eCCC/CFC/NPK bridge",
+  "source_refs": [
+    {
+      "source_id": "CRB-IFA18",
+      "title": "CRB IfA18 / CRBX exchange",
+      "url": "https://public.crb.ch/Stories/IfA18.html",
+      "valid_as_of": "2026-05-31"
+    },
+    {
+      "source_id": "CRB-NPK-CAN-2026",
+      "title": "CRB CAN/NPK information 2026",
+      "url": "https://www.crb.ch/_Resources/Persistent/7/b/7/f/7b7f870a41996ec47d09b5c13a66a705dd7f7bf6/NPK_Information_2026_FR_digital.pdf",
+      "valid_as_of": "2026-05-31"
+    }
+  ],
+  "quantity_rows": [
+    {
+      "row_id": "QTY-WALL-001",
+      "description": "Interior partition wall, demo quantity",
+      "quantity": 42.5,
+      "unit": "m2",
+      "source": "model_snapshot_v3",
+      "eccc_code": "C2.01",
+      "cfc_code": "271",
+      "npk_draft": {
+        "catalog": "NPK/CAN",
+        "position_hint": "interior partition placeholder",
+        "status": "draft_requires_crb_catalog_lookup"
+      },
+      "assumptions": ["NPK position is not certified until selected in licensed CRB workflow."]
+    }
+  ],
+  "crbx_round_trip_contract": {
+    "package_extension": ".crbx",
+    "container": "zip",
+    "required_entries": ["manifest.json", "exchange.e1s"],
+    "rule": "Round-trip must preserve quantity row IDs, taxonomy mappings and source refs."
+  }
+}

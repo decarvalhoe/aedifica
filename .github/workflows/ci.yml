@@ -48,5 +48,8 @@ jobs:
       - name: Validate project memory
         run: python pilot/validate_memory.py
 
+      - name: Validate cost contracts
+        run: python pilot/validate_cost.py
+
       - name: Run offline pilot selfcheck
         run: python pilot/selfcheck.py
