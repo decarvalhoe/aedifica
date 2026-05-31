@@ -34,6 +34,30 @@ _LEVEL = {"faible": 1, "modéré": 2, "élevé": 3}
 _ICON = {"faible": "·", "modéré": "▲", "élevé": "■"}
 
 
+def _source_ref(source_id, locator, confidence="medium", valid_as_of="live"):
+    return {
+        "source_id": source_id,
+        "locator": locator,
+        "valid_as_of": valid_as_of,
+        "confidence": confidence,
+    }
+
+
+def _signal(signal_id, ground, level, basis, mitigation, evidence_state, source_refs=None, confidence="medium", affected=None, required_check=None):
+    return {
+        "signal_id": signal_id,
+        "ground": ground,
+        "level": level,
+        "basis": basis,
+        "mitigation": mitigation,
+        "evidence_state": evidence_state,
+        "confidence": confidence,
+        "affected": affected or {},
+        "source_refs": source_refs or [],
+        "required_check": required_check,
+    }
+
+
 def neighbours(e, n, half=40):
     """Distinct neighbouring parcels (EGRIDs) within a ~half-metre envelope, excluding self."""
     ext = f"{e-half},{n-half},{e+half},{n+half}"
@@ -79,37 +103,77 @@ def score(o, e, n, area, project_height_m=None):
     zp = zp or {}
     nb = neighbours(e, n) if e else set()
 
-    grounds = []
+    signals = []
 
-    def add(ground, level, basis, mitigation):
-        grounds.append({"ground": ground, "level": level, "basis": basis, "mitigation": mitigation})
+    def add(signal_id, ground, level, basis, mitigation, evidence_state="sourced", source_refs=None, confidence="medium", required_check=None):
+        signals.append(
+            _signal(
+                signal_id,
+                ground,
+                level,
+                basis,
+                mitigation,
+                evidence_state,
+                source_refs=source_refs,
+                confidence=confidence,
+                affected={"parcel": o.get("parcel"), "egrid": o.get("egrid"), "commune": commune, "zone": zone_label},
+                required_check=required_check,
+            )
+        )
+
+    oereb_ref = [_source_ref("VD-OEREB", f"EGRID {o.get('egrid')}", "high", o.get("valid_as_of", "live"))]
+    rpga_ref = [_source_ref("COMMUNE-RPGA", zname or "communal zone unresolved", "medium", o.get("valid_as_of", "live"))]
 
     zl = zone_label.lower()
     themes = " ".join(t or "" for t in o.get("concerned_themes", [])).lower()
     if "centr" in zl or "histor" in zl or "isos" in themes or "site construit" in themes:
-        add("Patrimoine / intégration", "élevé",
+        add("OPP-HERITAGE", "Patrimoine / intégration", "élevé",
             "Centre historique / site protégé — gabarit, matériaux et intégration très scrutés",
-            "Étude d'intégration soignée; concertation préalable; calage sur le gabarit du bâti contigu")
+            "Étude d'intégration soignée; concertation préalable; calage sur le gabarit du bâti contigu",
+            source_refs=oereb_ref + rpga_ref,
+            confidence="high")
 
     ds = o.get("noise_ds") or ""
     if ds and "III" not in ds and "IV" not in ds:
-        add("Bruit (degré de sensibilité)", "modéré",
+        add("OPP-NOISE", "Bruit (degré de sensibilité)", "modéré",
             f"{ds} — zone calme protégée; installations/usages bruyants contestables",
-            "Limiter les sources de bruit; étude acoustique SIA 181; horaires d'exploitation")
+            "Limiter les sources de bruit; étude acoustique SIA 181; horaires d'exploitation",
+            source_refs=oereb_ref,
+            confidence="medium")
 
     if o.get("alignments"):
-        add("Alignements / limites des constructions", "modéré",
+        add("OPP-ALIGNMENTS", "Alignements / limites des constructions", "modéré",
             "; ".join(o["alignments"])[:110],
-            "Respecter strictement la limite des constructions; faire confirmer par le service")
+            "Respecter strictement la limite des constructions; faire confirmer par le service",
+            source_refs=oereb_ref,
+            confidence="high")
 
     nb_count = len(nb)
-    if nb_count >= 8:
-        add("Densité de voisinage", "élevé",
+    if not e:
+        add(
+            "OPP-NEIGHBOURS-UNKNOWN",
+            "Voisinage",
+            "modéré",
+            "La géométrie précise des parcelles voisines n'est pas disponible dans ce contexte offline.",
+            "Lancer l'identification géographique ou joindre un plan de voisinage avant mise à l'enquête.",
+            evidence_state="unknown",
+            source_refs=[],
+            confidence="low",
+            required_check="Identifier les parcelles voisines dans un rayon pertinent depuis la géométrie cadastrale.",
+        )
+    elif nb_count >= 8:
+        add("OPP-NEIGHBOURS-DENSE", "Densité de voisinage", "élevé",
             f"{nb_count} parcelles voisines (≤40 m) — nombreux opposants potentiels",
-            "Information/consultation des voisins en amont de l'enquête")
+            "Information/consultation des voisins en amont de l'enquête",
+            evidence_state="computed",
+            source_refs=[_source_ref("SWISSTOPO-CADASTRE", "identify around parcel", "medium")],
+            confidence="medium")
     elif nb_count >= 3:
-        add("Voisinage", "modéré", f"{nb_count} parcelles voisines (≤40 m)",
-            "Anticiper vues, ombres et distances vis-à-vis des voisins directs")
+        add("OPP-NEIGHBOURS", "Voisinage", "modéré", f"{nb_count} parcelles voisines (≤40 m)",
+            "Anticiper vues, ombres et distances vis-à-vis des voisins directs",
+            evidence_state="computed",
+            source_refs=[_source_ref("SWISSTOPO-CADASTRE", "identify around parcel", "medium")],
+            confidence="medium")
 
     h = project_height_m or zp.get("height_faite_m") or zp.get("height_corniche_m")
     if h:
@@ -117,24 +181,89 @@ def score(o, e, n, area, project_height_m=None):
         setback = zp.get("setback_min_m")
         ref = max(setback, 6) if setback is not None else 6
         if shadow > ref:
-            add("Ombres portées / ensoleillement", "élevé",
+            add("OPP-SHADOW", "Ombres portées / ensoleillement", "élevé",
                 f"Hauteur ~{h:g} m → ombre hivernale ~{shadow:.0f} m (> recul {ref:g} m) sur le voisinage nord",
-                "Réduire la hauteur/retrait côté nord; joindre une étude d'ombres portées")
+                "Réduire la hauteur/retrait côté nord; joindre une étude d'ombres portées",
+                evidence_state="computed",
+                source_refs=rpga_ref + [_source_ref("AEDIFICA-CALC", "winter solstice shadow heuristic", "medium")],
+                confidence="medium",
+                required_check="Verifier l'ombre avec la volumetrie reelle et la topographie.")
         else:
-            add("Ombres portées", "faible", f"Hauteur ~{h:g} m → ombre hivernale ~{shadow:.0f} m",
-                "Joindre une étude d'ombres portées au dossier")
+            add("OPP-SHADOW", "Ombres portées", "faible", f"Hauteur ~{h:g} m → ombre hivernale ~{shadow:.0f} m",
+                "Joindre une étude d'ombres portées au dossier",
+                evidence_state="computed",
+                source_refs=rpga_ref + [_source_ref("AEDIFICA-CALC", "winter solstice shadow heuristic", "medium")],
+                confidence="medium",
+                required_check="Verifier l'ombre avec la volumetrie reelle et la topographie.")
+    else:
+        add(
+            "OPP-SHADOW-UNKNOWN",
+            "Ombres portées / ensoleillement",
+            "modéré",
+            "Aucune hauteur de projet ou hauteur réglementaire numérique n'est disponible.",
+            "Conserver le risque comme inconnu jusqu'à la volumétrie ou une règle de hauteur vérifiée.",
+            evidence_state="unknown",
+            confidence="low",
+            required_check="Fournir une hauteur de projet ou une règle communale vérifiée pour calculer l'ombre.",
+        )
 
     other = (zp.get("other") or "").lower()
     if "contigu" in other and "non contigu" not in other:
-        add("Mitoyenneté / jours et vues", "modéré",
+        add("OPP-MITOYENNETE", "Mitoyenneté / jours et vues", "modéré",
             "Ordre contigu — murs mitoyens, jours et vues droites (art. 684 CC + droit cantonal)",
-            "Accord de voisinage sur jours/vues; respect des distances de vues droites")
+            "Accord de voisinage sur jours/vues; respect des distances de vues droites",
+            source_refs=rpga_ref,
+            confidence="medium",
+            required_check="Verifier jours, vues et mitoyennete sur le projet reel.")
 
+    grounds = [
+        {"ground": s["ground"], "level": s["level"], "basis": s["basis"], "mitigation": s["mitigation"]}
+        for s in signals
+    ]
     total = sum(_LEVEL[g["level"]] for g in grounds)
     overall = "élevé" if total >= 6 else "modéré" if total >= 3 else "faible"
     return {"parcel": o.get("parcel"), "egrid": o.get("egrid"), "commune": commune, "zone": zone_label,
             "area": o.get("area_m2") or area, "neighbours": nb_count, "zone_rpga": zname,
-            "height_used": h, "grounds": grounds, "score": total, "overall": overall}
+            "height_used": h, "grounds": grounds, "signals": signals, "score": total, "overall": overall,
+            "required_checks": [s["required_check"] for s in signals if s.get("required_check")]}
+
+
+def report(r):
+    return {
+        "report_id": f"OPPOSITION-{r.get('egrid') or r.get('parcel')}",
+        "parcel": {"parcel": r.get("parcel"), "egrid": r.get("egrid"), "commune": r.get("commune"), "zone": r.get("zone")},
+        "summary": {"overall": r.get("overall"), "score": r.get("score"), "signal_count": len(r.get("signals", []))},
+        "signals": r.get("signals", []),
+        "required_checks": r.get("required_checks", []),
+        "trust_footer": trust.render_footer("fr"),
+    }
+
+
+def render_report_html(report_obj):
+    import html
+
+    def esc(value):
+        return html.escape("" if value is None else str(value))
+
+    rows = "".join(
+        f"<li class='{esc(signal.get('evidence_state'))}'><b>{esc(signal.get('level'))}</b> "
+        f"{esc(signal.get('ground'))}<br><small>{esc(signal.get('basis'))}</small>"
+        f"<br><small>confiance: {esc(signal.get('confidence'))} · état: {esc(signal.get('evidence_state'))}</small></li>"
+        for signal in report_obj.get("signals", [])
+    )
+    checks = "".join(f"<li>{esc(check)}</li>" for check in report_obj.get("required_checks", []))
+    return f"""<!doctype html>
+<html lang="fr">
+<head><meta charset="utf-8"><title>{esc(report_obj['report_id'])}</title></head>
+<body>
+  <h1>Rapport indicatif opposition / recours</h1>
+  <p>Risque global: {esc(report_obj['summary']['overall'])} ({esc(report_obj['summary']['score'])})</p>
+  <h2>Signaux</h2><ul>{rows}</ul>
+  <h2>Contrôles requis</h2><ul>{checks}</ul>
+  <footer>{esc(report_obj.get('trust_footer'))}</footer>
+</body>
+</html>
+"""
 
 
 def assess(query, project_height_m=None):
@@ -154,12 +283,14 @@ def render(r):
     print("-" * 72)
     print(f"RISQUE GLOBAL : {r['overall'].upper()}  (score {r['score']})")
     print("-" * 72)
-    if not r["grounds"]:
+    if not r["signals"]:
         print("  Aucun facteur de risque saillant détecté à ce stade.")
-    for g in sorted(r["grounds"], key=lambda x: -_LEVEL[x["level"]]):
-        print(f"  {_ICON[g['level']]} [{g['level'].upper():7}] {g['ground']}")
-        print(f"        motif    : {g['basis']}")
-        print(f"        mitigation: {g['mitigation']}")
+    for s in sorted(r["signals"], key=lambda x: -_LEVEL[x["level"]]):
+        print(f"  {_ICON[s['level']]} [{s['level'].upper():7}] {s['ground']} ({s['evidence_state']}, confiance {s['confidence']})")
+        print(f"        motif    : {s['basis']}")
+        print(f"        mitigation: {s['mitigation']}")
+        if s.get("required_check"):
+            print(f"        vérif.   : {s['required_check']}")
     print("-" * 72)
     print("Indicatif — fondé sur parcelle/zone/voisinage; le résultat réel dépend du projet et d'un")
     print("examen juridique.")
