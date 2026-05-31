@@ -33,3 +33,13 @@ represented as evidence before it can become execution.
 - `verification_ref` is required before a report can claim execution success.
 - `execution_allowed=false` remains the default for fixture mode.
 - Live adapters reuse the same record shape; only transport and refs change.
+
+## Later Adapter Snapshots
+
+The R4 fixture baselines normalize IFC/IfcOpenShell and Speckle snapshots to the same minimum evidence shape:
+
+- `pilot/model/ifc_snapshot_fixture.json`
+- `pilot/model/speckle_snapshot_fixture.json`
+
+Both expose adapter id, source model/version ref, elements, spaces, property sets and quantity refs. The live IFC
+and Speckle integrations can replace fixture loading without changing the approval and evidence lifecycle.

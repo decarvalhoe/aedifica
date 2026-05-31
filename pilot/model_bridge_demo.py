@@ -29,6 +29,37 @@ def _load_json(path):
         return json.load(f)
 
 
+def _endpoint_url(endpoint):
+    if endpoint.startswith(("http://", "https://")):
+        return endpoint
+    return f"http://{endpoint}"
+
+
+def _post_json(endpoint, payload, timeout=2.0):
+    body = json.dumps(payload).encode("utf-8")
+    request = urllib.request.Request(
+        _endpoint_url(endpoint),
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def _first_dict(*candidates):
+    for candidate in candidates:
+        if isinstance(candidate, dict):
+            return candidate
+    return {}
+
+
+def _extract_result(data):
+    if not isinstance(data, dict):
+        return {}
+    return _first_dict(data.get("result"), data.get("Result"), data.get("response"), data)
+
+
 def select_adapter(adapter_id="archicad_json"):
     matrix = _load_matrix()
     for adapter in matrix["adapters"]:
@@ -41,10 +72,13 @@ def health_check(adapter_id="archicad_json", endpoint=None, timeout=1.0):
     adapter = select_adapter(adapter_id)
     running = False
     error = None
+    product_info = None
     if endpoint:
         try:
-            with urllib.request.urlopen(endpoint, timeout=timeout) as response:
-                running = 200 <= response.status < 300
+            product = live_product_info(endpoint, timeout=timeout)
+            running = product["running"]
+            product_info = product.get("product_info")
+            error = product.get("error")
         except (OSError, urllib.error.URLError) as exc:
             error = str(exc)
     return {
@@ -52,9 +86,45 @@ def health_check(adapter_id="archicad_json", endpoint=None, timeout=1.0):
         "running": running,
         "endpoint": endpoint,
         "checked_at": datetime.now(timezone.utc).isoformat(),
+        "product_info": product_info,
         "read_capabilities": adapter.get("read_capabilities", []),
         "write_capabilities": adapter.get("write_capabilities", []),
         "error": error,
+    }
+
+
+def live_product_info(endpoint, timeout=2.0):
+    """Query an Archicad JSON-style endpoint for product info.
+
+    The response parser is intentionally tolerant so the same function can be
+    tested against a local fixture server and later against the official bridge.
+    """
+    checked_at = datetime.now(timezone.utc).isoformat()
+    try:
+        data = _post_json(endpoint, {"command": "GetProductInfo"}, timeout=timeout)
+    except (OSError, urllib.error.URLError, json.JSONDecodeError) as exc:
+        return {
+            "adapter_id": "archicad_json",
+            "running": False,
+            "endpoint": endpoint,
+            "checked_at": checked_at,
+            "product_info": None,
+            "error": str(exc),
+        }
+    result = _extract_result(data)
+    product_info = _first_dict(result.get("productInfo"), result.get("product_info"), result)
+    return {
+        "adapter_id": "archicad_json",
+        "running": bool(product_info),
+        "endpoint": endpoint,
+        "checked_at": checked_at,
+        "product_info": {
+            "name": product_info.get("name") or product_info.get("product") or product_info.get("Product"),
+            "version": product_info.get("version") or product_info.get("Version"),
+            "build": product_info.get("build") or product_info.get("buildNumber") or product_info.get("Build"),
+            "raw": product_info,
+        },
+        "error": None,
     }
 
 
@@ -72,6 +142,46 @@ def inspect_selected_elements(snapshot_path=SELECTION_FIXTURE):
             }
             for item in snapshot.get("selected_elements", [])
         ],
+    }
+
+
+def _normalize_live_element(item):
+    element_id = item.get("element_id") or item.get("elementId") or item.get("id")
+    if isinstance(element_id, dict):
+        element_id = element_id.get("guid") or element_id.get("id") or element_id.get("value")
+    classification = item.get("classification") or item.get("type") or item.get("elementType")
+    properties = item.get("properties") or item.get("propertyValues") or {}
+    return {
+        "element_id": str(element_id),
+        "type": item.get("type") or item.get("elementType") or classification,
+        "classification": item.get("classification") or classification,
+        "properties": properties if isinstance(properties, dict) else {},
+    }
+
+
+def live_selected_elements(endpoint, timeout=2.0):
+    try:
+        data = _post_json(endpoint, {"command": "GetSelectedElements"}, timeout=timeout)
+    except (OSError, urllib.error.URLError, json.JSONDecodeError) as exc:
+        return {
+            "source_model_version": None,
+            "source_model_ref": endpoint,
+            "selected_elements": [],
+            "error": str(exc),
+        }
+    result = _extract_result(data)
+    selected = (
+        result.get("selected_elements")
+        or result.get("selectedElements")
+        or result.get("elements")
+        or result.get("selection")
+        or []
+    )
+    return {
+        "source_model_version": result.get("source_model_version") or result.get("model_version") or result.get("modelVersion"),
+        "source_model_ref": result.get("source_model_ref") or result.get("sourceModelRef") or endpoint,
+        "selected_elements": [_normalize_live_element(item) for item in selected if isinstance(item, dict)],
+        "error": None,
     }
 
 

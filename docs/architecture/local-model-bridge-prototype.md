@@ -33,6 +33,8 @@ Current offline functions:
 - `load_design_intent()` reads `pilot/model/design_intent_fixture.json`.
 - `dry_run_design_intent()` converts structured design intent into supported dry-run action items.
 - `build_agent_demo()` packages health, selection, missing metadata, generated items, dry-run state and diff.
+- `live_product_info()` probes an Archicad JSON-style endpoint for product/version data.
+- `live_selected_elements()` normalizes endpoint-selected elements to the same shape as the offline fixture.
 
 ## Why This Counts
 

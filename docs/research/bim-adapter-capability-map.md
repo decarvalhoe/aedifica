@@ -51,3 +51,14 @@ python pilot/model_bridge_demo.py
 
 The demo does not connect to Archicad. It proves that the first bridge can produce dry-run plans from a
 capability manifest before any mutating model action is allowed.
+
+## Fixture Baselines
+
+The first neutral baselines live in the pilot as normalized snapshots:
+
+- `pilot/model/ifc_snapshot_fixture.json` for the IFC/IfcOpenShell path.
+- `pilot/model/speckle_snapshot_fixture.json` for the Speckle path.
+
+They do not replace live adapters. They preserve the output contract that live IFC and Speckle connectors must
+produce: source model ref, elements, spaces, property sets and quantity refs behind the same dry-run/approval
+lifecycle.

@@ -79,6 +79,7 @@ still performing the live OEREB fetch (shown as byte count).
 - `model_bridge_demo.py` — offline dry-run prototype for the local model bridge.
 - `model/archicad_selection_fixture.json` — selected-element fixture for the Archicad JSON bridge contract.
 - `model/design_intent_fixture.json` — structured architect intent fixture for generated room metadata and drawing annotation items.
+- `model/ifc_snapshot_fixture.json`, `model/speckle_snapshot_fixture.json` — neutral later-adapter snapshots for IFC/IfcOpenShell and Speckle baselines.
 - `agent_software_demo.py` — dedicated R1A CLI demo for agent → adapter → dry-run diff.
 - `site/`, `validate_site.py` — site note, defect register and handover checklist contracts.
 - `ui/` — static reference screens for app shell, project intake and claim review.

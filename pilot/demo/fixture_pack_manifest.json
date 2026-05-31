@@ -10,6 +10,8 @@
     "memory/demo_project_ledger.json",
     "model/archicad_selection_fixture.json",
     "model/design_intent_fixture.json",
+    "model/ifc_snapshot_fixture.json",
+    "model/speckle_snapshot_fixture.json",
     "cost/sia102_fee_sample.json",
     "site/site_note_fixture.json"
   ],

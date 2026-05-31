@@ -38,6 +38,9 @@ The current command stays in fixture mode. The live implementation should add an
 python pilot/agent_software_demo.py --endpoint http://localhost:19723
 ```
 
+The current implementation already accepts `--endpoint` and keeps fixture mode when the endpoint cannot return
+selected elements. Use it first against a harmless local test endpoint, then against Archicad.
+
 ## Failure Modes
 
 - Archicad not running: report adapter unavailable and keep fixture mode.

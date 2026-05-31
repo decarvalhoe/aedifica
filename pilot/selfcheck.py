@@ -10,6 +10,8 @@ import os
 import shutil
 import sys
 import tempfile
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 try:
     sys.stdout.reconfigure(encoding="utf-8")
@@ -37,6 +39,7 @@ import validate_cost    # noqa: E402
 import validate_site    # noqa: E402
 import validate_workspace  # noqa: E402
 import model_bridge_demo  # noqa: E402
+import adapter_snapshots   # noqa: E402
 import workspace          # noqa: E402
 import trust             # noqa: E402
 
@@ -310,6 +313,46 @@ unsupported_intent = json.loads(json.dumps(design_intent))
 unsupported_intent["items"].append({"item_id": "ITEM-UNSUPPORTED-001", "kind": "teleport_wall", "basis": {"confidence": "low"}})
 unsupported_dry_run = model_bridge_demo.dry_run_design_intent(unsupported_intent, selection, ledger_data)
 agent_demo = model_bridge_demo.build_agent_demo(os.path.join(HERE, "memory", "demo_project_ledger.json"))
+
+
+class DemoArchicadHandler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        length = int(self.headers.get("Content-Length", "0"))
+        payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
+        if payload.get("command") == "GetProductInfo":
+            response = {"result": {"productInfo": {"name": "Archicad", "version": "DEMO", "buildNumber": "1"}}}
+        else:
+            response = {
+                "result": {
+                    "source_model_version": "ARCHICAD-LIVE-DEMO",
+                    "source_model_ref": "http://localhost/demo",
+                    "selected_elements": selection["selected_elements"],
+                }
+            }
+        body = json.dumps(response).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *_args):
+        return
+
+
+server = HTTPServer(("127.0.0.1", 0), DemoArchicadHandler)
+thread = threading.Thread(target=server.serve_forever, daemon=True)
+thread.start()
+endpoint = f"http://127.0.0.1:{server.server_port}"
+try:
+    live_product = model_bridge_demo.live_product_info(endpoint)
+    live_selection = model_bridge_demo.live_selected_elements(endpoint)
+finally:
+    server.shutdown()
+    server.server_close()
+
+ifc_snapshot = adapter_snapshots.inspect_ifc_snapshot()
+speckle_snapshot = adapter_snapshots.inspect_speckle_snapshot()
 check("cost assets validate", not cost_report.errors)
 check("cost assets include fee sample, taxonomy bridge and tender log", {item["kind"] for item in cost_report.items} == {"fee_sample", "quantity_bridge", "tender_assumptions"})
 check("profitability cockpit renders fee risk and assumptions", "Estimated fee" in cockpit_html and cockpit["absorbed_cost_chf"] > 0)
@@ -326,6 +369,10 @@ check("model bridge dry-runs generated intent items", intent_dry_run["action_cou
 check("model bridge renders before/after diff", "Before/After" in intent_diff and "AC-SPACE-101.RoomUsage" in intent_diff)
 check("model bridge refuses unsupported intent actions", unsupported_dry_run["unsupported_count"] == 1)
 check("agent demo preserves fixture safety", agent_demo["fixture_mode"] and agent_demo["dry_run"]["dry_run"])
+check("model bridge probes live product info endpoint", live_product["running"] and live_product["product_info"]["name"] == "Archicad")
+check("model bridge normalizes live selected elements", live_selection["source_model_version"] == "ARCHICAD-LIVE-DEMO" and len(live_selection["selected_elements"]) == 2)
+check("IFC snapshot baseline exposes spaces and property sets", ifc_snapshot["adapter_id"] == "ifc_ifcopenshell" and ifc_snapshot["spaces"] and ifc_snapshot["property_sets"])
+check("Speckle snapshot baseline exposes spaces and property sets", speckle_snapshot["adapter_id"] == "speckle" and speckle_snapshot["spaces"] and speckle_snapshot["property_sets"])
 
 print("Site and handover")
 site_report = validate_site.validate_all()
