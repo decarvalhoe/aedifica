@@ -746,6 +746,12 @@ check("model bridge probes live product info endpoint", live_product["running"] 
 check("model bridge normalizes live selected elements", live_selection["source_model_version"] == "ARCHICAD-LIVE-DEMO" and len(live_selection["selected_elements"]) == 2)
 check("IFC snapshot baseline exposes spaces and property sets", ifc_snapshot["adapter_id"] == "ifc_ifcopenshell" and ifc_snapshot["spaces"] and ifc_snapshot["property_sets"])
 check("Speckle snapshot baseline exposes spaces and property sets", speckle_snapshot["adapter_id"] == "speckle" and speckle_snapshot["spaces"] and speckle_snapshot["property_sets"])
+_ifc_inspect = adapter_snapshots.inspect_ifc()
+check("IFC inspection falls back to the JSON snapshot without IfcOpenShell", _ifc_inspect["snapshot_mode"] == "fallback_json" and bool(_ifc_inspect["spaces"]))
+_speckle_fixture_import = adapter_snapshots.import_speckle()
+check("Speckle fixture import normalizes objects offline", _speckle_fixture_import["status"] == "imported" and bool(_speckle_fixture_import["snapshot"]["property_sets"]))
+_speckle_blocked = adapter_snapshots.import_speckle(feature_enabled=True, token=None)
+check("Speckle live import without token returns a blocked external-dependency", _speckle_blocked["status"] == "blocked" and _speckle_blocked["external_dependency"] is True)
 
 print("Adapter capability + transaction contract")
 adapter_cap_report = validate_adapter_capability.validate_all()
