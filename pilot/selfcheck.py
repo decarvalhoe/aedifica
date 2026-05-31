@@ -42,6 +42,8 @@ import adapter_evidence  # noqa: E402
 import permit_carryover  # noqa: E402
 import validate_cost    # noqa: E402
 import fee_assumptions  # noqa: E402
+import quantity_register  # noqa: E402
+import tender_report  # noqa: E402
 import validate_site    # noqa: E402
 import validate_workspace  # noqa: E402
 import validate_manifest  # noqa: E402
@@ -737,6 +739,17 @@ _fee_built = fee_assumptions.build_fee_object("medium", "41", 120, 170, 18, [{"p
 check("built fee object round-trips and marks human review required", (not fee_assumptions.round_trip(_fee_built)) and _fee_built["human_review_required"] is True)
 _fee_html = fee_assumptions.render_fee_html(_fee_form)
 check("fee report renders human-review assumptions and exclusions without hardcoded paid SIA", "revue requise" in _fee_html and "Exclusions" in _fee_html and "must not hardcode paid SIA" in _fee_html)
+_qreg = load("cost", "quantity_source_register.json")
+check("quantity register validates with no unitless quantities", not quantity_register.validate_register(_qreg))
+check("a quantity source is superseded without losing history", len(quantity_register.history(_qreg, "QS-ENVELOPE")) == 2 and len(quantity_register.active_sources(_qreg)) == 1)
+check("quantity validator rejects unitless quantities", any("unitless" in e for e in quantity_register.validate_source({"source_id": "X", "origin": "manual", "version": "v1", "captured_at": "2026-05-29", "unit_system": "SI", "confidence": "low", "quantities": [{"item": "y", "quantity": 10}]})))
+_tender_log = load("cost", "tender_assumptions_log.json")
+_qty_entry = next(e for e in _tender_log["entries"] if e.get("quantity_source_ref"))
+check("tender assumption links to a quantity source version", quantity_register.link_resolves(_qreg, _qty_entry["quantity_source_ref"]))
+_tender_rep = tender_report.build_tender_report(_tender_log, _qreg, demo_memory)
+check("tender report lists assumptions, exclusions and carried conditions", bool(_tender_rep["assumptions"]) and bool(_tender_rep["exclusions"]) and bool(_tender_rep["carried_conditions"]))
+check("tender report resolves quantity source refs and invents no vendor pricing", any(e.get("quantity_resolved") for e in _tender_rep["entries"]) and _tender_rep["no_vendor_pricing"])
+check("tender report renders for architect review", "Hypothèses de soumission" in tender_report.render_tender_html(_tender_rep))
 check("taxonomy bridge preserves multiple rows", len(bridge_data["quantity_rows"]) >= 3)
 check("tender assumptions carry to offer comparison", any(item["kind"] == "tender_assumptions" and item["carry_count"] >= 2 for item in cost_report.items))
 check("model bridge dry-run protects mutating actions", mutating_plan["mutating"] and mutating_plan["dry_run_required"] and mutating_plan["approval_required"])

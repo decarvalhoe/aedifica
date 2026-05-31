@@ -19,6 +19,15 @@
       "status": "carry_to_offer_comparison",
       "source_ref": "OPP-HERITAGE",
       "offer_comparison_column": "opposition_support_allowance"
+    },
+    {
+      "assumption_id": "TA-ENVELOPE-QTY-001",
+      "kind": "quantity_basis",
+      "title": "Tender quantities based on IFC envelope take-off v2",
+      "status": "carry_to_offer_comparison",
+      "source_ref": "QS-ENVELOPE",
+      "offer_comparison_column": "envelope_quantities",
+      "quantity_source_ref": { "source_id": "QS-ENVELOPE", "version": "v2" }
     }
   ]
 }
