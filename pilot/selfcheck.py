@@ -109,6 +109,15 @@ communes = selector.list_communes()
 check("selector discovers Lausanne + Pully", "Lausanne" in communes and "Pully" in communes)
 r = selector.route("CH", "VD", "Lausanne")
 check("route = 3 active layers", len(r["active"]) == 3)
+check("route object carries active/inactive layers", len(r["active_layers"]) == 3 and len(r["inactive_layers"]) >= 1)
+check(
+    "route layers carry source versions",
+    all(layer.get("source_version", {}).get("review_due") for layer in r["active_layers"] + r["inactive_layers"]),
+)
+stale_route = json.loads(json.dumps(r))
+stale_route["active_layers"][0]["source_version"]["review_due"] = "2000-01-01"
+stale_warnings = selector.pack_freshness_warnings(stale_route, today="2026-05-31")
+check("expired pack review produces a warning", any(w["code"] == "pack_review_overdue" for w in stale_warnings))
 
 print("Jurisdiction pack contract")
 report = validate_packs.validate_all()
@@ -211,6 +220,8 @@ check(
 )
 brief = workspace.generate_offline_parcel_brief(os.path.join(HERE, "projects", "demo_lausanne_palud"))
 check("offline workspace brief has source refs", bool(brief["source_refs"]))
+check("offline workspace brief includes regulatory route", len(brief["regulatory_route"]["active_layers"]) == 3)
+check("offline workspace brief exposes freshness warnings", isinstance(brief["freshness_warnings"], list))
 check("offline workspace brief keeps unknowns visible", bool(brief["unknowns"]))
 with tempfile.TemporaryDirectory() as tmp:
     tmp_project = os.path.join(tmp, "demo_lausanne_palud")

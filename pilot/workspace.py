@@ -13,6 +13,7 @@ import os
 import re
 
 import domain
+import selector
 import trust
 
 
@@ -23,6 +24,7 @@ PROJECT_ID_RE = re.compile(r"^[A-Z0-9][A-Z0-9_-]{2,63}$")
 REQUIRED_DIRS = ("sources", "evidence", "reports", "memory")
 REQUIRED_TRUST_STATES = {"sourced", "computed", "assumption", "unknown"}
 ALLOWED_PHASES = {"0", "1", "2", "31", "32", "33", "41", "51", "52", "53", "61-63"}
+ALLOWED_ROUTE_LEVELS = {"federal", "cantonal", "communal"}
 
 
 @dataclass
@@ -50,6 +52,16 @@ def _nonempty_string(value) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
 
+def _valid_iso_datetime(value) -> bool:
+    if not _nonempty_string(value):
+        return False
+    try:
+        datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    return True
+
+
 def _source_ref(source_id: str, locator: str, valid_as_of: str, confidence: str = "high") -> dict:
     return {
         "source_id": source_id,
@@ -57,6 +69,66 @@ def _source_ref(source_id: str, locator: str, valid_as_of: str, confidence: str 
         "valid_as_of": valid_as_of,
         "confidence": confidence,
     }
+
+
+def _validate_route_layer(layer: dict, path: str, report: WorkspaceValidationReport, prefix: str, active: bool) -> None:
+    if not isinstance(layer, dict):
+        report.add_error(path, f"{prefix} must contain objects")
+        return
+    layer_id = layer.get("layer_id") or "<missing>"
+    for key in ("layer_id", "jurisdiction", "state", "evaluated_at"):
+        if not _nonempty_string(layer.get(key)):
+            report.add_error(path, f"{prefix}.{layer_id}.{key} must be a non-empty string")
+    if layer.get("level") not in ALLOWED_ROUTE_LEVELS:
+        report.add_error(path, f"{prefix}.{layer_id}.level must be one of {sorted(ALLOWED_ROUTE_LEVELS)}")
+    if not _valid_iso_datetime(layer.get("evaluated_at")):
+        report.add_error(path, f"{prefix}.{layer_id}.evaluated_at must be an ISO datetime")
+    if active:
+        if layer.get("state") != "active":
+            report.add_error(path, f"{prefix}.{layer_id}.state must be active")
+        if not _valid_iso_datetime(layer.get("selected_at")):
+            report.add_error(path, f"{prefix}.{layer_id}.selected_at must be an ISO datetime")
+    else:
+        if layer.get("state") != "inactive":
+            report.add_error(path, f"{prefix}.{layer_id}.state must be inactive")
+        if not _nonempty_string(layer.get("inactive_reason")):
+            report.add_error(path, f"{prefix}.{layer_id}.inactive_reason must be a non-empty string")
+    source_version = layer.get("source_version")
+    if not isinstance(source_version, dict):
+        report.add_error(path, f"{prefix}.{layer_id}.source_version must be an object")
+        return
+    for key in ("source_status", "verified_at", "review_due"):
+        if not _nonempty_string(source_version.get(key)):
+            report.add_error(path, f"{prefix}.{layer_id}.source_version.{key} must be a non-empty string")
+
+
+def _validate_regulatory_route(manifest: dict, manifest_path: str, report: WorkspaceValidationReport) -> None:
+    route_obj = manifest.get("regulatory_route")
+    if not isinstance(route_obj, dict):
+        report.add_error(manifest_path, "regulatory_route must be an object")
+        return
+    if route_obj.get("schema_version") != WORKSPACE_VERSION:
+        report.add_error(manifest_path, f"regulatory_route.schema_version must be {WORKSPACE_VERSION!r}")
+    for key in ("route_id", "country", "canton", "commune", "selected_at", "evaluated_at"):
+        if not _nonempty_string(route_obj.get(key)):
+            report.add_error(manifest_path, f"regulatory_route.{key} must be a non-empty string")
+    for key in ("selected_at", "evaluated_at"):
+        if not _valid_iso_datetime(route_obj.get(key)):
+            report.add_error(manifest_path, f"regulatory_route.{key} must be an ISO datetime")
+    active_layers = route_obj.get("active_layers")
+    inactive_layers = route_obj.get("inactive_layers")
+    if not isinstance(active_layers, list) or not active_layers:
+        report.add_error(manifest_path, "regulatory_route.active_layers must be a non-empty list")
+        active_layers = []
+    if not isinstance(inactive_layers, list):
+        report.add_error(manifest_path, "regulatory_route.inactive_layers must be a list")
+        inactive_layers = []
+    for index, layer in enumerate(active_layers):
+        _validate_route_layer(layer, manifest_path, report, f"regulatory_route.active_layers[{index}]", True)
+    for index, layer in enumerate(inactive_layers):
+        _validate_route_layer(layer, manifest_path, report, f"regulatory_route.inactive_layers[{index}]", False)
+    if not isinstance(route_obj.get("freshness_warnings", []), list):
+        report.add_error(manifest_path, "regulatory_route.freshness_warnings must be a list")
 
 
 def project_manifest_path(project_dir: str) -> str:
@@ -110,6 +182,7 @@ def validate_project(project_dir: str) -> WorkspaceValidationReport:
     for key in ("country", "canton", "commune"):
         if not _nonempty_string(jurisdiction.get(key)):
             report.add_error(manifest_path, f"jurisdiction.{key} must be a non-empty string")
+    _validate_regulatory_route(manifest, manifest_path, report)
 
     trust_contract = manifest.get("trust_contract")
     if not isinstance(trust_contract, dict):
@@ -220,6 +293,15 @@ def record_report(
 
 def generate_offline_parcel_brief(project_dir: str, write_report: bool = False) -> dict:
     manifest = _load_json(project_manifest_path(project_dir))
+    route_obj = manifest.get("regulatory_route")
+    if not isinstance(route_obj, dict):
+        jurisdiction = manifest.get("jurisdiction") or {}
+        route_obj = selector.regulatory_route(
+            jurisdiction.get("country", "CH"),
+            jurisdiction.get("canton", "VD"),
+            jurisdiction.get("commune", "Lausanne"),
+        )
+    freshness_warnings = selector.pack_freshness_warnings(route_obj)
     evidence_rel = manifest.get("parcel", {}).get("oereb_parsed_evidence")
     if not evidence_rel:
         raise ValueError("project parcel.oereb_parsed_evidence is required for offline brief generation")
@@ -259,6 +341,8 @@ def generate_offline_parcel_brief(project_dir: str, write_report: bool = False) 
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "claim_state_summary": ["sourced", "computed", "unknown"],
         "source_refs": source_refs,
+        "regulatory_route": route_obj,
+        "freshness_warnings": freshness_warnings,
         "parcel": {
             "egrid": oereb_record.get("egrid"),
             "number": oereb_record.get("parcel"),

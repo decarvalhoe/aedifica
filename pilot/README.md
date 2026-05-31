@@ -99,6 +99,10 @@ Each regulatory pack declares a `schema_version` and `source_version` (`verified
 `python pilot/validate_packs.py` checks the contract with stdlib only; `python pilot/selfcheck.py` includes
 that validator and the output trust contract in the offline smoke suite. GitHub Actions runs both on pushes and PRs. See
 [`../docs/architecture/jurisdiction-pack-contract.md`](../docs/architecture/jurisdiction-pack-contract.md).
+Project workspaces also persist the selected regulatory route with active layers, inactive layers, timestamps,
+source versions and freshness warnings. Commune support states are documented in
+[`../docs/architecture/commune-support-policy.md`](../docs/architecture/commune-support-policy.md), with a repeatable
+checklist in [`../docs/planning/next-commune-ingestion-checklist.md`](../docs/planning/next-commune-ingestion-checklist.md).
 
 `python pilot/validate_matrix.py` validates the phase-aware constraint matrix described in
 [`../docs/nomos/phase-aware-constraint-matrix.md`](../docs/nomos/phase-aware-constraint-matrix.md).
