@@ -41,6 +41,7 @@ import approval  # noqa: E402
 import adapter_evidence  # noqa: E402
 import permit_carryover  # noqa: E402
 import validate_cost    # noqa: E402
+import fee_assumptions  # noqa: E402
 import validate_site    # noqa: E402
 import validate_workspace  # noqa: E402
 import validate_manifest  # noqa: E402
@@ -730,6 +731,12 @@ speckle_snapshot = adapter_snapshots.inspect_speckle_snapshot()
 check("cost assets validate", not cost_report.errors)
 check("cost assets include fee sample, taxonomy bridge and tender log", {item["kind"] for item in cost_report.items} == {"fee_sample", "quantity_bridge", "tender_assumptions"})
 check("profitability cockpit renders fee risk and assumptions", "Estimated fee" in cockpit_html and cockpit["absorbed_cost_chf"] > 0)
+_fee_form = load("cost", "sia102_fee_form.json")
+check("SIA102 fee form round-trips through validation", not fee_assumptions.round_trip(_fee_form))
+_fee_built = fee_assumptions.build_fee_object("medium", "41", 120, 170, 18, [{"prestation_id": "SP1", "title": "X", "pricing_status": "optional_allowance", "estimated_hours": 8}], [{"flag_id": "A1", "title": "Y", "estimated_hours": 4, "phase_code": "41", "action": "price"}], ["assumption"], ["exclusion"])
+check("built fee object round-trips and marks human review required", (not fee_assumptions.round_trip(_fee_built)) and _fee_built["human_review_required"] is True)
+_fee_html = fee_assumptions.render_fee_html(_fee_form)
+check("fee report renders human-review assumptions and exclusions without hardcoded paid SIA", "revue requise" in _fee_html and "Exclusions" in _fee_html and "must not hardcode paid SIA" in _fee_html)
 check("taxonomy bridge preserves multiple rows", len(bridge_data["quantity_rows"]) >= 3)
 check("tender assumptions carry to offer comparison", any(item["kind"] == "tender_assumptions" and item["carry_count"] >= 2 for item in cost_report.items))
 check("model bridge dry-run protects mutating actions", mutating_plan["mutating"] and mutating_plan["dry_run_required"] and mutating_plan["approval_required"])
