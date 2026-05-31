@@ -7,6 +7,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 PILOT = os.path.join(ROOT, "pilot")
 sys.path.insert(0, PILOT)
 
+import validate_adapter_capability  # noqa: E402
 import validate_brief  # noqa: E402
 import validate_commune_packs  # noqa: E402
 import validate_compliance  # noqa: E402
@@ -46,6 +47,7 @@ VALIDATORS = [
     validate_cost.validate_all,
     validate_site.validate_all,
     validate_redaction.validate_all,
+    validate_adapter_capability.validate_all,
 ]
 
 

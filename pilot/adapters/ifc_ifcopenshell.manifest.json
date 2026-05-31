@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "adapter_id": "ifc_ifcopenshell",
+  "family": "ifc",
+  "display_name": "IFC (IfcOpenShell, optional)",
+  "transport": "file",
+  "fixture_mode": true,
+  "capabilities": {
+    "read": ["spaces", "elements", "property_sets"],
+    "write": [],
+    "export": ["ifc"],
+    "dry_run": false,
+    "transaction": false,
+    "verification": false
+  },
+  "notes": "Read-only inspection. Uses IfcOpenShell when installed; otherwise falls back to a JSON snapshot fixture."
+}

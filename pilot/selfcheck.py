@@ -66,6 +66,9 @@ import workspace_ui  # noqa: E402
 import urllib.request  # noqa: E402
 import model_bridge_demo  # noqa: E402
 import adapter_snapshots   # noqa: E402
+import validate_adapter_capability  # noqa: E402
+import adapter_capability  # noqa: E402
+import adapter_transaction  # noqa: E402
 import workspace          # noqa: E402
 import trust             # noqa: E402
 
@@ -741,6 +744,20 @@ check("model bridge probes live product info endpoint", live_product["running"] 
 check("model bridge normalizes live selected elements", live_selection["source_model_version"] == "ARCHICAD-LIVE-DEMO" and len(live_selection["selected_elements"]) == 2)
 check("IFC snapshot baseline exposes spaces and property sets", ifc_snapshot["adapter_id"] == "ifc_ifcopenshell" and ifc_snapshot["spaces"] and ifc_snapshot["property_sets"])
 check("Speckle snapshot baseline exposes spaces and property sets", speckle_snapshot["adapter_id"] == "speckle" and speckle_snapshot["spaces"] and speckle_snapshot["property_sets"])
+
+print("Adapter capability + transaction contract")
+adapter_cap_report = validate_adapter_capability.validate_all()
+check("adapter capability manifests validate", not adapter_cap_report.errors)
+check("adapter manifests cover archicad, ifc and speckle", {"archicad_json", "ifc_ifcopenshell", "speckle"}.issubset(set(adapter_cap_report.items[0]["adapters"])))
+_ifc_manifest = adapter_capability.load_manifest("ifc_ifcopenshell")
+check("capability check reports an unsupported required capability", bool(adapter_capability.missing_capabilities(_ifc_manifest, {"write": ["set_properties"]})))
+_txn_ops = [{"op_id": "O1", "kind": "set_property", "target": "AC-SPACE-101", "before": "", "after": "office", "undo": "restore"}]
+_txn = adapter_transaction.build_transaction("archicad_json", _txn_ops, "TXN-SELF", "dry_run")
+check("dry-run transaction can be serialized", bool(adapter_transaction.serialize(_txn)) and _txn["status"] == "dry_run")
+check("unsupported adapter transaction returns a blocked state", adapter_transaction.is_blocked(adapter_transaction.build_transaction("ifc_ifcopenshell", _txn_ops, "TXN-IFC", "execute")))
+check("execution transaction requires a matching approval scope", adapter_transaction.is_blocked(adapter_transaction.authorize_execution(_txn, approval.make_approval("Arch", "adapter_dry_run", "ok"))))
+_txn_approved = adapter_transaction.authorize_execution(_txn, approval.make_approval("Arch", "adapter_execution", "ok"))
+check("execution proceeds only after an execution-scope approval", adapter_transaction.execute(_txn_approved)["status"] == "executed")
 
 print("Site and handover")
 site_report = validate_site.validate_all()

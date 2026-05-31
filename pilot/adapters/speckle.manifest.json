@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "adapter_id": "speckle",
+  "family": "speckle",
+  "display_name": "Speckle snapshot (behind feature flag)",
+  "transport": "api",
+  "fixture_mode": true,
+  "capabilities": {
+    "read": ["objects", "versions", "property_sets"],
+    "write": [],
+    "export": [],
+    "dry_run": false,
+    "transaction": false,
+    "verification": false
+  },
+  "notes": "Network/token use is behind an explicit feature flag; default is fixture mode. Read-only neutral model state."
+}

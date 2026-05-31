@@ -81,6 +81,9 @@ jobs:
       - name: Validate site contracts
         run: python pilot/validate_site.py
 
+      - name: Validate adapter capability manifests
+        run: python pilot/validate_adapter_capability.py
+
       - name: Validate privacy redaction pass
         run: python pilot/validate_redaction.py
 

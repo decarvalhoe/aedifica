@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "adapter_id": "archicad_json",
+  "family": "archicad",
+  "display_name": "Archicad JSON bridge",
+  "transport": "json_bridge",
+  "fixture_mode": true,
+  "capabilities": {
+    "read": ["product_info", "selection", "elements", "properties"],
+    "write": ["set_properties"],
+    "export": ["pdf", "ifc", "dwg", "bcf"],
+    "dry_run": true,
+    "transaction": true,
+    "verification": true
+  },
+  "notes": "First partner-office bridge. Mutations require a dry-run, an execution-scope approval and a ledger entry."
+}
