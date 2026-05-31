@@ -71,6 +71,7 @@ One strong validation track is **Swiss Auto-BIM for small and mid-sized offices*
 - `docs/architecture/project-knowledge-regime.md`: context-first vs hybrid index vs project RAG thresholds.
 - `docs/architecture/project-memory-contract.md`: cross-phase project memory and provenance-backed query contract.
 - `docs/architecture/local-model-bridge-prototype.md`: first local model bridge dry-run contract.
+- `docs/architecture/archicad-json-live-setup.md`: live Archicad JSON setup and failure modes for R4.
 - `docs/cost/`: SIA 102 fee/profitability and eCCC/NPK/CFC bridge contracts.
 - `docs/permit/vd-camac-permit-completeness.md`: Vaud ACTIS-CAMAC permit dossier completeness contract.
 - `docs/compliance/phase33-compliance-gates.md`: phase-33 compliance gates with binding-vs-contractual typing.
