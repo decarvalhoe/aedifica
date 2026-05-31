@@ -17,6 +17,7 @@ import validate_matrix  # noqa: E402
 import validate_memory  # noqa: E402
 import validate_packs  # noqa: E402
 import validate_permit  # noqa: E402
+import validate_redaction  # noqa: E402
 import validate_research  # noqa: E402
 import validate_site  # noqa: E402
 import validate_workspace  # noqa: E402
@@ -36,6 +37,7 @@ VALIDATORS = [
     validate_workspace.validate_all,
     validate_cost.validate_all,
     validate_site.validate_all,
+    validate_redaction.validate_all,
 ]
 
 

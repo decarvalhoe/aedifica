@@ -41,6 +41,8 @@ import validate_workspace  # noqa: E402
 import validate_manifest  # noqa: E402
 import validate_evidence_store  # noqa: E402
 import validate_brief  # noqa: E402
+import validate_redaction  # noqa: E402
+import redaction  # noqa: E402
 import evidence_store  # noqa: E402
 import project_cli  # noqa: E402
 import route_service  # noqa: E402
@@ -334,6 +336,14 @@ check(
     "manifest schema rejects a manifest missing project_id",
     any("project_id" in err for err in validate_manifest.validate_manifest({"schema_version": "1.0"}, manifest_schema)),
 )
+
+print("Privacy redaction pass")
+redaction_report = validate_redaction.validate_all()
+check("privacy redaction pass validates", not redaction_report.errors)
+_sensitive = {"client_name": "Famille Test", "notes": "mail test@example.ch tel +41 79 123 45 67"}
+_redacted = redaction.redact_artifact(_sensitive)
+check("redaction removes sensitive fields and patterns", not redaction.find_sensitive(_redacted))
+check("redaction does not mutate the original artifact", redaction.find_sensitive(_sensitive))
 
 print("R1B end-to-end demo")
 with tempfile.TemporaryDirectory() as tmp:
