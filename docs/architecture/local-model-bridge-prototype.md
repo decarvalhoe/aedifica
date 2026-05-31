@@ -21,6 +21,14 @@ Supported demo actions:
 The prototype reads `pilot/research/adapter_capability_matrix.json` and currently selects `archicad_json` as
 the first bridge.
 
+Current offline functions:
+
+- `health_check()` reports adapter availability plus declared read/write capabilities.
+- `inspect_selected_elements()` returns element IDs, classifications, properties and source model version from
+  `pilot/model/archicad_selection_fixture.json`.
+- `missing_metadata_audit()` lists selected spaces missing required properties and proposes fixes.
+- `dry_run_property_update()` prepares a property update but blocks it until a ledger approval exists.
+
 ## Why This Counts
 
 It avoids two common traps:

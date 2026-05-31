@@ -76,6 +76,7 @@ still performing the live OEREB fetch (shown as byte count).
 - `validate_memory.py`, `validate_ledger.py` — stdlib validators and query demos for project memory and ledger.
 - `cost/` — fee/profitability and eCCC/NPK/CFC bridge fixtures.
 - `model_bridge_demo.py` — offline dry-run prototype for the local model bridge.
+- `model/archicad_selection_fixture.json` — selected-element fixture for the Archicad JSON bridge contract.
 - `validate_cost.py` — fee/taxonomy validator and in-memory `.crbx` round-trip demo.
 - `selfcheck.py` — offline smoke test of the pure logic, no network (`python pilot/selfcheck.py`).
 - `registry/federal.json`, `registry/canton_vd.json` — shared CH core + VD cantonal layer (refs verified from a live OEREB extract).
