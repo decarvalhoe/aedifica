@@ -39,6 +39,7 @@ import validate_cost    # noqa: E402
 import validate_site    # noqa: E402
 import validate_workspace  # noqa: E402
 import validate_manifest  # noqa: E402
+import project_cli  # noqa: E402
 import model_bridge_demo  # noqa: E402
 import adapter_snapshots   # noqa: E402
 import workspace          # noqa: E402
@@ -308,6 +309,28 @@ check(
     "manifest schema rejects a manifest missing project_id",
     any("project_id" in err for err in validate_manifest.validate_manifest({"schema_version": "1.0"}, manifest_schema)),
 )
+
+print("Create/open project CLI")
+with tempfile.TemporaryDirectory() as tmp:
+    created = project_cli.create_project(
+        root=tmp,
+        project_id="SELFCHECK-CLI-001",
+        name="Selfcheck CLI project",
+        commune="Lausanne",
+        phase_code="31",
+    )
+    check("create writes a valid workspace", not workspace.validate_project(created["project_dir"]).errors)
+    opened = project_cli.open_project(created["project_dir"])
+    check("open reports project id, route and phase", opened["project_id"] == "SELFCHECK-CLI-001" and opened["phase_code"] == "31")
+    check("open lists the three active route layers", len(opened["active_layers"]) == 3)
+    summary_text = project_cli.render_open_summary(opened)
+    check("open summary renders route and artifacts", "Route" in summary_text and "Artifacts" in summary_text)
+    try:
+        project_cli.open_project(os.path.join(tmp, "missing-project"))
+        cli_structured_error = False
+    except project_cli.ProjectCLIError as exc:
+        cli_structured_error = exc.to_dict()["code"] == "PROJECT_NOT_FOUND"
+    check("open fails with a structured error for a bad folder", cli_structured_error)
 
 print("Aedifica product package")
 check("aedifica package declares a version", isinstance(aedifica.__version__, str) and aedifica.__version__)
