@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "project_id": "DEMO-LAUSANNE-PALUD",
+  "name": "Demo Lausanne Palud",
+  "phase_code": "0",
+  "knowledge_regime": "context_first",
+  "jurisdiction": {
+    "country": "CH",
+    "canton": "VD",
+    "commune": "Lausanne"
+  },
+  "parcel": {
+    "egrid": "CH915772367853",
+    "number": "10072",
+    "oereb_parsed_evidence": "evidence/oereb_parsed_CH915772367853.json"
+  },
+  "regulatory_route": {
+    "active_layers": ["CH/federal", "VD/cantonal", "Lausanne/communal"],
+    "selected_at": "2026-05-31T00:00:00+02:00",
+    "selected_by": "pilot_fixture"
+  },
+  "trust_contract": {
+    "language": "fr",
+    "footer_required": true,
+    "required_claim_states": ["sourced", "computed", "assumption", "unknown", "conflict", "decision"]
+  }
+}
+

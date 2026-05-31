@@ -64,6 +64,9 @@ still performing the live OEREB fetch (shown as byte count).
 - `research/business_positioning.json` — pricing hypothesis and integrate-vs-compete positioning map.
 - `research/multilingual_regulatory_graph.json` — FR/DE/IT canonical regulatory graph contract.
 - `validate_research.py` — stdlib validator for the research backbone.
+- `projects/demo_lausanne_palud/` — first project workspace fixture with manifest, sources, evidence,
+  reports and memory folders.
+- `workspace.py`, `validate_workspace.py` — stdlib project-workspace contract and offline brief generation.
 - `memory/demo_project_memory.json` — cross-phase project memory fixture with provenance-backed demo queries.
 - `validate_memory.py` — stdlib validator and query demo for project memory.
 - `cost/` — fee/profitability and eCCC/NPK/CFC bridge fixtures.
@@ -83,6 +86,7 @@ python pilot/validate_matrix.py
 python pilot/validate_permit.py
 python pilot/validate_compliance.py
 python pilot/validate_research.py
+python pilot/validate_workspace.py
 python pilot/validate_memory.py
 python pilot/validate_cost.py
 ```
@@ -106,6 +110,8 @@ project knowledge regime
 described in [`../docs/research/swiss-phase-lifecycle-matrix.md`](../docs/research/swiss-phase-lifecycle-matrix.md)
 [`../docs/research/pilot-source-registry.md`](../docs/research/pilot-source-registry.md), and
 [`../docs/architecture/project-knowledge-regime.md`](../docs/architecture/project-knowledge-regime.md).
+`python pilot/validate_workspace.py` validates the first project workspace fixture used by the R1 software
+planning wave.
 `python pilot/validate_memory.py` validates the cross-phase memory contract described in
 [`../docs/architecture/project-memory-contract.md`](../docs/architecture/project-memory-contract.md).
 

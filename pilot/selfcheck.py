@@ -7,7 +7,9 @@ zone signal-matching, winter-shadow calc, and the selector composition.
 """
 import json
 import os
+import shutil
 import sys
+import tempfile
 
 try:
     sys.stdout.reconfigure(encoding="utf-8")
@@ -27,7 +29,9 @@ import validate_compliance  # noqa: E402
 import validate_research  # noqa: E402
 import validate_memory  # noqa: E402
 import validate_cost    # noqa: E402
+import validate_workspace  # noqa: E402
 import model_bridge_demo  # noqa: E402
+import workspace          # noqa: E402
 import trust             # noqa: E402
 
 _n = _fail = 0
@@ -182,6 +186,28 @@ check(
     "project memory spans permit-to-site phases",
     any({"0", "31", "33", "41", "52"}.issubset(set(item["phase_codes"])) for item in memory_report.items),
 )
+
+print("Project workspace")
+workspace_report = validate_workspace.validate_all()
+check("project workspace validates", not workspace_report.errors)
+check(
+    "demo workspace is Vaud/Lausanne context-first",
+    any(
+        item["project_id"] == "DEMO-LAUSANNE-PALUD"
+        and item["jurisdiction"].get("canton") == "VD"
+        and item["jurisdiction"].get("commune") == "Lausanne"
+        for item in workspace_report.items
+    ),
+)
+brief = workspace.generate_offline_parcel_brief(os.path.join(HERE, "projects", "demo_lausanne_palud"))
+check("offline workspace brief has source refs", bool(brief["source_refs"]))
+check("offline workspace brief keeps unknowns visible", bool(brief["unknowns"]))
+with tempfile.TemporaryDirectory() as tmp:
+    tmp_project = os.path.join(tmp, "demo_lausanne_palud")
+    shutil.copytree(os.path.join(HERE, "projects", "demo_lausanne_palud"), tmp_project)
+    workspace.generate_offline_parcel_brief(tmp_project, write_report=True)
+    tmp_report = workspace.validate_project(tmp_project)
+    check("offline workspace brief writes report metadata", tmp_report.items[0]["report_count"] == 1 and not tmp_report.errors)
 
 print("Cost and model bridge")
 cost_report = validate_cost.validate_all()
