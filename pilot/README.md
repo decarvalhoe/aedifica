@@ -70,7 +70,7 @@ still performing the live OEREB fetch (shown as byte count).
   reports and memory folders.
 - `workspace.py`, `validate_workspace.py` — stdlib project-workspace contract and offline brief generation.
 - Workspace briefs can be saved as JSON and HTML reports with source registry, route, claims, risks, unknowns and
-  report-index metadata.
+  report-index metadata. Generated report and evidence references carry SHA-256 hashes for later memory/ledger use.
 - `memory/demo_project_memory.json` — cross-phase project memory fixture with provenance-backed demo queries.
 - `validate_memory.py` — stdlib validator and query demo for project memory.
 - `cost/` — fee/profitability and eCCC/NPK/CFC bridge fixtures.

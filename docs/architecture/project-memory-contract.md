@@ -33,6 +33,10 @@ Every memory record has:
 | `evidence_refs` | Project file/API/model/report references. |
 | `links` | Other memory records that this record depends on or carries forward. |
 
+Evidence and generated report references should carry a stable `sha256` digest
+when the artifact is local. Workspace report generation writes these hashes into
+`reports/report_index.json` and into `memory/report_memory.json`.
+
 ## Demo Queries
 
 The fixture proves three cross-phase queries:

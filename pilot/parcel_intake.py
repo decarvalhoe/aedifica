@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 
+import artifacts
 import domain
 import mvp1_demo
 import oereb
@@ -14,16 +15,17 @@ def _load_json(path: str) -> dict:
         return json.load(f)
 
 
-def _project_context(project_dir: str) -> tuple[dict, dict]:
+def _project_context(project_dir: str) -> tuple[dict, dict, str, str]:
     manifest = _load_json(os.path.join(project_dir, "project.json"))
     evidence_rel = manifest.get("parcel", {}).get("oereb_parsed_evidence")
     if not evidence_rel:
         raise ValueError("project parcel.oereb_parsed_evidence is required")
-    return manifest, _load_json(os.path.join(project_dir, evidence_rel))
+    evidence_path = os.path.join(project_dir, evidence_rel)
+    return manifest, _load_json(evidence_path), evidence_rel.replace("\\", "/"), evidence_path
 
 
 def from_project_fixture(project_dir: str) -> dict:
-    manifest, record = _project_context(project_dir)
+    manifest, record, evidence_rel, evidence_path = _project_context(project_dir)
     return {
         "input_type": "parcel_fixture",
         "query": manifest.get("parcel", {}).get("egrid"),
@@ -39,6 +41,14 @@ def from_project_fixture(project_dir: str) -> dict:
                 "locator": f"EGRID {record.get('egrid')}",
                 "valid_as_of": record.get("valid_as_of", "2026-05-29"),
                 "confidence": "high",
+            }
+        ],
+        "evidence_refs": [
+            {
+                "evidence_id": f"EVID-OEREB-{record.get('egrid')}",
+                "kind": "api_extract",
+                "file_ref": f"project://{evidence_rel}",
+                "sha256": artifacts.sha256_file(evidence_path),
             }
         ],
     }

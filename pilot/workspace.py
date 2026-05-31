@@ -13,6 +13,7 @@ import json
 import os
 import re
 
+import artifacts
 import claims
 import domain
 import opposition_radar as radar
@@ -150,6 +151,10 @@ def report_index_path(project_dir: str) -> str:
     return os.path.join(project_dir, "reports", "report_index.json")
 
 
+def report_memory_path(project_dir: str) -> str:
+    return os.path.join(project_dir, "memory", "report_memory.json")
+
+
 def iter_project_dirs(root: str = PROJECTS_DIR):
     if not os.path.isdir(root):
         return
@@ -232,6 +237,8 @@ def validate_project(project_dir: str) -> WorkspaceValidationReport:
                 for key in ("report_id", "kind", "generated_at", "path", "trust_footer"):
                     if not _nonempty_string(item.get(key)):
                         report.add_error(index_path, f"{report_id}.{key} must be a non-empty string")
+                if not artifacts.is_sha256(item.get("content_sha256")):
+                    report.add_error(index_path, f"{report_id}.content_sha256 must be a SHA-256 hex digest")
                 if not isinstance(item.get("source_refs"), list) or not item["source_refs"]:
                     report.add_error(index_path, f"{report_id}.source_refs must be a non-empty list")
 
@@ -289,6 +296,9 @@ def record_report(
         "source_refs": source_refs,
         "trust_footer": footer,
     }
+    report_path = os.path.join(project_dir, entry["path"])
+    if os.path.exists(report_path):
+        entry["content_sha256"] = artifacts.sha256_file(report_path)
     index_path = report_index_path(project_dir)
     if os.path.exists(index_path):
         index = _load_json(index_path)
@@ -299,7 +309,47 @@ def record_report(
     index["schema_version"] = WORKSPACE_VERSION
     index["reports"] = reports
     _write_json(index_path, index)
+    _record_generated_report_memory(project_dir, entry)
     return entry
+
+
+def _record_generated_report_memory(project_dir: str, report_entry: dict) -> None:
+    manifest = _load_json(project_manifest_path(project_dir)) if os.path.exists(project_manifest_path(project_dir)) else {}
+    memory_path = report_memory_path(project_dir)
+    if os.path.exists(memory_path):
+        memory = _load_json(memory_path)
+    else:
+        memory = {
+            "schema_version": WORKSPACE_VERSION,
+            "memory_id": f"MEMORY-{manifest.get('project_id', 'PROJECT')}-REPORTS",
+            "project_id": manifest.get("project_id"),
+            "records": [],
+        }
+    record = {
+        "memory_id": f"MEM-REPORT-{report_entry['report_id']}",
+        "record_type": "report_generation",
+        "phase_code": manifest.get("phase_code", "0"),
+        "title": f"Generated {report_entry['kind']} report",
+        "summary": f"Generated {report_entry['path']} with stable SHA-256 hash.",
+        "claim_state": "evidence",
+        "status": "active",
+        "generated_at": report_entry["generated_at"],
+        "source_refs": report_entry["source_refs"],
+        "evidence_refs": [
+            {
+                "evidence_id": report_entry["report_id"],
+                "kind": report_entry["kind"],
+                "file_ref": f"project://{report_entry['path']}",
+                "sha256": report_entry.get("content_sha256"),
+            }
+        ],
+        "content_sha256": report_entry.get("content_sha256"),
+    }
+    records = [item for item in memory.get("records", []) if item.get("memory_id") != record["memory_id"]]
+    records.append(record)
+    memory["schema_version"] = WORKSPACE_VERSION
+    memory["records"] = records
+    _write_json(memory_path, memory)
 
 
 def _constraint_claims(oereb_record: dict, source_ref: dict) -> list[dict]:
@@ -591,6 +641,7 @@ def generate_offline_parcel_brief(project_dir: str, write_report: bool = False) 
         },
         "claim_state_summary": sorted({claim["state"] for claim in all_claims}),
         "source_refs": source_refs,
+        "evidence_refs": parcel_context.get("evidence_refs", []),
         "source_registry": source_registry,
         "parcel_context": {key: value for key, value in parcel_context.items() if key != "oereb_record"},
         "regulatory_route": route_obj,

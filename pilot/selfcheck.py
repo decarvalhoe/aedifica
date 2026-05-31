@@ -18,6 +18,7 @@ except Exception:
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+import artifacts          # noqa: E402
 import oereb              # noqa: E402
 import claims             # noqa: E402
 import domain             # noqa: E402
@@ -222,8 +223,10 @@ check(
 )
 parcel_ctx = parcel_intake.from_project_fixture(os.path.join(HERE, "projects", "demo_lausanne_palud"))
 check("parcel intake normalizes fixture", parcel_ctx["input_type"] == "parcel_fixture" and parcel_ctx["egrid"] == "CH915772367853")
+check("parcel fixture evidence is hashed", artifacts.is_sha256(parcel_ctx["evidence_refs"][0]["sha256"]))
 brief = workspace.generate_offline_parcel_brief(os.path.join(HERE, "projects", "demo_lausanne_palud"))
 check("offline workspace brief has source refs", bool(brief["source_refs"]))
+check("offline workspace brief has evidence hashes", artifacts.is_sha256(brief["evidence_refs"][0]["sha256"]))
 check("offline workspace brief has source registry", bool(brief["source_registry"]["sources"]))
 check("offline workspace brief has project summary", brief["project_summary"]["project_id"] == "DEMO-LAUSANNE-PALUD")
 check("offline workspace brief includes regulatory route", len(brief["regulatory_route"]["active_layers"]) == 3)
@@ -246,7 +249,20 @@ with tempfile.TemporaryDirectory() as tmp:
     shutil.copytree(os.path.join(HERE, "projects", "demo_lausanne_palud"), tmp_project)
     workspace.generate_offline_parcel_brief(tmp_project, write_report=True)
     tmp_report = workspace.validate_project(tmp_project)
+    with open(os.path.join(tmp_project, "reports", "report_index.json"), encoding="utf-8") as f:
+        report_index = json.load(f)
+    with open(workspace.report_memory_path(tmp_project), encoding="utf-8") as f:
+        report_memory = json.load(f)
     check("offline workspace brief writes report metadata", tmp_report.items[0]["report_count"] == 2 and not tmp_report.errors)
+    check("generated reports carry hashes", all(artifacts.is_sha256(item.get("content_sha256")) for item in report_index["reports"]))
+    check(
+        "generated report hashes enter memory records",
+        all(
+            artifacts.is_sha256(record.get("content_sha256"))
+            and artifacts.is_sha256(record["evidence_refs"][0].get("sha256"))
+            for record in report_memory["records"]
+        ),
+    )
 
 print("Cost and model bridge")
 cost_report = validate_cost.validate_all()
