@@ -1,5 +1,9 @@
 # MVP Roadmap
 
+This is the product/MVP sequence. The software-development execution plan, release gates and issue-ready epics
+are maintained in [`planning/software-roadmap.md`](planning/software-roadmap.md) and
+[`planning/epics-and-backlog.md`](planning/epics-and-backlog.md).
+
 ## MVP 0: Research Foundation
 
 Goal: turn the conversation into a structured project foundation.
@@ -141,5 +145,5 @@ Spec: [`specs/later-voice-to-design.md`](specs/later-voice-to-design.md).
 
 The tender/quantity track is specified in
 [`specs/later-tender-quantity-workflows.md`](specs/later-tender-quantity-workflows.md). Its current strategic
-placement overlaps MVP3 because #29/#30 are the next cost/honoraires implementation block; this later-track
-spec preserves the workflow boundaries while the MVP3 cost contracts are built.
+placement overlaps MVP3 because the cost/honoraires contracts are the next monetizable block; this later-track
+spec preserves the workflow boundaries while the MVP3 software slice is built.

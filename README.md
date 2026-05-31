@@ -79,9 +79,10 @@ One strong validation track is **Swiss Auto-BIM for small and mid-sized offices*
 - `docs/specs/mvp4-direction-travaux-agentique.md`: construction-management track spec.
 - `docs/specs/later-voice-to-design.md`: voice-to-design track spec.
 - `docs/mvp-roadmap.md`: staged MVP plan.
+- **`docs/planning/`: software-development plan, release roadmap, epics/backlog, and delivery checklists.**
 - `docs/review/foundations-audit.md`: living corrections tracker.
 - `docs/pitch/aedifica-one-pager.html`: visual one-pager (FR).
-- `docs/backlog/initial-issues.md`: initial issue list mirrored into GitHub Issues.
+- `docs/backlog/initial-issues.md`: first issue wave, now closed and superseded by the planning backlog.
 - **[`pilot/`](pilot/): runnable MVP1/MVP2 pilot — parcel→constraints+envelope, opposition radar, regulatory-route selector (Lausanne + Pully).**
 
 ## Current Status
@@ -92,4 +93,6 @@ and a runnable pilot ([`pilot/`](pilot/)) demonstrates **MVP1** (parcel → sour
 and an **MVP2 opposition-risk radar** on real Vaud parcels (Lausanne + Pully) via free public Swiss APIs.
 See **[`docs/overview.md`](docs/overview.md)** for the up-to-date global plan. The pilot now has an offline
 CI path, a versioned jurisdiction-pack contract, a validated Swiss phase matrix, and a prioritized source
-registry, but it is still not production-ready (prototypes; re-verify sources).
+registry. The first GitHub issue wave is closed; the next software-development wave is defined in
+[`docs/planning/`](docs/planning/). The project is still not production-ready: it needs a project workspace,
+stable API/package boundaries, persistence, UI, and partner-office validation against real material.

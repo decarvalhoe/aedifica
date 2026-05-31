@@ -93,6 +93,10 @@ Cette fragmentation est **le fossé concurrentiel** : aucun outil étranger ne l
 | **MVP4 Mémoire & Coordination** | mémoire de projet continue + traçabilité | 🔜 |
 | **Later** | Auto-BIM/Archicad (fil hybride), voice-to-design | 🔜 (fil démo Archicad actif) |
 
+La traduction logicielle de cette séquence vit désormais dans
+[`planning/software-roadmap.md`](planning/software-roadmap.md) et
+[`planning/epics-and-backlog.md`](planning/epics-and-backlog.md).
+
 ## 8 · Ce qui est déjà fonctionnel — le pilote ([`../pilot/`](../pilot/))
 
 Code Python (stdlib), ancré sur les **API publiques gratuites** suisses, poussé sur `main` :
@@ -136,9 +140,15 @@ et validés par CI.
 
 ## 9 · Backlog & gouvernance
 
-- **38 issues** GitHub, **6 milestones** (MVP0→4 + Later), labels de priorité P0–P3, [carte des dépendances #38](https://github.com/decarvalhoe/aedifica/issues/38).
-- Code relié aux issues par commentaires de progression ([#15](https://github.com/decarvalhoe/aedifica/issues/15), [#23](https://github.com/decarvalhoe/aedifica/issues/23), [#24](https://github.com/decarvalhoe/aedifica/issues/24), [#26](https://github.com/decarvalhoe/aedifica/issues/26), [#27](https://github.com/decarvalhoe/aedifica/issues/27)).
-- Décisions tracées dans [`strategy/decisions.md`](strategy/decisions.md) ; corrections en cours dans [`review/foundations-audit.md`](review/foundations-audit.md).
+- La première vague de **38 issues GitHub** est fermée : elle a servi à transformer les fondations en docs,
+  contrats, fixtures et validations.
+- La vague suivante est définie comme backlog logiciel dans
+  [`planning/epics-and-backlog.md`](planning/epics-and-backlog.md) : 13 épics, 51 tâches candidates,
+  milestones `R1` à `R6`, priorités et dépendances.
+- Les listes de delivery, Definition of Ready/Done, release gates et checklists démo vivent dans
+  [`planning/development-checklists.md`](planning/development-checklists.md).
+- Décisions tracées dans [`strategy/decisions.md`](strategy/decisions.md) ; corrections et dette historique
+  restent visibles dans [`review/foundations-audit.md`](review/foundations-audit.md).
 
 ## 10 · Décisions prises & questions ouvertes
 
@@ -146,22 +156,27 @@ et validés par CI.
 fil Archicad) ; pilote **Vaud / Lausanne** ; cold-start **hybride** (ingestion à la demande + corpus semé) ;
 **route réglementaire** composable ; projet **contexte-first** pour les petits projets.
 
-**Ouvertes** : périmètre du « pack-0 » (séparation moteur/pack maintenant vs refactor plus tard) ; **modèle
-économique / qui paie**.
+**Ouvertes pour le passage logiciel** : app locale web vs desktop-local ; stockage `files + manifest` seul vs
+SQLite local ; première démo partenaire après `R1` (permis, Archicad, ou PV chantier) ; prochaine commune à
+ingérer après Lausanne/Pully.
 
 ## 11 · Prochaines étapes
 
-1. Adjacence de voisinage réelle + ombres sur la volumétrie réelle (radar).
-2. Passage à l'échelle : plus de communes (ingestion à la demande).
-3. Formaliser le **moteur neutre + packs** (ADR [#22](https://github.com/decarvalhoe/aedifica/issues/22)).
-4. Prochain bloc produit : copilote **honoraires/coûts**
-   ([#29](https://github.com/decarvalhoe/aedifica/issues/29)/[#30](https://github.com/decarvalhoe/aedifica/issues/30)).
+1. Ouvrir la prochaine vague GitHub à partir des épics `AED-E01` à `AED-E13`.
+2. Construire `R1 Project Workspace` : projet explicite, route réglementaire, brief sourcé, rapport et mémoire.
+3. Ajouter la persistance minimale : manifest, evidence refs, report metadata, premiers records mémoire.
+4. Garder `R2` prêt : complétude dossier, gates phase 33, radar d'opposition et limites explicites.
+5. Préparer le fil partenaire `R4` : inspection Archicad JSON en dry-run, jamais mutation sans ledger/approval.
 
 ## 12 · Carte des documents (où lire quoi)
 
 | Pour… | Lire |
 |---|---|
 | Le pitch visuel (1 page) | [`pitch/aedifica-one-pager.html`](pitch/aedifica-one-pager.html) |
+| Le plan de développement logiciel | [`planning/software-development-plan.md`](planning/software-development-plan.md) |
+| La roadmap d'exécution | [`planning/software-roadmap.md`](planning/software-roadmap.md) |
+| Les épics et le backlog candidat | [`planning/epics-and-backlog.md`](planning/epics-and-backlog.md) |
+| Les listes de delivery | [`planning/development-checklists.md`](planning/development-checklists.md) |
 | La vision complète | [`vision.md`](vision.md) · [`product/holistic-assistance.md`](product/holistic-assistance.md) |
 | Le challenge + brainstorm | [`strategy/challenge-and-brainstorm.md`](strategy/challenge-and-brainstorm.md) |
 | Le métier d'architecte (réel, SIA) | [`strategy/architect-reality.md`](strategy/architect-reality.md) |
@@ -190,4 +205,4 @@ fil Archicad) ; pilote **Vaud / Lausanne** ; cold-start **hybride** (ingestion �
 | La preuve API (Lausanne) | [`strategy/poc-lausanne-parcel.md`](strategy/poc-lausanne-parcel.md) |
 | Le pilote (code) | [`../pilot/README.md`](../pilot/README.md) |
 
-_Dernière mise à jour : 2026-05-29._
+_Dernière mise à jour : 2026-05-31._
