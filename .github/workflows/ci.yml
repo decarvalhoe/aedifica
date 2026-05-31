@@ -60,5 +60,8 @@ jobs:
       - name: Validate site contracts
         run: python pilot/validate_site.py
 
+      - name: Run contract test directory
+        run: python tests/contracts/run_contracts.py
+
       - name: Run offline pilot selfcheck
         run: python pilot/selfcheck.py

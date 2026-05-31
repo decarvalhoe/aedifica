@@ -327,6 +327,14 @@ check("site note generates PV and task register", pv["tasks"] and pv["source_not
 check("defect register fixture has open defects", any(d["status"] in {"open", "pending_review"} for d in defects["defects"]))
 check("handover checklist renders blocked defects", "Handover checklist" in handover_html and "blocked" in handover_html)
 
+print("UI, demo and release hygiene")
+check("app shell screens exist", all(os.path.exists(os.path.join(HERE, "ui", name)) for name in ("app_shell.html", "project_intake.html", "claim_review.html")))
+demo_pack = load("demo", "fixture_pack_manifest.json")
+check("demo fixture pack lists commands and fixtures", bool(demo_pack["fixtures"]) and "python pilot/demo_run.py" in demo_pack["demo_commands"])
+check("contract test directory exists", os.path.exists(os.path.join(os.path.dirname(HERE), "tests", "contracts", "run_contracts.py")))
+check("offline/network test split is documented", os.path.exists(os.path.join(os.path.dirname(HERE), "tests", "offline", "README.md")) and os.path.exists(os.path.join(os.path.dirname(HERE), "tests", "network", "README.md")))
+check("privacy and release checklists exist", os.path.exists(os.path.join(os.path.dirname(HERE), "docs", "security", "project-data-privacy-checklist.md")) and os.path.exists(os.path.join(os.path.dirname(HERE), "docs", "release", "release-checklist.md")))
+
 print("-" * 48)
 print(f"{_n - _fail}/{_n} checks passed" + ("" if not _fail else f"  ({_fail} FAILED)"))
 sys.exit(1 if _fail else 0)

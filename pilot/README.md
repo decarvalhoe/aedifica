@@ -79,6 +79,8 @@ still performing the live OEREB fetch (shown as byte count).
 - `model_bridge_demo.py` — offline dry-run prototype for the local model bridge.
 - `model/archicad_selection_fixture.json` — selected-element fixture for the Archicad JSON bridge contract.
 - `site/`, `validate_site.py` — site note, defect register and handover checklist contracts.
+- `ui/` — static reference screens for app shell, project intake and claim review.
+- `demo_run.py`, `demo/fixture_pack_manifest.json` — offline demo script and fixture pack manifest.
 - `validate_cost.py` — fee/taxonomy validator and in-memory `.crbx` round-trip demo.
 - `selfcheck.py` — offline smoke test of the pure logic, no network (`python pilot/selfcheck.py`).
 - `registry/federal.json`, `registry/canton_vd.json` — shared CH core + VD cantonal layer (refs verified from a live OEREB extract).

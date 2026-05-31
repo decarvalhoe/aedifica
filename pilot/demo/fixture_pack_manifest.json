@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "pack_id": "AEDIFICA-DEMO-PACK-R1",
+  "project_id": "DEMO-LAUSANNE-PALUD",
+  "fixtures": [
+    "projects/demo_lausanne_palud/project.json",
+    "projects/demo_lausanne_palud/evidence/oereb_parsed_CH915772367853.json",
+    "permit/demo_complete_dossier.json",
+    "memory/demo_project_memory.json",
+    "memory/demo_project_ledger.json",
+    "cost/sia102_fee_sample.json",
+    "site/site_note_fixture.json"
+  ],
+  "demo_commands": [
+    "python pilot/demo_run.py",
+    "python pilot/selfcheck.py"
+  ]
+}
