@@ -34,6 +34,9 @@ MILESTONE_GATES = {
     "R4": {"contracts": True, "selfcheck": True, "blocked_live": BLOCKED_LIVE},
     "R5": {"contracts": True, "selfcheck": True, "blocked_live": []},
     "R6": {"contracts": True, "selfcheck": True, "blocked_live": []},
+    # W-waves: the offline backbone is checked here; the product stack (DB+API)
+    # runs as the separate `python -m pytest tests/product` suite (CI product job).
+    "W1": {"contracts": True, "selfcheck": True, "blocked_live": []},
 }
 
 

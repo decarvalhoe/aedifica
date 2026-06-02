@@ -95,3 +95,36 @@ jobs:
 
       - name: Run R1B milestone release gate
         run: python pilot/release_gate.py R1B --no-selfcheck
+
+  product:
+    name: Product stack (DB + API)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.12"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install product dependencies
+        run: pip install -e ".[product,test]"
+
+      - name: Alembic migration applies on a clean SQLite db
+        env:
+          AEDIFICA_DATABASE_URL: sqlite:///ci.db
+        run: python -m alembic upgrade head
+
+      - name: Product test suite (models + repositories + API + ingestion)
+        run: python -m pytest tests/product -q
+
+      - name: Parity — offline engine stays green
+        run: python pilot/selfcheck.py
