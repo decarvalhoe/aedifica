@@ -156,6 +156,30 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         require(user, "project.read")
         return {"claims": repository.claims_for(session, _project(session, user, project_id))}
 
+    @app.get("/api/projects/{project_id}/permit")
+    def project_permit(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.read")
+        _project(session, user, project_id)
+        from . import reports
+
+        return {"permit": reports.permit_view()}
+
+    @app.get("/api/projects/{project_id}/opposition")
+    def project_opposition(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.read")
+        _project(session, user, project_id)
+        from . import reports
+
+        return {"opposition": reports.opposition_view()}
+
+    @app.get("/api/projects/{project_id}/compliance")
+    def project_compliance(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.read")
+        _project(session, user, project_id)
+        from . import reports
+
+        return {"compliance": reports.compliance_view()}
+
     @app.post("/api/projects/{project_id}/brief")
     def generate_brief(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")

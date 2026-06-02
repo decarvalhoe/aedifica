@@ -51,3 +51,10 @@ input.field { font-family:var(--font-mono); font-size:13px; padding:9px 12px; bo
 .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 .list li { margin:6px 0; }
 .mono { font-family:var(--font-mono); font-size:12px; color:var(--mut); }
+.tabs { display:flex; border:1px solid var(--ink); flex-wrap:wrap; }
+.tab { flex:1; min-width:120px; text-align:center; padding:11px 8px; border-right:1px solid var(--ink); background:var(--surface-2); color:var(--ink); font-family:var(--font-mono); font-size:11px; letter-spacing:.07em; text-transform:uppercase; cursor:pointer; }
+.tab:last-child { border-right:0; }
+.tab.active { background:var(--ink); color:var(--surface); }
+.lvl { display:inline-flex; align-items:center; gap:6px; font-family:var(--font-mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; padding:3px 7px; border:1px solid currentColor; line-height:1; white-space:nowrap; }
+.lvl::before { content:""; width:7px; height:7px; background:currentColor; }
+.lvl.faible { color:var(--ts-sourced); } .lvl.modere { color:var(--ts-assume); } .lvl.eleve { color:var(--ts-conflict); } .lvl.inconnu { color:var(--ts-unknown); }
