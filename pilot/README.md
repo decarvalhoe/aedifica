@@ -44,14 +44,16 @@ still performing the live OEREB fetch (shown as byte count).
 
 - `mvp1_demo.py` — the end-to-end demonstrator (commune-aware: Lausanne, Pully).
 - `oereb.py` — robust VD OEREB/RDPPF parser; works for **any VD parcel** (`python pilot/oereb.py <EGRID>`).
-- `opposition_radar.py` — MVP2 opposition/recours-risk radar (`python pilot/opposition_radar.py [addr] [height_m]`).
+- `opposition_radar.py` — MVP2 opposition/recours-risk radar with normalized signals and report rendering (`python pilot/opposition_radar.py [addr] [height_m]`).
 - `fiche.py` — printable **A4 HTML fiche** per parcel combining constraints + envelope + radar (`python pilot/fiche.py [addr] [height_m]` → `pilot/out/`).
 - `selector.py` — the **regulatory route**: composes Federal + canton + commune layers (`python pilot/selector.py`).
+- `parcel_intake.py` — normalizes parcel fixtures, EGRID queries and address queries into one parcel context.
+- `claims.py` — trust-claim envelope validation; sourced regulatory claims require source refs before rendering.
 - `trust.py` — shared non-authority output contract footer and provenance tags.
 - `constraints/mvp1_lausanne_matrix.json` — phase-aware constraint matrix for the Lausanne/VD pilot.
 - `validate_matrix.py` — stdlib validator for the phase-aware matrix.
 - `permit/vd_camac_checklist.json` — Vaud ACTIS-CAMAC baseline permit completeness checklist.
-- `permit/demo_missing_dossier.json` — intentionally incomplete demo dossier proving missing-item detection.
+- `permit/demo_missing_dossier.json`, `permit/demo_complete_dossier.json` — evidence-record demo dossiers proving missing-item detection and zero-blocker completeness.
 - `compliance/ch_phase33_gates.json` — phase-33 compliance gates with legal/contractual typing.
 - `validate_permit.py`, `validate_compliance.py` — stdlib validators for permit and compliance contracts.
 - `research/swiss_phase_lifecycle_matrix.json` — Swiss/SIA-oriented phase lifecycle matrix with
@@ -64,12 +66,26 @@ still performing the live OEREB fetch (shown as byte count).
 - `research/business_positioning.json` — pricing hypothesis and integrate-vs-compete positioning map.
 - `research/multilingual_regulatory_graph.json` — FR/DE/IT canonical regulatory graph contract.
 - `validate_research.py` — stdlib validator for the research backbone.
+- `projects/demo_lausanne_palud/` — first project workspace fixture with manifest, sources, evidence,
+  reports and memory folders.
+- `workspace.py`, `validate_workspace.py` — stdlib project-workspace contract and offline brief generation.
+- Workspace briefs can be saved as JSON and HTML reports with source registry, route, claims, risks, unknowns and
+  report-index metadata. Generated report and evidence references carry SHA-256 hashes for later memory/ledger use.
 - `memory/demo_project_memory.json` — cross-phase project memory fixture with provenance-backed demo queries.
-- `validate_memory.py` — stdlib validator and query demo for project memory.
+- `memory/demo_project_ledger.json` — decision ledger fixture for report generation, decisions, approvals and adapter events.
+- `validate_memory.py`, `validate_ledger.py` — stdlib validators and query demos for project memory and ledger.
 - `cost/` — fee/profitability and eCCC/NPK/CFC bridge fixtures.
+- `cost/tender_assumptions_log.json` — assumptions/exclusions carried into tender offer comparison.
 - `model_bridge_demo.py` — offline dry-run prototype for the local model bridge.
+- `model/archicad_selection_fixture.json` — selected-element fixture for the Archicad JSON bridge contract.
+- `model/design_intent_fixture.json` — structured architect intent fixture for generated room metadata and drawing annotation items.
+- `model/ifc_snapshot_fixture.json`, `model/speckle_snapshot_fixture.json` — neutral later-adapter snapshots for IFC/IfcOpenShell and Speckle baselines.
+- `agent_software_demo.py` — dedicated R1A CLI demo for agent → adapter → dry-run diff.
+- `site/`, `validate_site.py` — site note, defect register and handover checklist contracts.
+- `ui/` — static reference screens for app shell, project intake and claim review.
+- `demo_run.py`, `demo/fixture_pack_manifest.json` — offline demo script and fixture pack manifest.
 - `validate_cost.py` — fee/taxonomy validator and in-memory `.crbx` round-trip demo.
-- `selfcheck.py` — offline smoke test of the pure logic, no network (`python pilot/selfcheck.py`, 48 checks).
+- `selfcheck.py` — offline smoke test of the pure logic, no network (`python pilot/selfcheck.py`).
 - `registry/federal.json`, `registry/canton_vd.json` — shared CH core + VD cantonal layer (refs verified from a live OEREB extract).
 - `lausanne/`, `pully/` — per-commune ingested rulesets (`rpga_zones.json`) + `INGESTION.md` (sources, in-force status, gaps).
   Lausanne is **geometric/IUS**; Pully is **IOS 20 %** — the same engine absorbs both styles (run `selector.py` to see it).
@@ -83,6 +99,7 @@ python pilot/validate_matrix.py
 python pilot/validate_permit.py
 python pilot/validate_compliance.py
 python pilot/validate_research.py
+python pilot/validate_workspace.py
 python pilot/validate_memory.py
 python pilot/validate_cost.py
 ```
@@ -95,6 +112,10 @@ Each regulatory pack declares a `schema_version` and `source_version` (`verified
 `python pilot/validate_packs.py` checks the contract with stdlib only; `python pilot/selfcheck.py` includes
 that validator and the output trust contract in the offline smoke suite. GitHub Actions runs both on pushes and PRs. See
 [`../docs/architecture/jurisdiction-pack-contract.md`](../docs/architecture/jurisdiction-pack-contract.md).
+Project workspaces also persist the selected regulatory route with active layers, inactive layers, timestamps,
+source versions and freshness warnings. Commune support states are documented in
+[`../docs/architecture/commune-support-policy.md`](../docs/architecture/commune-support-policy.md), with a repeatable
+checklist in [`../docs/planning/next-commune-ingestion-checklist.md`](../docs/planning/next-commune-ingestion-checklist.md).
 
 `python pilot/validate_matrix.py` validates the phase-aware constraint matrix described in
 [`../docs/nomos/phase-aware-constraint-matrix.md`](../docs/nomos/phase-aware-constraint-matrix.md).
@@ -106,6 +127,8 @@ project knowledge regime
 described in [`../docs/research/swiss-phase-lifecycle-matrix.md`](../docs/research/swiss-phase-lifecycle-matrix.md)
 [`../docs/research/pilot-source-registry.md`](../docs/research/pilot-source-registry.md), and
 [`../docs/architecture/project-knowledge-regime.md`](../docs/architecture/project-knowledge-regime.md).
+`python pilot/validate_workspace.py` validates the first project workspace fixture used by the R1 software
+planning wave.
 `python pilot/validate_memory.py` validates the cross-phase memory contract described in
 [`../docs/architecture/project-memory-contract.md`](../docs/architecture/project-memory-contract.md).
 

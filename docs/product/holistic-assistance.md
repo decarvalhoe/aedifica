@@ -14,7 +14,8 @@ The product covers nine assistance layers:
 6. **Coordination**: track decisions, consultant inputs, open questions, model versions, and conflicts.
 7. **Procurement**: support quantities, tender packages, offer comparison, assumptions, and exclusions.
 8. **Construction management**: site reports, tasks, defects, photos, costs, schedule, approvals, and handover.
-9. **Tool execution**: act through adapters only when the workflow needs software-side execution.
+9. **Drawing and model assistance**: structured design/drawing intent, model inspection, drawing-set checks, version comparison, BIM/CAD updates and exports.
+10. **Tool execution**: act through adapters only when the workflow needs software-side execution.
 
 ## What This Is Not
 
@@ -25,6 +26,7 @@ Aedifica is not:
 - A generic RAG chatbot.
 - A prompt-to-CAD demo detached from professional process.
 - A replacement for the architect's legal and professional responsibility.
+- A product whose scope is defined by the current pitch/dashboard/report surfaces.
 
 ## What This Is
 
@@ -40,6 +42,8 @@ Project sources
 ```
 
 Tool automation is downstream of that operating layer. The system should first understand what the architect is trying to achieve and what the project allows, then choose whether the next action is a question, a report, a checklist, a model check, a BIM update, an export, a site task, or a human decision.
+
+The multi-software drawing/model API is part of that operating layer's normal action surface, not a side idea. It exists to turn project knowledge into safe architectural work inside Archicad, Revit, Rhino/Grasshopper, SketchUp, AutoCAD/BricsCAD, Vectorworks, IFC, Speckle and office documents, with dry-run and approval before any mutation.
 
 ## Generalization Principle
 

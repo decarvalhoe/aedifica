@@ -1,0 +1,37 @@
+{
+  "evidence_id": "EVIDENCE-OEREB-CH915772367853-2026-05-29",
+  "source_id": "VD-OEREB",
+  "valid_as_of": "2026-05-29",
+  "parcel": "10072",
+  "egrid": "CH915772367853",
+  "commune": "Lausanne",
+  "area_m2": 1673,
+  "zone": "Zone centrale (15 LAT)",
+  "noise_ds": "Degré de sensibilité III",
+  "alignments": ["Limite des constructions définie par un plan approuvé"],
+  "laws": [
+    {
+      "title": "Loi sur l'aménagement du territoire et les constructions",
+      "number": "BLV 700.11",
+      "url": "https://prestations.vd.ch/pub/blv-publication/actes/consolide/700.11"
+    },
+    {
+      "title": "Loi sur l'aménagement du territoire",
+      "number": "RS 700",
+      "url": "https://www.fedlex.admin.ch/eli/cc/1979/1573"
+    }
+  ],
+  "plans": [
+    {
+      "title": "Périmètres des plans d'affectation légalisés",
+      "number": "15 LAT",
+      "url": "https://www.lausanne.ch/"
+    }
+  ],
+  "not_concerned": [
+    "Sites pollués",
+    "Zones de protection des eaux",
+    "Distances à la forêt"
+  ]
+}
+

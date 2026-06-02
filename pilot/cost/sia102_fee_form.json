@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0",
+  "sample_id": "SIA102-FEE-FORM-V0",
+  "title": "Productized SIA 102 fee assumption form",
+  "mandate_size": "small",
+  "human_review_required": true,
+  "source_refs": [
+    {
+      "source_id": "SIA-102-2020",
+      "title": "SIA 102:2020",
+      "url": "https://shop.sia.ch/normenwerk/architekt/102_2020_f/F/Product/",
+      "valid_as_of": "2026-05-31",
+      "usage": "metadata only; paid tables/factors must be supplied by the office"
+    }
+  ],
+  "method_contract": {
+    "supported_methods": ["hourly_model_H_equals_T_times_h"],
+    "default_method": "hourly_model_H_equals_T_times_h",
+    "rule": "Aedifica must not hardcode paid SIA coefficients; it accepts office-provided factors and logs assumptions."
+  },
+  "sample_mandate": {
+    "project_type": "small_housing_transformation",
+    "mandate_size": "small",
+    "phase_code": "33",
+    "estimated_hours": 72,
+    "hourly_rate_chf": 165,
+    "estimated_fee_chf": 11880,
+    "target_margin_percent": 18,
+    "assumptions": [
+      "Hourly model used because paid SIA coefficients are not embedded in the pilot.",
+      "Scope is limited to phase 33 permit coordination for the demo parcel."
+    ],
+    "exclusions": [
+      "Specialist engineering fees (structure, MEP) are excluded from the architect fee.",
+      "Authority emoluments and notary costs are excluded."
+    ],
+    "special_prestations": [
+      {
+        "prestation_id": "SP-FIRE-COORD",
+        "title": "Fire-safety specialist coordination",
+        "pricing_status": "excluded_or_extra",
+        "estimated_hours": 6
+      }
+    ],
+    "absorbed_prestations": [
+      {
+        "flag_id": "ABSORB-PERMIT-FIRE-001",
+        "title": "Fire-safety evidence coordination not priced",
+        "estimated_hours": 6,
+        "phase_code": "33",
+        "action": "Add as special prestation or explicitly exclude."
+      }
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>body{margin:0;padding:24px 26px;background:var(--paper);display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.field{display:flex;flex-direction:column;gap:7px}
+.field label{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--fg-2)}
+.field input,.field select{font-family:var(--font-ui);font-size:15px;color:var(--ink);background:var(--sheet);border:1px solid var(--n-300);border-radius:2px;padding:11px 13px}
+.err input{border-color:var(--st-conflict)}.msg{font-family:var(--font-mono);font-size:11px;color:var(--st-conflict)}</style></head>
+<body>
+  <div class="field"><label>Référence parcelle</label><input value="CH-VD-1004-4412"></div>
+  <div class="field"><label>Zone d'affectation</label><select><option>Zone 2 — moyenne densité</option></select></div>
+  <div class="field err"><label>Hauteur au faîte</label><input value="—"><span class="msg">Donnée inconnue — à sourcer</span></div>
+  <div class="field"><label>Champ verrouillé</label><input value="RDPPF synchronisé" style="background:var(--paper-2);color:var(--n-400)" disabled></div>
+</body></html>

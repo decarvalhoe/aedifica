@@ -1,0 +1,42 @@
+{
+  "adapter_id": "speckle",
+  "source_model_version": "SPECKLE-COMMIT-DEMO-001",
+  "source_model_ref": "speckle://streams/demo/commits/001",
+  "snapshot_mode": "fixture",
+  "property_sets": [
+    {
+      "pset_id": "SPECKLE-DATA",
+      "name": "Speckle Object Data",
+      "properties": ["id", "speckle_type", "applicationId"]
+    },
+    {
+      "pset_id": "AEDIFICA-ROOM",
+      "name": "AEDIFICA_RoomProgram",
+      "properties": ["RoomUsage", "SIA416SurfaceType"]
+    }
+  ],
+  "elements": [
+    {
+      "element_id": "speckle-space-101",
+      "type": "Objects.BuiltElements.Room",
+      "classification": "IfcSpace",
+      "properties": {
+        "Name": "Bureau 101",
+        "RoomUsage": null,
+        "SIA416SurfaceType": null,
+        "NetArea": 24.5
+      },
+      "quantity_refs": ["speckle-qto-space-101"]
+    },
+    {
+      "element_id": "speckle-wall-001",
+      "type": "Objects.BuiltElements.Wall",
+      "classification": "IfcWall",
+      "properties": {
+        "FireRating": "EI30",
+        "RenovationStatus": "New"
+      },
+      "quantity_refs": ["speckle-qto-wall-001"]
+    }
+  ]
+}

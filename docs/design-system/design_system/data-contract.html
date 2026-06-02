@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AEDIFICA — Datum · Data Contract</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="ds.css">
+<style>
+  pre.code { background:var(--ink); color:var(--paper); font-family:var(--font-mono); font-size:12px; line-height:1.65; padding:20px 22px; overflow:auto; border:1px solid var(--ink); }
+  pre.code .k { color:#8FB8D8; background:none; border:none; padding:0; }
+  pre.code .s { color:#C9A36B; }
+  pre.code .c { color:var(--n-400); }
+  .demo-tag { display:inline-flex; align-items:center; gap:7px; font-family:var(--font-mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--st-assumption); border:1px solid var(--st-assumption-line); background:var(--st-assumption-bg); padding:4px 10px; }
+</style>
+</head>
+<body data-page="data-contract">
+
+<main class="ds-wrap">
+  <section class="ds-hero">
+    <p class="ds-eyebrow">§ 08 · Data Contract</p>
+    <h1 class="ds-title-1">The schema behind every surface</h1>
+    <p class="ds-lead">Surfaces are views of this data, not the source. Eight core entities, each typed, each carrying provenance through the state enum. Every value a user sees maps to a field here. Demo fixtures exist for design work — always marked <span class="k">DEMO</span>.</p>
+  </section>
+
+  <section class="doc-section">
+    <div class="doc-section__head"><div class="doc-section__num">§ 08.1</div><div class="doc-section__title"><h2 class="ds-title-2">Trust-state enum</h2><p>The spine of the contract. Every claim and signal carries one of the six trust states; route steps carry a separate workflow status.</p></div></div>
+    <pre class="code"><span class="k">type</span> TrustState =
+  | <span class="s">'sourced'</span>    <span class="c">// backed by a real document + ref</span>
+  | <span class="s">'computed'</span>   <span class="c">// derived from sourced inputs</span>
+  | <span class="s">'assumption'</span> <span class="c">// stated, unverified</span>
+  | <span class="s">'unknown'</span>    <span class="c">// human verification required (dashed)</span>
+  | <span class="s">'conflict'</span>   <span class="c">// sources disagree</span>
+  | <span class="s">'decision'</span>;  <span class="c">// arbitrated, frozen (ink, filled)</span>
+
+<span class="c">// route step / blocker workflow status (not a trust state)</span>
+<span class="k">type</span> RouteStatus = <span class="s">'ready'</span> | <span class="s">'blocked'</span> | <span class="s">'pending'</span>;</pre>
+  </section>
+
+  <section class="doc-section">
+    <div class="doc-section__head"><div class="doc-section__num">§ 08.2</div><div class="doc-section__title"><h2 class="ds-title-2">Entities</h2><p>project · parcel · claim · evidence · route · oppositionSignal · blocker · decision.</p></div></div>
+    <pre class="code"><span class="k">interface</span> Project {
+  id: string; ref: string;            <span class="c">// AED-2026-0042</span>
+  office: string; programme: string;
+  parcel: Parcel;
+  status: State;                      <span class="c">// 'ready' | 'blocked' | …</span>
+  claims: Claim[]; route: Route;
+  oppositionSignals: OppositionSignal[];
+  blockers: Blocker[]; decisions: Decision[];
+  reportIds: string[]; createdAt: string;
+}
+
+<span class="k">interface</span> Parcel {
+  id: string; ref: string;            <span class="c">// CH-VD-1004-4412</span>
+  commune: string; zone: string;
+  area_m2: number; rdppfRef?: string;
+  geometry?: GeoJSON;
+}
+
+<span class="k">interface</span> Claim {
+  id: string; subject: string;        <span class="c">// 'hauteur_faite'</span>
+  statement: string;
+  value?: string | number; unit?: string;
+  state: TrustState; confidence: number;   <span class="c">// 0–1</span>
+  evidenceIds: string[]; source?: string;
+}
+
+<span class="k">interface</span> Evidence {
+  id: string;
+  kind: <span class="s">'pdf'</span> | <span class="s">'extract'</span> | <span class="s">'plan'</span> | <span class="s">'email'</span> | <span class="s">'note'</span>;
+  ref: string; url?: string; page?: number;
+  consultedAt: string; confidence: number;
+}
+
+<span class="k">interface</span> Route {                       <span class="c">// permit-readiness path</span>
+  steps: { id: string; label: string;
+           status: RouteStatus; blockerIds: string[] }[];
+}
+
+<span class="k">interface</span> OppositionSignal {
+  id: string; kind: string; source: string;
+  state: TrustState; confidence: number; note?: string;
+}
+
+<span class="k">interface</span> Blocker {
+  id: string; label: string;
+  severity: <span class="s">'low'</span> | <span class="s">'med'</span> | <span class="s">'high'</span>;
+  status: RouteStatus;                <span class="c">// 'blocked'</span>
+  relatedClaimIds: string[];
+}
+
+<span class="k">interface</span> Decision {                    <span class="c">// append-only ledger</span>
+  id: string;                         <span class="c">// #0042</span>
+  text: string; rationale: string;
+  author: string; date: string;
+  evidenceIds: string[]; supersedes?: string;
+}</pre>
+  </section>
+
+  <section class="doc-section">
+    <div class="doc-section__head"><div class="doc-section__num">§ 08.3</div><div class="doc-section__title"><h2 class="ds-title-2">Demo fixture</h2><p>For design and prototyping only. Never ship as real data.</p></div></div>
+    <p style="margin:0 0 14px"><span class="demo-tag"><svg class="i" style="width:14px;height:14px;color:var(--st-assumption)"><use href="../assets/functional-icons.svg#ic-alert"/></svg>DEMO · not real data</span></p>
+    <pre class="code"><span class="c">// fixtures/demo.project.json — DEMO</span>
+{
+  <span class="s">"id"</span>: <span class="s">"demo-001"</span>, <span class="s">"ref"</span>: <span class="s">"AED-2026-0042"</span>,
+  <span class="s">"_demo"</span>: <span class="k">true</span>,
+  <span class="s">"office"</span>: <span class="s">"Atelier Favre"</span>, <span class="s">"programme"</span>: <span class="s">"Logement collectif"</span>,
+  <span class="s">"status"</span>: <span class="s">"ready"</span>,
+  <span class="s">"parcel"</span>: { <span class="s">"ref"</span>: <span class="s">"CH-VD-1004-4412"</span>, <span class="s">"commune"</span>: <span class="s">"Pully"</span>,
+              <span class="s">"zone"</span>: <span class="s">"Zone 2"</span>, <span class="s">"area_m2"</span>: 1240 },
+  <span class="s">"claims"</span>: [
+    { <span class="s">"subject"</span>: <span class="s">"hauteur_faite"</span>, <span class="s">"value"</span>: 12, <span class="s">"unit"</span>: <span class="s">"m"</span>,
+      <span class="s">"state"</span>: <span class="s">"sourced"</span>, <span class="s">"confidence"</span>: 0.92,
+      <span class="s">"source"</span>: <span class="s">"RPGA art. 19 al. 2"</span> },
+    { <span class="s">"subject"</span>: <span class="s">"recul_est"</span>, <span class="s">"value"</span>: 6, <span class="s">"unit"</span>: <span class="s">"m"</span>,
+      <span class="s">"state"</span>: <span class="s">"assumption"</span>, <span class="s">"confidence"</span>: 0.40 }
+  ],
+  <span class="s">"blockers"</span>: [],
+  <span class="s">"decisions"</span>: [ { <span class="s">"id"</span>: <span class="s">"#0042"</span>, <span class="s">"author"</span>: <span class="s">"M. Favre"</span>,
+                  <span class="s">"date"</span>: <span class="s">"2026-05-14"</span> } ]
+}</pre>
+    <div class="note" style="margin-top:24px">
+      <span class="note__label">Rule</span>
+      Any fixture carries <span class="k">"_demo": true</span> and renders the <span class="k">DEMO</span> tag on screen. Production data never carries the flag. Design surfaces must visibly distinguish demo from sourced data.
+    </div>
+  </section>
+
+</main>
+
+<script src="ds.js"></script>
+</body>
+</html>

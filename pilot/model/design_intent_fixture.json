@@ -1,0 +1,54 @@
+{
+  "intent_id": "INTENT-DEMO-ROOM-PROGRAM-001",
+  "source": {
+    "kind": "architect_prompt",
+    "text": "Prepare selected office zone metadata and a drawing note for phase 32 coordination."
+  },
+  "project_context": {
+    "project_id": "DEMO-LAUSANNE-PALUD",
+    "phase_code": "32",
+    "adapter_id": "archicad_json",
+    "target_model_version": "ARCHICAD-DEMO-V3"
+  },
+  "items": [
+    {
+      "item_id": "ITEM-SPACE-101-USAGE",
+      "kind": "property_update",
+      "target_element_id": "AC-SPACE-101",
+      "property_name": "RoomUsage",
+      "proposed_value": "office",
+      "basis": {
+        "source": "room program",
+        "confidence": "medium",
+        "human_check": "Architect confirms usage before execution."
+      }
+    },
+    {
+      "item_id": "ITEM-SPACE-101-SIA416",
+      "kind": "property_update",
+      "target_element_id": "AC-SPACE-101",
+      "property_name": "SIA416SurfaceType",
+      "proposed_value": "SU",
+      "basis": {
+        "source": "SIA 416 office surface convention supplied by project team",
+        "confidence": "medium",
+        "human_check": "Architect confirms the office convention before execution."
+      }
+    },
+    {
+      "item_id": "ITEM-GF-NOTE-001",
+      "kind": "drawing_annotation",
+      "target_view": "Ground floor coordination",
+      "text": "Check escape width and fire compartment assumption with AEAI specialist.",
+      "basis": {
+        "source": "phase 33 compliance gate carryover",
+        "confidence": "medium",
+        "human_check": "Architect decides whether this note belongs on the coordination view."
+      }
+    }
+  ],
+  "non_goals": [
+    "No geometry mutation in the offline fixture.",
+    "No live Archicad write without explicit approval."
+  ]
+}

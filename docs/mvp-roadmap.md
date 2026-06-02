@@ -1,5 +1,9 @@
 # MVP Roadmap
 
+This is the product/MVP sequence. The software-development execution plan, release gates and issue-ready epics
+are maintained in [`planning/software-roadmap.md`](planning/software-roadmap.md) and
+[`planning/epics-and-backlog.md`](planning/epics-and-backlog.md).
+
 ## MVP 0: Research Foundation
 
 Goal: turn the conversation into a structured project foundation.
@@ -17,13 +21,47 @@ Deliverables:
 The revised sequence is:
 
 1. MVP0 Foundation: neutral engine, NOMOS, trust contract, packs, source registry.
-2. MVP1 NOMOS Archi Intake: parcel -> sourced constraints + buildable envelope.
-3. MVP2 Permit & Opposition: opposition radar, permit completeness, phase `33` compliance gates.
-4. MVP3 Fees, Cost & Tender: SIA 102 fees, eCCC/NPK/CFC bridge, offer comparison.
-5. MVP4 Project Memory & Coordination: site, decisions, handover, operation memory.
+2. R1A Agent-To-Software Demo: agent CLI -> API/adapter -> model/drawing intent -> dry-run diff -> approval/ledger.
+3. R1B NOMOS Archi Intake: parcel -> sourced constraints + buildable envelope inside a project workspace.
+4. MVP2 Permit & Opposition: opposition radar, permit completeness, phase `33` compliance gates.
+5. MVP3 Fees, Cost & Tender: SIA 102 fees, eCCC/NPK/CFC bridge, offer comparison.
+6. MVP4 Project Memory & Coordination: site, decisions, handover, operation memory.
 
-Auto-BIM/Archicad remains a live hybrid demo track for the partner office, but it is not the product identity
-and should not block the regulatory/project-intelligence wedge.
+The regulatory/project-intelligence wedge comes first because it is evidence-backed and useful before BIM
+maturity. It must not collapse the product into a permit/report tool. Auto-BIM, model intelligence and
+controlled drawing assistance remain a native product track behind the same universal API/MCP.
+
+The owner-confirmed adjustment is that the first spectacular proof now ships as `R1A`, before workspace
+productization. This does not make Aedifica Archicad-only; it proves the top-down action layer while the
+bottom-up regulatory spine remains intact.
+
+## R1A: Agent-To-Architecture-Software Demo
+
+Goal: prove that an agent CLI can assist an architect through a multi-software action lifecycle.
+
+Inputs:
+
+- Project context and ledger.
+- Archicad-shaped selected-element fixture, then live Archicad JSON when available.
+- Structured drawing/model intent.
+- Adapter capability matrix.
+
+Outputs:
+
+- Adapter health and capability report.
+- Missing metadata audit.
+- Generated property/annotation action items.
+- Before/after dry-run diff.
+- Approval boundary and ledger evidence.
+
+Success criteria:
+
+- The demo is understandable to a skeptical architect without reading code.
+- The fixture path is clearly marked as fixture mode.
+- The same lifecycle can be reused by live Archicad, IFC, Speckle, Revit, Rhino, SketchUp, AutoCAD/BricsCAD and Vectorworks adapters.
+- No mutation is possible without dry-run and approval.
+
+Spec: [`specs/mvp1a-agent-to-architecture-software-demo.md`](specs/mvp1a-agent-to-architecture-software-demo.md).
 
 ## MVP 1: NOMOS Archi Intake
 
@@ -104,14 +142,16 @@ Capabilities:
 
 Spec: [`specs/mvp4-direction-travaux-agentique.md`](specs/mvp4-direction-travaux-agentique.md).
 
-## Later Track: Auto-BIM / Model Intelligence
+## Native Track: Multi-Software Drawing / Model Intelligence
 
-Goal: inspect a BIM/model state, detect missing or inconsistent project information, propose corrections, apply approved updates through the available adapter, and export deliverables.
+Goal: inspect a BIM/CAD/drawing/model state, detect missing or inconsistent project information, generate structured drawing/model intents, propose corrections, apply approved updates through the available adapter, and export deliverables.
 
 Capabilities:
 
 - Connect first through the most practical project adapter: IFC, Speckle, Archicad JSON/Tapir/Add-On, or another available model source.
 - Extract spaces, elements, attributes, properties, and classifications.
+- Translate approved design intent into safe drawing/model commands.
+- Compare drawings/model snapshots and flag inconsistencies against project memory.
 - Run missing metadata checks.
 - Apply property updates after approval.
 - Export IFC/PDF/DWG where supported.
@@ -120,9 +160,9 @@ Capabilities:
 Note: Archicad is an excellent first real-world adapter because of the initial user context, but this track
 should validate a general model-intelligence capability.
 
-Spec: [`specs/later-model-intelligence.md`](specs/later-model-intelligence.md).
+Spec: [`specs/later-model-intelligence.md`](specs/later-model-intelligence.md) and [`specs/later-voice-to-design.md`](specs/later-voice-to-design.md).
 
-## Later Track: Voice-to-Design Workflow
+## Native Track: Voice-To-Design Workflow
 
 Goal: let an architect describe controlled design actions orally and route them through safe structured commands.
 
@@ -141,5 +181,5 @@ Spec: [`specs/later-voice-to-design.md`](specs/later-voice-to-design.md).
 
 The tender/quantity track is specified in
 [`specs/later-tender-quantity-workflows.md`](specs/later-tender-quantity-workflows.md). Its current strategic
-placement overlaps MVP3 because #29/#30 are the next cost/honoraires implementation block; this later-track
-spec preserves the workflow boundaries while the MVP3 cost contracts are built.
+placement overlaps MVP3 because the cost/honoraires contracts are the next monetizable block; this later-track
+spec preserves the workflow boundaries while the MVP3 software slice is built.

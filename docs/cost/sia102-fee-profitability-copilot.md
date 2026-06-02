@@ -32,7 +32,11 @@ The sample mandate includes:
 - estimated hours;
 - estimated CHF fee;
 - target margin;
+- special prestations with pricing status;
 - absorbed-prestation flags for unpriced fire-safety coordination and opposition response support.
+
+`pilot/validate_cost.py` also exposes a small profitability cockpit object and HTML renderer showing estimated
+fee, absorbed cost, margin risk and assumptions.
 
 Run:
 
@@ -40,4 +44,5 @@ Run:
 python pilot/validate_cost.py
 ```
 
-The validator fails if hours/fee are missing or if no absorbed-prestation flag exists.
+The validator fails if hours/fee/rate/margin are missing, if no special prestation is declared, or if no
+absorbed-prestation flag exists.

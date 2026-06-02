@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" width="320" height="220" role="img" aria-label="AEDIFICA">
+  
+  <text class="wm" x="160" y="78" font-size="64" font-weight="400" text-anchor="middle" fill="#16171A">Æ</text>
+  <text class="wm" x="160" y="138" font-size="38" font-weight="300" letter-spacing="2" text-anchor="middle" fill="#16171A"><tspan font-weight="400">Æ</tspan>DIFICA</text>
+  <path d="M70 152 H180 V147 H250" fill="none" stroke="#C0392B" stroke-width="2"></path>
+</svg>

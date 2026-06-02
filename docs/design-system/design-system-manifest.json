@@ -1,0 +1,135 @@
+{
+  "name": "AEDIFICA — Datum",
+  "version": "v4",
+  "date": "2026-05-31",
+  "status": "validated",
+  "basedOn": "Validated direction 02A Datum (source of truth: project 0b56b66b)",
+  "direction": "02A — Datum · radical Swiss · architectonic · evidence-backed",
+  "sourcePackage": {
+    "file": "C:/Users/decarvalhoe/Downloads/AEDIFICA — Datum Design System.zip",
+    "status": "absolute reference integrated",
+    "integratedAt": "2026-05-31",
+    "rule": "The ZIP package is the complete design-system source. README.md, SKILL.md, colors_and_type.css, design_system/, preview/, screenshots/, assets/ and fonts/ must remain byte-for-byte aligned with it unless the source package is regenerated."
+  },
+  "brandBook": {
+    "file": "aedifica-brand-book.html",
+    "status": "canonical corrected Claude Design export",
+    "sourceProject": "https://claude.ai/design/p/d3d361b0-a9a7-4219-a7fb-d87cba4135a1",
+    "format": "offline HTML deck",
+    "slideCount": 20,
+    "rule": "This brand book is the visual source of truth. Downstream repo surfaces must derive from it, not reinterpret it."
+  },
+  "posture": "Préparation sourcée par AEDIFICA. Pas une autorité. L'architecte reste responsable de la décision et du dépôt.",
+  "surfaceConstraint": {
+    "model": "viewport-fit by default",
+    "bodyScrollbars": "forbidden on product surfaces",
+    "overflowPolicy": "split material into states, slides, chapters, tabs, or export templates instead of extending the page",
+    "brandBookNote": "the brand book is a fixed-slide deck; slide viewport fit is canonical, deck navigation is a reading aid"
+  },
+  "notAuthority": true,
+  "notGenericAssistant": true,
+  "typography": {
+    "display": { "family": "Space Grotesk", "weight": 300, "use": "display + wordmark (Æ ligature 400)" },
+    "ui": { "family": "Space Grotesk", "weights": [400, 500, 600], "use": "UI + body; 600 for titles" },
+    "annotation": { "family": "IBM Plex Mono", "weights": [400, 500], "use": "evidence annotations only" },
+    "forbidden": ["IBM Plex Sans", "any third sans", "Inter", "Roboto", "Arial"]
+  },
+  "fonts": [
+    { "family": "Space Grotesk", "file": "fonts/SpaceGrotesk-Variable.ttf", "axes": "wght 300-700", "source": "Google Fonts OFL" },
+    { "family": "IBM Plex Mono", "file": "fonts/IBMPlexMono-Regular.ttf", "weight": 400, "source": "Google Fonts OFL" },
+    { "family": "IBM Plex Mono", "file": "fonts/IBMPlexMono-Medium.ttf", "weight": 500, "source": "Google Fonts OFL" }
+  ],
+  "color": {
+    "core": { "surface": "#F3F1EC", "surface-2": "#FFFFFF", "ink": "#16171A", "accent": "#C0392B", "accent-2": "#908E85" },
+    "neutral": { "ink-90": "rgba(22,23,26,0.90)", "ink-70": "rgba(22,23,26,0.70)", "ink-50": "rgba(22,23,26,0.50)", "mut": "#87867D", "line": "rgba(22,23,26,0.12)", "line-2": "rgba(22,23,26,0.24)" },
+    "accentNote": "datum red is the active reference line; used sparingly, never as a state"
+  },
+  "trustStates": [
+    { "id": "sourced",    "token": "--ts-sourced",  "value": "#1F7A44", "treatment": "solid",  "meaning": "adossé à une source citable" },
+    { "id": "computed",   "token": "--ts-computed", "value": "#475569", "treatment": "solid",  "meaning": "dérivé par calcul" },
+    { "id": "assumption", "token": "--ts-assume",   "value": "#9A6A10", "treatment": "solid",  "meaning": "hypothèse à confirmer" },
+    { "id": "unknown",    "token": "--ts-unknown",  "value": "#84847A", "treatment": "dashed", "meaning": "vérification humaine requise" },
+    { "id": "conflict",   "token": "--ts-conflict", "value": "#C1122C", "treatment": "solid",  "meaning": "sources en désaccord" },
+    { "id": "decision",   "token": "--ts-decision", "value": "#16171A", "treatment": "ink fill", "meaning": "choix arbitré et figé" }
+  ],
+  "routeStatus": ["ready", "blocked", "pending"],
+  "spacing": { "base": 4, "module": 8, "scale": [4, 8, 12, 16, 24, 32, 48, 64, 96, 128] },
+  "radii": { "r-0": 0, "r-1": 3, "r-2": 4 },
+  "grid": { "columns": 12, "gutter": 24, "margin": 64, "marginSmall": 24, "contentMax": 1200, "measure": "66ch", "baseline": 8 },
+  "elevation": { "model": "flat — hairline borders, no drop shadows", "border-card": "1px solid line-2", "border-hair": "1px solid line", "elev-popover": "overlays only", "elev-overlay": "modals only" },
+  "motion": { "ease-datum": "cubic-bezier(.2,0,0,1)", "dur-1": "120ms", "dur-2": "180ms", "dur-3": "260ms", "respectsReducedMotion": true },
+  "logo": {
+    "type": "typographic wordmark",
+    "wordmark": "ÆDIFICA — Space Grotesk Light 300, Æ ligature weight 400",
+    "datum": "red reference line under the wordmark with a 1-module (6px) fracture step",
+    "annotation": "DATUM +13.50 (mono)",
+    "baselineTagline": "NOT VALIDATED — to be defined",
+    "assets": [
+      "assets/logo-aedifica-horizontal.svg",
+      "assets/logo-aedifica-reverse.svg",
+      "assets/logo-aedifica-stacked.svg",
+      "assets/logo-aedifica-monogram.svg",
+      "assets/favicon.svg"
+    ],
+    "outlining": "outline the wordmark for production artwork"
+  },
+  "icons": {
+    "library": "none",
+    "policy": "aucune bibliothèque externe — no external icon library or icon-package dependency",
+    "style": "24px grid · 1.5px stroke · square caps · miter joins · currentColor",
+    "file": "assets/functional-icons.svg",
+    "validatedSet": ["ic-intake", "ic-claims", "ic-evidence", "ic-decisions", "ic-report", "ic-export", "ic-source", "ic-warning", "ic-check"],
+    "extensions": ["ic-portfolio", "ic-parcel", "ic-permit", "ic-opposition", "ic-map-pin", "ic-layers", "ic-search", "ic-filter", "ic-chevron-right", "ic-chevron-down", "ic-plus", "ic-cross", "ic-clock", "ic-calendar", "ic-datum-target", "ic-datum-dimension", "ic-datum-north", "ic-ledger", "ic-alert"]
+  },
+  "components": [
+    "button (ds-btn, mono uppercase)", "field", "select", "textarea", "checkbox", "tabs", "kpi",
+    "trust-chip (ds-ts)", "claim-card", "evidence-row", "report-card", "ledger-item", "data-table",
+    "empty-state", "loading-state", "error-state", "unknown-state"
+  ],
+  "dataContract": {
+    "trustStateEnum": ["sourced", "computed", "assumption", "unknown", "conflict", "decision"],
+    "routeStatusEnum": ["ready", "blocked", "pending"],
+    "entities": ["Project", "Parcel", "Claim", "Evidence", "Route", "OppositionSignal", "Blocker", "Decision"],
+    "fixtureFlag": "_demo: true",
+    "fixtureNote": "demo fixtures must render a DEMO tag; production data never carries the flag"
+  },
+  "files": [
+    "colors_and_type.css",
+    "aedifica-datum-ui.css",
+    "aedifica-brand-book.html",
+    "design_system/index.html",
+    "design_system/foundations.html",
+    "design_system/typography.html",
+    "design_system/color-states.html",
+    "design_system/logo.html",
+    "design_system/iconography.html",
+    "design_system/components.html",
+    "design_system/report-a4.html",
+    "design_system/data-contract.html",
+    "design_system/accessibility-qa.html",
+    "design_system/implementation.html",
+    "design_system/design-system-manifest.json",
+    "design_system/ds.css",
+    "design_system/ds.js",
+    "README.md",
+    "SKILL.md"
+  ],
+  "surfacesReadyForGeneration": [
+    "landing-produit", "dashboard-portefeuille", "intake-flow", "opposition-radar",
+    "decision-ledger", "report-preview-a4", "sales-one-pager", "brand-book"
+  ],
+  "dependencies": {
+    "runtime": "none",
+    "fonts": "self-hosted (TTF in fonts/)",
+    "icons": "self-hosted sprite (no external library)",
+    "build": "none — static HTML + CSS"
+  },
+  "caveats": [
+    "Wordmark depends on Space Grotesk Light — outline it for production artwork.",
+    "The baseline tagline (\"INTELLIGENCE PROJET · SOURCÉE\") is NOT validated — to be defined; removed from all artwork here.",
+    "Fonts sourced from Google Fonts OFL; swap for licensed masters if required.",
+    "Logo + icon artwork copied from the validated source project (0b56b66b); this pack formalizes that DA, it does not re-invent it.",
+    "Downstream surfaces are derived examples, never the source of the system.",
+    "Product and pitch pages are viewport-fit surfaces by default; visible body scrollbars are treated as a design defect."
+  ]
+}

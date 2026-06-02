@@ -100,21 +100,22 @@ The contract is enforced progressively:
    `[unknown]`.
 2. Jurisdiction packs require source version metadata and confidence fields.
 3. Canonical units must include source refs or render as assumptions/open questions.
-4. Mutating adapter commands must create ledger entries before execution becomes available.
-5. Project reports must include residual unknowns and required human checks.
+4. Workspace HTML reports validate the claim envelope before rendering; a sourced regulatory claim without
+   `source_refs` is refused.
+5. Mutating adapter commands must create ledger entries before execution becomes available.
+6. Project reports must include residual unknowns and required human checks.
 
 ## Minimum Output Footer
 
 Any generated report or recommendation that uses regulatory facts must include:
 
 ```text
-Preparation sourced by Aedifica. Not an authority.
+Preparation sourced by AEDIFICA. Not an authority.
 The architect verifies the cited sources, assumptions, conflicts, and project-specific facts before relying on it.
 ```
 
 ## Open Implementation Work
 
-- Convert the ledger schema to JSON Schema when the first persistent project record exists.
-- Add hashes for captured official extracts and generated reports.
-- Add a renderer that refuses to emit `sourced` regulatory claims without `source_refs`.
-- Add an approval store before any mutating adapter is enabled.
+- Promote the stdlib ledger validator to JSON Schema when packaging is introduced.
+- Expand the approval store beyond the current file-backed primitive.
+- Add signing/identity integration for production approvals.

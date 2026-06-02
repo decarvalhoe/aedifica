@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AEDIFICA — Datum · Typography</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="ds.css">
+</head>
+<body data-page="typography">
+
+<main class="ds-wrap">
+  <section class="ds-hero">
+    <p class="ds-eyebrow">§ 02 · Typography</p>
+    <h1 class="ds-title-1">Two families. One rule each.</h1>
+    <p class="ds-lead">Space Grotesk carries everything visible — display, UI, body. IBM Plex Mono appears for evidence annotations only. There is no third family.</p>
+  </section>
+
+  <!-- THE LOCK -->
+  <section class="doc-section">
+    <div class="doc-section__head">
+      <div class="doc-section__num">§ 02.1</div>
+      <div class="doc-section__title"><h2 class="ds-title-2">The lock</h2><p>Non-negotiable. This is what makes the system itself.</p></div>
+    </div>
+    <div class="cols cols-3">
+      <div class="panel"><p class="ds-eyebrow" style="margin-bottom:10px">Display &amp; wordmark</p><div style="font-family:var(--font-display);font-weight:300;font-size:46px;line-height:1;letter-spacing:-.02em">Aa</div><p class="ds-caption" style="margin-top:12px">Space Grotesk <b>Light 300</b></p></div>
+      <div class="panel"><p class="ds-eyebrow" style="margin-bottom:10px">UI &amp; body</p><div style="font-family:var(--font-ui);font-weight:400;font-size:46px;line-height:1">Aa</div><p class="ds-caption" style="margin-top:12px">Space Grotesk <b>400 / 500</b></p></div>
+      <div class="panel"><p class="ds-eyebrow" style="margin-bottom:10px">Evidence only</p><div style="font-family:var(--font-mono);font-weight:400;font-size:46px;line-height:1">Aa</div><p class="ds-caption" style="margin-top:12px">IBM Plex Mono <b>400 / 500</b></p></div>
+    </div>
+    <div class="note note--warn" style="margin-top:24px">
+      <span class="note__label">Forbidden</span>
+      <b>IBM Plex Sans is banned anywhere in the system.</b> Plex appears as Mono and only for annotations, refs, coordinates and source lines. Do not introduce a third sans, do not italicise the display weight, do not substitute Inter / Roboto / Arial.
+    </div>
+  </section>
+
+  <!-- SPECIMENS -->
+  <section class="doc-section">
+    <div class="doc-section__head">
+      <div class="doc-section__num">§ 02.2</div>
+      <div class="doc-section__title"><h2 class="ds-title-2">Specimens</h2><p>The working scale, top to bottom.</p></div>
+    </div>
+
+    <div style="border-top:1px solid var(--ink)">
+      <div style="display:grid;grid-template-columns:130px 1fr;gap:24px;padding:22px 0;border-bottom:1px solid var(--hairline);align-items:baseline">
+        <div class="mono" style="color:var(--fg-3)">display-1<br>Grotesk 300</div>
+        <div class="ds-display-1">Parcelle 4412</div>
+      </div>
+      <div style="display:grid;grid-template-columns:130px 1fr;gap:24px;padding:22px 0;border-bottom:1px solid var(--hairline);align-items:baseline">
+        <div class="mono" style="color:var(--fg-3)">title-1<br>Grotesk 300</div>
+        <div class="ds-title-1">Permit readiness, sourced</div>
+      </div>
+      <div style="display:grid;grid-template-columns:130px 1fr;gap:24px;padding:22px 0;border-bottom:1px solid var(--hairline);align-items:baseline">
+        <div class="mono" style="color:var(--fg-3)">title-2<br>Grotesk 500</div>
+        <div class="ds-title-2">Opposition risk signals</div>
+      </div>
+      <div style="display:grid;grid-template-columns:130px 1fr;gap:24px;padding:22px 0;border-bottom:1px solid var(--hairline);align-items:baseline">
+        <div class="mono" style="color:var(--fg-3)">title-3<br>Grotesk 500</div>
+        <div class="ds-title-3">Decision ledger — entry 0042</div>
+      </div>
+      <div style="display:grid;grid-template-columns:130px 1fr;gap:24px;padding:22px 0;border-bottom:1px solid var(--hairline);align-items:baseline">
+        <div class="mono" style="color:var(--fg-3)">body<br>Grotesk 400</div>
+        <p class="ds-body">The parcel sits in zone 2 with a height limit of 12 m. Two of three setbacks are confirmed against the cadastral plan; the third is computed and awaits confirmation. We prepare the evidence; we do not decide.</p>
+      </div>
+      <div style="display:grid;grid-template-columns:130px 1fr;gap:24px;padding:22px 0;border-bottom:1px solid var(--hairline);align-items:baseline">
+        <div class="mono" style="color:var(--fg-3)">eyebrow<br>Mono · upper</div>
+        <p class="ds-eyebrow">Le portefeuille · 14 projets</p>
+      </div>
+      <div style="display:grid;grid-template-columns:130px 1fr;gap:24px;padding:22px 0;align-items:baseline">
+        <div class="mono" style="color:var(--fg-3)">evidence<br>Mono 400</div>
+        <p class="evidence">SRC · RDPPF-2024-0917 · art. 19 al. 2 · consulté 2026-05-12 · conf. 0.92</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- RULES -->
+  <section class="doc-section">
+    <div class="doc-section__head">
+      <div class="doc-section__num">§ 02.3</div>
+      <div class="doc-section__title"><h2 class="ds-title-2">Setting rules</h2><p>How the type behaves.</p></div>
+    </div>
+    <table class="spec">
+      <tbody>
+        <tr><td class="tok">tracking · display</td><td class="use">−0.025em on Light display sizes. Never positive tracking on display.</td></tr>
+        <tr><td class="tok">tracking · eyebrow</td><td class="use">+0.16em, uppercase, mono. The signature opening label.</td></tr>
+        <tr><td class="tok">line-height</td><td class="use">1.04 display · 1.2 titles · 1.55 body · 1.4 captions.</td></tr>
+        <tr><td class="tok">measure</td><td class="use">Body wraps at ≤ 68ch. Use <span class="k">text-wrap: pretty</span>.</td></tr>
+        <tr><td class="tok">weight</td><td class="use">300 display · 400 body · 500 emphasis &amp; UI · 600 titles (.ds-title-3) &amp; mono buttons. 700 not used.</td></tr>
+        <tr><td class="tok">case</td><td class="use">Sentence case for content. UPPERCASE only for mono eyebrows and labels.</td></tr>
+        <tr><td class="tok">numerals</td><td class="use">Swiss formats — CHF 1'200.00 · 18.05.2026 · 12 m · 15 %. Mono for tabular data.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+</main>
+
+<script src="ds.js"></script>
+</body>
+</html>

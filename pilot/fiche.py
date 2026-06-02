@@ -19,13 +19,14 @@ except Exception:
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import oereb              # noqa: E402
+import domain             # noqa: E402
 import mvp1_demo as demo  # noqa: E402
 import opposition_radar as radar  # noqa: E402
 import trust              # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "out")
-_RISK_COLOR = {"élevé": "#b60205", "modéré": "#d9822b", "faible": "#1f6f6b"}
+_RISK_COLOR = {"élevé": "var(--ts-conflict)", "modéré": "var(--ts-assume)", "faible": "var(--ts-sourced)"}
 
 
 def esc(x):
@@ -43,8 +44,8 @@ def collect(query, height=None):
         area = float(area)
     except (TypeError, ValueError):
         area = None
-    rpga = demo.load_rpga(o.get("commune"))
-    zname, zp, how = demo.match_zone(rpga, {"zone": o.get("zone"), "parcel": o.get("parcel")})
+    rpga = domain.load_commune_ruleset(o.get("commune"))
+    zname, zp, how = domain.match_communal_zone(rpga, {"zone": o.get("zone"), "parcel": o.get("parcel")})
     rad = radar.score(o, e, n, area, height)
     return {"o": o, "area": area, "zname": zname, "zp": zp or {}, "how": how, "rad": rad}
 
@@ -97,7 +98,7 @@ def render(query, height=None):
         for k, v, t in envelope_rows(zp, d["area"], d["how"])
     )
     grounds = "".join(
-        f'<div class="ground"><div class="gl" style="background:{_RISK_COLOR[g["level"]]}">{esc(g["level"]).upper()}</div>'
+        f'<div class="ground"><div class="gl" style="color:{_RISK_COLOR[g["level"]]}">{esc(g["level"]).upper()}</div>'
         f'<div class="gb"><b>{esc(g["ground"])}</b><br><span class="mut">{esc(g["basis"])}</span>'
         f'<br><span class="mit">→ {esc(g["mitigation"])}</span></div></div>'
         for g in sorted(rad["grounds"], key=lambda x: -{"faible": 1, "modéré": 2, "élevé": 3}[x["level"]])
@@ -108,59 +109,54 @@ def render(query, height=None):
     if d["zname"] and d["how"] == "keyword":
         zone_line += ' <span class="warn">(appariement approximatif)</span>'
     trust_footer = "<br>".join(esc(line) for line in trust.render_footer("fr").splitlines())
-    html_doc = f"""<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
-<title>Aedifica — Fiche parcelle {esc(o.get('parcel'))} ({esc(o.get('commune'))})</title>
-<style>
- :root{{--ink:#16202b;--mut:#6b7886;--line:#e2e6ea;--api:#1f6f6b;--rpga:#b5673f;--calc:#2f6f8f}}
- *{{box-sizing:border-box}} body{{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--ink);margin:0;background:#eceef1;font-size:12px}}
- .pg{{width:210mm;min-height:297mm;margin:10px auto;background:#fff;padding:14mm;box-shadow:0 2px 16px rgba(0,0,0,.12)}}
- h1{{font-size:20px;margin:0}} h1 b{{color:var(--rpga)}} .kick{{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--mut);margin:0 0 3px}}
- header{{border-bottom:2px solid var(--ink);padding-bottom:8px;display:flex;justify-content:space-between;align-items:flex-end}}
- header .r{{text-align:right;color:var(--mut);font-size:10px;line-height:1.5}}
- .lab{{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--api);font-weight:700;margin:14px 0 6px}}
- table{{width:100%;border-collapse:collapse}} td{{padding:3px 4px;border-bottom:1px solid var(--line);vertical-align:top}}
- td:first-child{{color:var(--mut);width:38%}} small{{color:var(--mut)}}
- .tag{{font-size:7.5px;font-weight:700;padding:1px 5px;border-radius:8px;margin-left:6px;color:#fff;vertical-align:middle}}
- .tag.api,.tag.API{{background:var(--api)}} .tag.RPGA{{background:var(--rpga)}} .tag.calc{{background:var(--calc)}}
- .chip{{display:inline-block;font-size:9px;background:#eef1f4;border:1px solid var(--line);border-radius:9px;padding:1px 7px;margin:2px 3px 0 0}}
- .chip.more{{background:var(--ink);color:#fff}} .warn{{color:var(--rpga);font-weight:700}}
- .badge{{display:inline-block;color:#fff;font-weight:800;padding:4px 12px;border-radius:5px;font-size:13px}}
- .ground{{display:flex;gap:9px;margin:6px 0;border:1px solid var(--line);border-radius:5px;padding:7px 8px}}
- .gl{{color:#fff;font-size:8px;font-weight:800;border-radius:3px;padding:3px 6px;height:fit-content;white-space:nowrap}}
- .mut{{color:var(--mut)}} .mit{{color:var(--calc)}}
- .grid{{display:grid;grid-template-columns:1fr 1fr;gap:16px}}
- footer{{margin-top:16px;border-top:1px solid var(--line);padding-top:8px;color:var(--mut);font-size:9px}}
- @media print{{body{{background:#fff}}.pg{{box-shadow:none;margin:0;width:auto;min-height:auto;padding:0}}@page{{size:A4;margin:12mm}}}}
-</style></head><body><div class="pg">
- <header><div><p class="kick">ArchiOS Suisse · Préparation sourcée</p>
-   <h1>AEDIFICA — <b>Fiche parcelle</b></h1></div>
-   <div class="r">{esc(o.get('commune'))} · parcelle {esc(o.get('parcel'))}<br>EGRID {esc(o.get('egrid'))}<br>{today}</div></header>
+    html_doc = f"""<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AEDIFICA — Fiche parcelle {esc(o.get('parcel'))} ({esc(o.get('commune'))})</title>
+<link rel="icon" href="../../docs/design-system/assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../docs/design-system/colors_and_type.css">
+<link rel="stylesheet" href="../../docs/design-system/aedifica-datum-ui.css">
+</head><body class="report-body"><div class="report-sheet">
+ <header>
+   <div class="slide__topline" style="padding-bottom:14px">
+     <span>Fiche parcelle</span><span>Préparation sourcée</span><span>{esc(o.get('commune'))} · {today}</span>
+   </div>
+   <div style="display:flex;justify-content:space-between;gap:24px;align-items:flex-end;padding:22px 0;border-bottom:1px solid var(--ink)">
+     <div>
+       <span class="ds-wordmark" style="font-size:42px"><span class="ae">Æ</span>DIFICA</span>
+       <span class="mini-datum" aria-hidden="true"></span>
+       <h1 class="d-title" style="font-size:30px;margin-top:16px">Préparation — Parcelle {esc(o.get('parcel'))}</h1>
+     </div>
+     <p class="mono" style="text-align:right;color:var(--fg-3);font-size:10px;line-height:1.7">
+       {esc(o.get('commune'))}<br>EGRID {esc(o.get('egrid'))}<br>DATUM +13.50
+     </p>
+   </div>
+ </header>
 
- <div class="grid">
-  <div><p class="lab">Contraintes (sources officielles)<span class="tag api">api</span></p>
-   <table>
+ <div class="report-grid">
+  <div class="report-section"><h2>Contraintes · sources officielles <span class="tag api">api</span></h2>
+   <table class="dt">
     <tr><td>Surface (registre foncier)</td><td><b>{fmt(d['area'])} m²</b></td></tr>
     <tr><td>Zone d'affectation</td><td><b>{esc(o.get('zone'))}</b></td></tr>
     <tr><td>Sensibilité au bruit</td><td>{esc(o.get('noise_ds'))}</td></tr>
     <tr><td>Alignements</td><td>{esc('; '.join(o.get('alignments') or []))}</td></tr>
     <tr><td>Plans légalisés</td><td>{len(o.get('plans') or [])} document(s)</td></tr>
    </table>
-   <p class="lab">Lois applicables</p>{_chips([l['number'] for l in o.get('laws', [])], kind='law')}
-   <p class="lab">Non concerné par</p>{_chips(o.get('not_concerned', []), limit=6, kind='law')}
+   <h2>Lois applicables</h2>{_chips([l['number'] for l in o.get('laws', [])], kind='law')}
+   <h2>Non concerné par</h2>{_chips(o.get('not_concerned', []), limit=6, kind='law')}
   </div>
-  <div><p class="lab">Enveloppe constructible (règlement communal)<span class="tag RPGA">RPGA</span></p>
-   <table><tr><td>Zone (règlement)</td><td><b>{zone_line}</b></td></tr>{env}</table>
-   <p class="lab" style="color:{rc}">Radar d'opposition / recours</p>
-   <p>Risque global : <span class="badge" style="background:{rc}">{esc(rad['overall']).upper()}</span>
+  <div class="report-section"><h2>Enveloppe · règlement communal <span class="tag RPGA">RPGA</span></h2>
+   <table class="dt"><tr><td>Zone (règlement)</td><td><b>{zone_line}</b></td></tr>{env}</table>
+   <h2 style="color:{rc}">Radar d'opposition / recours</h2>
+   <p>Risque global : <span class="badge" style="color:{rc}">{esc(rad['overall']).upper()}</span>
       <span class="mut">&nbsp;score {rad['score']} · {rad['neighbours']} voisins ≤40 m</span></p>
    {grounds}
   </div>
  </div>
 
- <footer><b>{trust_footer}</b>
+ <footer class="a4__foot"><b>{trust_footer}</b><br>
   Contraintes via swisstopo + cadastre RDPPF VD (live) ; enveloppe via le règlement communal ingéré
   ({esc((zp.get('provenance') or {}).get('url',''))[:70]}…) ; radar indicatif (heuristique).
-  Aedifica · pilote Lausanne/VD · {today}.</footer>
+  AEDIFICA · pilote Lausanne/VD · {today}.</footer>
 </div></body></html>"""
 
     os.makedirs(OUT, exist_ok=True)

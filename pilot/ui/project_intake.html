@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AEDIFICA — Project Intake</title>
+  <link rel="icon" href="../../docs/design-system/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../../docs/design-system/colors_and_type.css">
+  <link rel="stylesheet" href="../../docs/design-system/aedifica-datum-ui.css">
+  <style>
+    .ds-ts.is-unknown { color: var(--st-unknown, #84847A); }
+    .ds-ts { white-space: nowrap; }
+    .wsr-actions li { margin: 6px 0; }
+    .wsr-val { font-family: var(--font-mono, monospace); }
+    td, th { word-break: break-word; }
+    .dt th:first-child, .dt td:first-child { width: 132px; white-space: nowrap; }
+  </style>
+</head>
+<body class="datum-viewport datum-surface">
+  <main class="slide" aria-label="AEDIFICA intake">
+    <div class="slide__topline">
+      <span><a href="app_shell.html">Workspace</a></span>
+      <span>Project intake</span>
+      <span><a href="claim_review.html">Claims</a></span>
+    </div>
+    <section class="slide__head">
+      <div class="slide__kicker">
+        <span class="snum">§ 01</span>
+        <span class="ds-eyebrow">Créer le contexte projet</span>
+      </div>
+      <h1 class="d-title">Adresse, EGRID ou parcelle — le contexte d'abord.</h1>
+      <p class="d-lead">L'intake fixe le périmètre, active les packs juridictionnels et prépare la mémoire sourcée. Aucune valeur d'enveloppe n'est inventée : les inconnues restent visibles.</p>
+    </section>
+    <section class="slide__body">
+      <div class="g2" style="height:100%; align-items:start">
+        <form class="panel" aria-label="Project intake form">
+          <div class="g2 gap-tight mobile-g2">
+            <div class="field"><label>Project ID</label><input name="project_id" value="DEMO-LAUSANNE-PALUD"></div>
+            <div class="field"><label>Phase (SIA)</label><input name="phase" value="0"></div>
+            <div class="field"><label>Country</label><input name="country" value="CH"></div>
+            <div class="field"><label>Canton</label><input name="canton" value="VD"></div>
+            <div class="field"><label>Commune</label><input name="commune" value="Lausanne"></div>
+            <div class="field"><label>EGRID</label><input name="egrid" value="CH915772367853"></div>
+            <div class="field"><label>Parcelle</label><input name="parcel" value="10072"></div>
+            <div class="field"><label>Adresse</label><input name="address" placeholder="ou rechercher par adresse"></div>
+          </div>
+          <div style="display:flex;gap:12px;margin-top:18px;flex-wrap:wrap">
+            <button class="ds-btn ds-btn--accent" type="button">Créer le workspace</button>
+            <button class="ds-btn ds-btn--ghost" type="button">Voir la source</button>
+          </div>
+        </form>
+        <aside class="panel panel--accent">
+          <h2>Ce que l'intake produit.</h2>
+          <ul>
+            <li>Route CH / VD / Lausanne avec fraîcheur des packs.</li>
+            <li>Registre de sources et premiers unknowns.</li>
+            <li>Contrat de preuve avant tout rapport ou adapter.</li>
+            <li>Surface suivante : workspace, pas écran marketing.</li>
+          </ul>
+        </aside>
+      </div>
+    </section>
+    <footer class="slide__foot">
+      <span><b>Préparation sourcée par AEDIFICA. Pas une autorité.</b></span>
+      <span>§ intake</span>
+    </footer>
+  </main>
+</body>
+</html>

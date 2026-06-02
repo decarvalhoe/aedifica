@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AEDIFICA — Datum · Components</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="ds.css">
+<style>
+  /* ---- buttons ---- */
+  .btn { font-family:var(--font-ui); font-weight:500; font-size:14px; line-height:1;
+    display:inline-flex; align-items:center; gap:8px; padding:0 20px; height:44px;
+    border:1px solid var(--ink); border-radius:var(--radius-soft); background:transparent;
+    color:var(--ink); cursor:pointer; transition:background var(--dur-1) var(--ease-datum), color var(--dur-1) var(--ease-datum); }
+  .btn svg { width:17px; height:17px; }
+  .btn--primary { background:var(--ink); color:var(--paper); }
+  .btn--primary:hover { background:var(--n-700); }
+  .btn--secondary:hover { background:var(--paper-2); }
+  .btn--trust { background:var(--trust); border-color:var(--trust); color:var(--paper); }
+  .btn--trust:hover { background:var(--trust-ink); border-color:var(--trust-ink); }
+  .btn--ghost { border-color:transparent; padding:0 10px; }
+  .btn--ghost:hover { background:var(--paper-2); }
+  .btn:focus-visible { outline:2px solid var(--trust); outline-offset:2px; }
+  .btn[disabled] { color:var(--n-400); border-color:var(--n-300); background:transparent; cursor:not-allowed; }
+  .btn--sm { height:34px; font-size:13px; padding:0 14px; }
+
+  /* ---- fields ---- */
+  .field { display:flex; flex-direction:column; gap:7px; max-width:340px; }
+  .field label { font-family:var(--font-mono); font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--fg-2); }
+  .field input, .field select, .field textarea {
+    font-family:var(--font-ui); font-size:15px; color:var(--ink); background:var(--sheet);
+    border:1px solid var(--n-300); border-radius:var(--radius-soft); padding:11px 13px; }
+  .field input:focus, .field select:focus, .field textarea:focus { outline:2px solid var(--trust); outline-offset:1px; border-color:var(--trust); }
+  .field--err input { border-color:var(--st-conflict); }
+  .field__msg { font-family:var(--font-mono); font-size:11px; color:var(--st-conflict); }
+  .field input[disabled] { background:var(--paper-2); color:var(--n-400); }
+  .checkrow { display:flex; align-items:center; gap:10px; font-size:14px; }
+  .checkbox { width:18px; height:18px; border:1px solid var(--ink); display:inline-flex; align-items:center; justify-content:center; }
+  .checkbox svg { width:13px; height:13px; color:var(--paper); }
+  .checkbox.on { background:var(--ink); }
+
+  /* ---- tabs ---- */
+  .tabs { display:flex; gap:0; border-bottom:1px solid var(--ink); }
+  .tab { font-family:var(--font-mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+    padding:11px 16px; border-bottom:2px solid transparent; margin-bottom:-1px; color:var(--fg-2); cursor:pointer; background:none; border-top:none; border-left:none; border-right:none; }
+  .tab.on { color:var(--ink); border-bottom-color:var(--ink); }
+
+  /* ---- KPI ---- */
+  .kpi { border:1px solid var(--hairline); background:var(--sheet); padding:18px; }
+  .kpi__label { font-family:var(--font-mono); font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--fg-2); }
+  .kpi__num { font-family:var(--font-display); font-weight:300; font-size:44px; line-height:1; letter-spacing:-.02em; margin:10px 0 8px; }
+  .kpi__foot { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--fg-2); }
+
+  /* ---- chips ---- */
+  .chip { display:inline-flex; align-items:center; gap:6px; font-family:var(--font-mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; padding:3px 7px; border:1px solid currentColor; border-radius:0; }
+  .chip .dot { width:7px; height:7px; background:currentColor; flex:none; }
+
+  /* ---- claim card ---- */
+  .claim { border:1px solid var(--hairline); background:var(--sheet); }
+  .claim__b { padding:16px 18px; }
+  .claim__stmt { font-size:16px; line-height:1.5; }
+  .claim__foot { display:flex; align-items:center; gap:14px; padding:11px 18px; border-top:1px solid var(--hairline); flex-wrap:wrap; }
+  .claim__src { font-family:var(--font-mono); font-size:11px; color:var(--fg-2); }
+  .conf { font-family:var(--font-mono); font-size:11px; color:var(--fg-2); display:flex; align-items:center; gap:7px; margin-left:auto; }
+  .conf__bar { width:54px; height:5px; background:var(--n-200); position:relative; }
+  .conf__bar i { position:absolute; left:0; top:0; bottom:0; background:var(--trust); }
+
+  /* ---- evidence row ---- */
+  .ev { display:grid; grid-template-columns:22px 1fr auto; gap:12px; align-items:center; padding:12px 0; border-bottom:1px solid var(--hairline); }
+  .ev svg { width:18px; height:18px; color:var(--trust); }
+  .ev__main { min-width:0; }
+  .ev__ref { font-family:var(--font-mono); font-size:12px; color:var(--ink); }
+  .ev__meta { font-family:var(--font-mono); font-size:11px; color:var(--fg-3); margin-top:2px; }
+
+  /* ---- report card ---- */
+  .report { border:1px solid var(--hairline); background:var(--sheet); display:grid; grid-template-columns:64px 1fr; }
+  .report__thumb { background:var(--paper-2); border-right:1px solid var(--hairline); display:flex; align-items:center; justify-content:center; }
+  .report__thumb svg { width:26px; height:26px; color:var(--n-500); }
+  .report__b { padding:14px 16px; }
+
+  /* ---- ledger item ---- */
+  .ledger { border-left:3px solid var(--st-decision); background:var(--sheet); border-top:1px solid var(--hairline); border-right:1px solid var(--hairline); border-bottom:1px solid var(--hairline); padding:14px 16px; }
+  .ledger__id { font-family:var(--font-mono); font-size:11px; color:var(--fg-3); }
+  .ledger__meta { font-family:var(--font-mono); font-size:11px; color:var(--fg-2); margin-top:8px; display:flex; gap:16px; flex-wrap:wrap; }
+
+  /* ---- table ---- */
+  .dt { width:100%; border-collapse:collapse; font-size:14px; }
+  .dt th { font-family:var(--font-mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--fg-3); text-align:left; padding:10px 12px; border-bottom:1px solid var(--ink); }
+  .dt td { padding:12px; border-bottom:1px solid var(--hairline); }
+  .dt tr:hover td { background:var(--paper-2); }
+  .dt .num { font-family:var(--font-mono); }
+
+  /* ---- async states ---- */
+  .ph { border:1px dashed var(--n-300); background:var(--sheet); padding:26px; text-align:center; color:var(--fg-2); }
+  .ph__ic { color:var(--n-400); }
+  .ph__ic svg { width:26px; height:26px; }
+  .skl { height:12px; background:linear-gradient(90deg,var(--paper-2),var(--n-100),var(--paper-2)); background-size:200% 100%; animation:sh 1.2s linear infinite; }
+  @keyframes sh { to { background-position:-200% 0; } }
+  @media (prefers-reduced-motion: reduce){ .skl { animation:none; } }
+</style>
+</head>
+<body data-page="components">
+
+<main class="ds-wrap">
+  <section class="ds-hero">
+    <p class="ds-eyebrow">§ 06 · Components</p>
+    <h1 class="ds-title-1">The kit</h1>
+    <p class="ds-lead">Flat, hairline, square-cornered. Built only from the tokens. Each component is the production-intent version — copy these patterns rather than inventing variants.</p>
+  </section>
+
+  <!-- BUTTONS -->
+  <section class="doc-section">
+    <div class="doc-section__head"><div class="doc-section__num">§ 06.1</div><div class="doc-section__title"><h2 class="ds-title-2">Buttons</h2><p>Mono uppercase. Ink-filled primary, ghost outline, datum-red accent for the key sourced action. 44px min height.</p></div></div>
+    <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
+      <button class="ds-btn">Ouvrir le projet</button>
+      <button class="ds-btn ds-btn--ghost">Voir le détail</button>
+      <button class="ds-btn ds-btn--accent"><svg viewBox="0 0 24 24" style="fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:square"><use href="../assets/functional-icons.svg#ic-source"/></svg>Voir la source</button>
+      <button class="ds-btn ds-btn--ghost"><svg viewBox="0 0 24 24"><use href="../assets/functional-icons.svg#ic-export"/></svg>Exporter A4</button>
+      <button class="ds-btn" disabled style="opacity:.4;cursor:not-allowed">Indisponible</button>
+    </div>
+  </section>
+
+  <!-- FIELDS -->
+  <section class="doc-section">
+    <div class="doc-section__head"><div class="doc-section__num">§ 06.2</div><div class="doc-section__title"><h2 class="ds-title-2">Fields</h2><p>Label above, mono. Flat surface, hairline border, accent focus ring.</p></div></div>
+    <div class="cols cols-3">
+      <div class="field"><label>Référence parcelle</label><input value="CH-VD-1004-4412"></div>
+      <div class="field"><label>Zone d'affectation</label><select><option>Zone 2 — moyenne densité</option><option>Zone 1</option><option>Zone village</option></select></div>
+      <div class="field field--err"><label>Hauteur au faîte</label><input value="—"><span class="field__msg">Donnée inconnue — à sourcer</span></div>
+      <div class="field"><label>Note d'intake</label><textarea rows="3">Parcelle en pente, accès par l'est.</textarea></div>
+      <div class="field"><label>Champ verrouillé</label><input value="RDPPF synchronisé" disabled></div>
+      <div class="field" style="justify-content:flex-end">
+        <div class="checkrow"><span class="checkbox on"><svg><use href="../assets/functional-icons.svg#ic-check"/></svg></span> Inclure dans le rapport A4</div>
+        <div class="checkrow"><span class="checkbox"></span> Marquer comme hypothèse</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TABS + KPI -->
+  <section class="doc-section">
+    <div class="doc-section__head"><div class="doc-section__num">§ 06.3</div><div class="doc-section__title"><h2 class="ds-title-2">Tabs &amp; KPI</h2><p>Mono underline tabs. KPI numbers in Space Grotesk Light with a state foot.</p></div></div>
+    <div class="tabs" style="margin-bottom:24px">
+      <button class="tab on">Synthèse</button><button class="tab">Contraintes</button><button class="tab">Opposition</button><button class="tab">Décisions</button>
+    </div>
+    <div class="cols cols-4">
+      <div class="kpi"><div class="kpi__label">Projets actifs</div><div class="kpi__num">14</div><div class="kpi__foot"><span class="chip" style="color:var(--st-ready);border-color:var(--st-ready-line)"><span class="dot"></span>9 ready</span></div></div>
+      <div class="kpi"><div class="kpi__label">Hauteur max</div><div class="kpi__num">12<span style="font-size:20px"> m</span></div><div class="kpi__foot"><span class="state-sq" style="color:var(--st-sourced);background:currentColor;width:13px;height:13px"></span>sourced</div></div>
+      <div class="kpi"><div class="kpi__label">Indice IBUS</div><div class="kpi__num">0.6</div><div class="kpi__foot"><span class="state-sq" style="color:var(--st-computed);background:currentColor;width:13px;height:13px"></span>computed</div></div>
+      <div class="kpi"><div class="kpi__label">Signaux opposition</div><div class="kpi__num">3</div><div class="kpi__foot"><span class="chip" style="color:var(--st-conflict);border-color:var(--st-conflict-line)"><span class="dot"></span>1 conflict</span></div></div>
+    </div>
+  </section>
+
+  <!-- CLAIM CARD + EVIDENCE -->
+  <section class="doc-section">
+    <div class="doc-section__head"><div class="doc-section__num">§ 06.4</div><div class="doc-section__title"><h2 class="ds-title-2">Claim card &amp; evidence row</h2><p>The atomic objects. A claim states something, carries a state, a source and a confidence.</p></div></div>
+    <div class="cols cols-2">
+      <div class="claim">
+        <div class="claim__b">
+          <span class="chip" style="color:var(--st-sourced);background:var(--st-sourced-bg);border-color:var(--st-sourced-line);margin-bottom:12px"><span class="dot"></span>Sourced</span>
+          <p class="claim__stmt">La hauteur maximale au faîte est de <b>12 m</b> en zone 2.</p>
+        </div>
+        <div class="claim__foot">
+          <span class="claim__src">RPGA art. 19 al. 2</span>
+          <span class="conf">conf <span class="conf__bar"><i style="width:92%"></i></span> 0.92</span>
+        </div>
+      </div>
+      <div class="claim">
+        <div class="claim__b">
+          <span class="chip" style="color:var(--st-assumption);background:var(--st-assumption-bg);border-color:var(--st-assumption-line);margin-bottom:12px"><span class="dot"></span>Assumption</span>
+          <p class="claim__stmt">Le recul sur limite est est présumé à <b>6 m</b> — à confirmer au plan.</p>
+        </div>
+        <div class="claim__foot">
+          <span class="claim__src">non sourcé · saisi à l'intake</span>
+          <span class="conf">conf <span class="conf__bar"><i style="width:40%;background:var(--st-assumption)"></i></span> 0.40</span>
+        </div>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:24px">
+      <p class="ds-eyebrow" style="margin-bottom:6px">Evidence</p>
+      <div class="ev"><svg><use href="../assets/functional-icons.svg#ic-evidence"/></svg><div class="ev__main"><div class="ev__ref">RDPPF — extrait cadastral 2024-0917</div><div class="ev__meta">consulté 2026-05-12 · pdf · p. 3 · conf 0.92</div></div><svg style="color:var(--fg-3)"><use href="../assets/functional-icons.svg#ic-source"/></svg></div>
+      <div class="ev"><svg><use href="../assets/functional-icons.svg#ic-evidence"/></svg><div class="ev__main"><div class="ev__ref">RPGA commune — règlement art. 19</div><div class="ev__meta">consulté 2026-05-12 · pdf · art. 19 al. 2 · conf 0.88</div></div><svg style="color:var(--fg-3)"><use href="../assets/functional-icons.svg#ic-source"/></svg></div>
+    </div>
+  </section>
+
+  <!-- REPORT CARD + LEDGER -->
+  <section class="doc-section">
+    <div class="doc-section__head"><div class="doc-section__num">§ 06.5</div><div class="doc-section__title"><h2 class="ds-title-2">Report card &amp; ledger item</h2></div></div>
+    <div class="cols cols-2">
+      <div class="report">
+        <div class="report__thumb"><svg><use href="../assets/functional-icons.svg#ic-report"/></svg></div>
+        <div class="report__b">
+          <div style="display:flex;align-items:center;gap:10px"><span class="ds-title-3" style="font-size:16px">Dossier — Parcelle 4412</span></div>
+          <p class="evidence" style="margin-top:6px;display:block">A4 · 8 p. · 12 sources · 2 unknowns</p>
+          <div style="display:flex;gap:10px;margin-top:12px">
+            <span class="chip" style="color:var(--st-ready);border-color:var(--st-ready-line)"><span class="dot"></span>Ready</span>
+            <button class="btn btn--secondary btn--sm"><svg><use href="../assets/functional-icons.svg#ic-export"/></svg>A4</button>
+          </div>
+        </div>
+      </div>
+      <div class="ledger">
+        <div style="display:flex;align-items:center;gap:10px"><span class="chip" style="color:var(--st-decision);background:var(--st-decision-bg);border-color:var(--st-decision-line)"><span class="dot"></span>Decision</span><span class="ledger__id">#0042</span></div>
+        <p class="ds-body-sm" style="margin:10px 0 0">Retenir l'implantation B (recul est 6 m) malgré l'hypothèse non confirmée, sous réserve du plan géomètre.</p>
+        <div class="ledger__meta"><span>par · M. Favre</span><span>2026-05-14</span><span>3 evidence</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TABLE -->
+  <section class="doc-section">
+    <div class="doc-section__head"><div class="doc-section__num">§ 06.6</div><div class="doc-section__title"><h2 class="ds-title-2">Data table</h2><p>Dense, mono numerals, state cells. Row hover only.</p></div></div>
+    <div class="panel" style="padding:0">
+      <table class="dt">
+        <thead><tr><th>Parcelle</th><th>Commune</th><th>Zone</th><th>Readiness</th><th>Signaux</th></tr></thead>
+        <tbody>
+          <tr><td class="num">4412</td><td>Pully</td><td>Zone 2</td><td><span class="chip" style="color:var(--st-ready);border-color:var(--st-ready-line)"><span class="dot"></span>Ready</span></td><td class="num">0</td></tr>
+          <tr><td class="num">2207</td><td>Lutry</td><td>Village</td><td><span class="chip" style="color:var(--st-blocked);border-color:var(--st-blocked-line)"><span class="dot"></span>Blocked</span></td><td class="num">2</td></tr>
+          <tr><td class="num">8851</td><td>Renens</td><td>Zone 3</td><td><span class="chip" style="color:var(--st-conflict);border-color:var(--st-conflict-line)"><span class="dot"></span>Conflict</span></td><td class="num">1</td></tr>
+          <tr><td class="num">1190</td><td>Morges</td><td>Zone 2</td><td><span class="chip" style="color:var(--st-assumption);border-color:var(--st-assumption-line)"><span class="dot"></span>Assumption</span></td><td class="num">0</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ASYNC STATES -->
+  <section class="doc-section">
+    <div class="doc-section__head"><div class="doc-section__num">§ 06.7</div><div class="doc-section__title"><h2 class="ds-title-2">Empty · Loading · Error · Unknown</h2><p>Every async surface ships all four. Unknown is named, never blank.</p></div></div>
+    <div class="cols cols-4">
+      <div class="ph"><div class="ph__ic"><svg><use href="../assets/functional-icons.svg#ic-portfolio"/></svg></div><p class="ds-body-sm" style="margin-top:10px"><b>Empty</b><br>Aucun projet. Ouvrez un dossier.</p></div>
+      <div class="ph" style="border-style:solid"><div class="skl" style="width:70%;margin:0 auto"></div><div class="skl" style="width:90%;margin:12px auto 0"></div><div class="skl" style="width:50%;margin:12px auto 0"></div><p class="evidence" style="margin-top:14px;display:block;color:var(--fg-3)">Loading…</p></div>
+      <div class="ph" style="border-color:var(--st-conflict-line);color:var(--st-conflict)"><div class="ph__ic" style="color:var(--st-conflict)"><svg><use href="../assets/functional-icons.svg#ic-alert"/></svg></div><p class="ds-body-sm" style="margin-top:10px;color:var(--st-conflict)"><b>Error</b><br>Source indisponible. Réessayer.</p></div>
+      <div class="ph" style="border-color:var(--st-unknown-line)"><div class="ph__ic" style="color:var(--st-unknown)"><span class="state-sq" style="color:var(--st-unknown);width:26px;height:26px"></span></div><p class="ds-body-sm" style="margin-top:10px"><b>Unknown</b><br>Donnée non trouvée. À sourcer.</p></div>
+    </div>
+  </section>
+
+</main>
+
+<script src="ds.js"></script>
+</body>
+</html>

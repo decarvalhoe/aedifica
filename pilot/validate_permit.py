@@ -6,11 +6,25 @@ import json
 import os
 import sys
 
+import datum_html
+
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PERMIT_DIR = os.path.join(HERE, "permit")
 CHECKLIST_VERSION = "1.0"
 ALLOWED_CLAIM_STATES = {"sourced", "computed", "assumption", "unknown", "conflict", "decision"}
+EVIDENCE_STATUSES = {"present", "missing", "pending", "not_applicable", "out_of_scope"}
+PRESENT_EVIDENCE_STATUSES = {"present"}
+OUT_OF_SCOPE_STATUSES = {"not_applicable", "out_of_scope"}
+ACTOR_BY_CATEGORY = {
+    "platform": "architect",
+    "plans": "architect_or_surveyor",
+    "parcel": "architect",
+    "project": "architect",
+    "compliance": "specialist",
+    "special_authorizations": "architect_or_specialist",
+    "aedifica": "aedifica",
+}
 
 
 @dataclass
@@ -42,6 +56,15 @@ def _validate_source_ref(ref, path, report, index):
     for key in ("source_id", "title", "url", "locator", "valid_as_of", "confidence"):
         if not _nonempty_string(ref.get(key)):
             report.add_error(path, f"source_refs[{index}].{key} must be a non-empty string")
+
+
+def _validate_evidence_source_ref(ref, path, report, owner, index):
+    if not isinstance(ref, dict):
+        report.add_error(path, f"{owner}.source_refs[{index}] must be an object")
+        return
+    for key in ("source_id", "locator", "valid_as_of", "confidence"):
+        if not _nonempty_string(ref.get(key)):
+            report.add_error(path, f"{owner}.source_refs[{index}].{key} must be a non-empty string")
 
 
 def _validate_item(item, path, report, seen_sources):
@@ -104,23 +127,141 @@ def validate_checklist(path):
 
 
 def completeness_report(checklist, dossier):
-    evidence = dossier.get("evidence") or {}
+    mapping = map_evidence_to_items(checklist, dossier)
     missing = []
     present = []
+    conditional = []
+    out_of_scope = []
+    groups = {}
+    for item_result in mapping:
+        bucket = groups.setdefault(
+            item_result["category"],
+            {
+                "category": item_result["category"],
+                "actor": item_result["actor"],
+                "present": [],
+                "missing": [],
+                "conditional": [],
+                "out_of_scope": [],
+            },
+        )
+        bucket[item_result["status"]].append(item_result)
+        if item_result["status"] == "present":
+            present.append(item_result["item_id"])
+        elif item_result["status"] == "missing":
+            missing.append(item_result)
+        elif item_result["status"] == "conditional":
+            conditional.append(item_result)
+        elif item_result["status"] == "out_of_scope":
+            out_of_scope.append(item_result)
+    return {
+        "dossier_id": dossier.get("dossier_id"),
+        "checklist_id": checklist.get("checklist_id"),
+        "present": present,
+        "missing": missing,
+        "conditional": conditional,
+        "out_of_scope": out_of_scope,
+        "groups": list(groups.values()),
+        "summary": {
+            "required_blockers": len(missing),
+            "present_count": len(present),
+            "conditional_count": len(conditional),
+            "out_of_scope_count": len(out_of_scope),
+        },
+    }
+
+
+def evidence_records(dossier):
+    records = dossier.get("evidence_records")
+    return records if isinstance(records, list) else []
+
+
+def evidence_by_key(dossier):
+    out = {}
+    for record in evidence_records(dossier):
+        if not isinstance(record, dict):
+            continue
+        out.setdefault(record.get("key"), []).append(record)
+    return out
+
+
+def map_evidence_to_items(checklist, dossier):
+    by_key = evidence_by_key(dossier)
+    results = []
     for item in checklist.get("items", []):
         accepted = item.get("accepted_evidence", [])
-        item_present = any(bool(evidence.get(key)) for key in accepted)
-        if item_present:
-            present.append(item["item_id"])
+        matched = [record for key in accepted for record in by_key.get(key, [])]
+        present_records = [record for record in matched if record.get("status") in PRESENT_EVIDENCE_STATUSES]
+        out_scope_records = [record for record in matched if record.get("status") in OUT_OF_SCOPE_STATUSES]
+        if present_records:
+            status = "present"
+        elif out_scope_records and not item.get("required"):
+            status = "out_of_scope"
         elif item.get("required"):
-            missing.append(
-                {
-                    "item_id": item["item_id"],
-                    "title": item["title"],
-                    "missing_message": item["missing_message"],
-                }
-            )
-    return {"present": present, "missing": missing}
+            status = "missing"
+        else:
+            status = "conditional"
+        results.append(
+            {
+                "item_id": item["item_id"],
+                "title": item["title"],
+                "category": item["category"],
+                "actor": ACTOR_BY_CATEGORY.get(item["category"], "architect"),
+                "required": item.get("required") is True,
+                "status": status,
+                "missing_message": item["missing_message"],
+                "accepted_evidence": accepted,
+                "evidence_records": present_records or out_scope_records,
+            }
+        )
+    return results
+
+
+def render_completeness_html(report):
+    def esc(value):
+        import html
+
+        return html.escape("" if value is None else str(value))
+
+    groups = []
+    for group in report["groups"]:
+        rows = []
+        for status in ("missing", "present", "conditional", "out_of_scope"):
+            for item in group[status]:
+                rows.append(
+                    f"<li class='{esc(status)}'><b>{esc(status)}</b> · {esc(item['title'])}"
+                    + (f"<br><small>{esc(item['missing_message'])}</small>" if status == "missing" else "")
+                    + "</li>"
+                )
+        groups.append(f"<section><h2>{esc(group['actor'])} · {esc(group['category'])}</h2><ul>{''.join(rows)}</ul></section>")
+    body = f"""
+  <h1>Rapport de complétude permis</h1>
+  <p><span class="chip missing">Blockers requis</span> {esc(report['summary']['required_blockers'])}</p>
+  {''.join(groups)}
+"""
+    return datum_html.shell(esc(report["dossier_id"]), "Complétude permis", body)
+
+
+def _validate_evidence_record(record, path, report, index, accepted_keys):
+    if not isinstance(record, dict):
+        report.add_error(path, f"evidence_records[{index}] must be an object")
+        return
+    owner = f"evidence_records[{index}]"
+    for key in ("evidence_id", "key", "kind", "title", "status"):
+        if not _nonempty_string(record.get(key)):
+            report.add_error(path, f"{owner}.{key} must be a non-empty string")
+    if record.get("key") and record["key"] not in accepted_keys:
+        report.add_error(path, f"{owner}.key {record['key']} is not accepted by checklist")
+    if record.get("status") not in EVIDENCE_STATUSES:
+        report.add_error(path, f"{owner}.status must be one of {sorted(EVIDENCE_STATUSES)}")
+    if not (_nonempty_string(record.get("file_ref")) or _nonempty_string(record.get("external_ref"))):
+        report.add_error(path, f"{owner} must include file_ref or external_ref")
+    refs = record.get("source_refs")
+    if not isinstance(refs, list) or not refs:
+        report.add_error(path, f"{owner}.source_refs must be a non-empty list")
+    else:
+        for ref_index, ref in enumerate(refs):
+            _validate_evidence_source_ref(ref, path, report, owner, ref_index)
 
 
 def validate_demo_dossier(checklist_path, dossier_path):
@@ -129,13 +270,29 @@ def validate_demo_dossier(checklist_path, dossier_path):
     dossier = _load(dossier_path)
     if dossier.get("checklist_id") != checklist.get("checklist_id"):
         report.add_error(dossier_path, "dossier checklist_id does not match checklist")
+    accepted_keys = {key for item in checklist.get("items", []) for key in item.get("accepted_evidence", [])}
+    records = dossier.get("evidence_records")
+    if not isinstance(records, list):
+        report.add_error(dossier_path, "evidence_records must be a list")
+        records = []
+    seen_records = set()
+    for index, record in enumerate(records):
+        evidence_id = record.get("evidence_id") if isinstance(record, dict) else None
+        if evidence_id in seen_records:
+            report.add_error(dossier_path, f"duplicate evidence_id {evidence_id}")
+        if evidence_id:
+            seen_records.add(evidence_id)
+        _validate_evidence_record(record, dossier_path, report, index, accepted_keys)
     result = completeness_report(checklist, dossier)
     report.items.append(
         {
             "path": os.path.relpath(dossier_path, HERE),
             "checklist_id": dossier.get("checklist_id"),
-            "missing_count": len(result["missing"]),
+            "missing_count": result["summary"]["required_blockers"],
+            "conditional_count": result["summary"]["conditional_count"],
+            "out_of_scope_count": result["summary"]["out_of_scope_count"],
             "missing": [item["item_id"] for item in result["missing"]],
+            "groups": [group["category"] for group in result["groups"]],
         }
     )
     return report

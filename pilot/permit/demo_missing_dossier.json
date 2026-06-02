@@ -7,19 +7,78 @@
     "commune": "Lausanne",
     "phase_code": "33"
   },
-  "evidence": {
-    "actis_questionnaire_general": true,
-    "site_plan_signed": true,
-    "signed_plans": false,
-    "egrid": true,
-    "parcel_number": true,
-    "oereb_extract": true,
-    "project_description": true,
-    "works_type": true,
-    "energy_form": false,
-    "sia_380_1_calculation": false,
-    "fire_safety_note": false,
-    "eca_fire_position": false,
-    "phase_constraint_matrix": true
-  }
+  "evidence_records": [
+    {
+      "evidence_id": "EVID-PERMIT-QG-DRAFT",
+      "key": "actis_questionnaire_general",
+      "kind": "platform_record",
+      "title": "ACTIS-CAMAC questionnaire general draft",
+      "status": "present",
+      "external_ref": "ACTIS-CAMAC draft workspace",
+      "source_refs": [{"source_id": "VD-REALISER-DOSSIER", "locator": "Questionnaire general", "valid_as_of": "2026-05-29", "confidence": "high"}]
+    },
+    {
+      "evidence_id": "EVID-PERMIT-SITE-PLAN",
+      "key": "site_plan_signed",
+      "kind": "project_document",
+      "title": "Signed site plan placeholder",
+      "status": "present",
+      "file_ref": "project://permit/site_plan_signed.pdf",
+      "source_refs": [{"source_id": "VD-REALISER-DOSSIER", "locator": "Plans requis", "valid_as_of": "2026-05-29", "confidence": "high"}]
+    },
+    {
+      "evidence_id": "EVID-PERMIT-EGRID",
+      "key": "egrid",
+      "kind": "parcel_reference",
+      "title": "Parcel EGRID reference",
+      "status": "present",
+      "external_ref": "CH915772367853",
+      "source_refs": [{"source_id": "VD-CAMAC", "locator": "Parcelle/EGRID", "valid_as_of": "2026-05-29", "confidence": "high"}]
+    },
+    {
+      "evidence_id": "EVID-PERMIT-PARCEL-NUMBER",
+      "key": "parcel_number",
+      "kind": "parcel_reference",
+      "title": "Parcel number reference",
+      "status": "present",
+      "external_ref": "10072",
+      "source_refs": [{"source_id": "VD-CAMAC", "locator": "Parcelle", "valid_as_of": "2026-05-29", "confidence": "high"}]
+    },
+    {
+      "evidence_id": "EVID-PERMIT-OEREB",
+      "key": "oereb_extract",
+      "kind": "api_extract",
+      "title": "Parsed RDPPF/OEREB extract",
+      "status": "present",
+      "file_ref": "project://evidence/oereb_parsed_CH915772367853.json",
+      "source_refs": [{"source_id": "VD-CAMAC", "locator": "RDPPF/OEREB extract", "valid_as_of": "2026-05-29", "confidence": "high"}]
+    },
+    {
+      "evidence_id": "EVID-PERMIT-PROJECT-DESC",
+      "key": "project_description",
+      "kind": "project_note",
+      "title": "Project description",
+      "status": "present",
+      "file_ref": "project://permit/project_description.md",
+      "source_refs": [{"source_id": "VD-PERMIS-CONSTRUIRE", "locator": "Description du projet", "valid_as_of": "2026-05-29", "confidence": "high"}]
+    },
+    {
+      "evidence_id": "EVID-PERMIT-WORKS-TYPE",
+      "key": "works_type",
+      "kind": "project_note",
+      "title": "Works type",
+      "status": "present",
+      "file_ref": "project://permit/works_type.md",
+      "source_refs": [{"source_id": "VD-PERMIS-CONSTRUIRE", "locator": "Type de travaux", "valid_as_of": "2026-05-29", "confidence": "high"}]
+    },
+    {
+      "evidence_id": "EVID-PERMIT-MATRIX",
+      "key": "phase_constraint_matrix",
+      "kind": "aedifica_report",
+      "title": "Phase-aware constraint matrix",
+      "status": "present",
+      "file_ref": "project://constraints/mvp1_lausanne_matrix.json",
+      "source_refs": [{"source_id": "MATRIX-CH-VD-LAUSANNE-MVP1", "locator": "Phase 33 handoff", "valid_as_of": "2026-05-29", "confidence": "medium"}]
+    }
+  ]
 }

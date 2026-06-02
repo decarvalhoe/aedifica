@@ -9,8 +9,8 @@ NOMOS Project Memory
 Canonical Constraint Matrix
   -> Federal, cantonal, communal, SIA, office, and project rules
 
-BIM/Model Layer
-  -> Archicad, Revit, IFC, Speckle, Rhino, DWG
+BIM / CAD / Drawing / Model Layer
+  -> Archicad, Revit, IFC, Speckle, Rhino, SketchUp, DWG/PDF
 
 Agentic Workflow Layer
   -> Strategy, design, BIM, permits, tendering, execution, construction management
@@ -81,7 +81,7 @@ Represents the project in a tool-neutral way:
 - Task.
 - Decision.
 
-This is not a replacement for Archicad or Revit. It is the shared context that lets agents reason across tools and documents.
+This is not a replacement for Archicad or Revit. It is the shared context that lets agents reason across tools, drawings, models and documents.
 
 ### 4. Tool Adapter Layer
 
@@ -98,7 +98,7 @@ Software and workflow systems get adapters:
 - Construction-management tools.
 - Email/calendar/task systems where relevant.
 
-The adapter must expose safe actions through one common API shape.
+The adapter must expose safe actions through one common API shape: inspect, preview, dry-run, approve, execute, verify, ledger.
 
 The core must remain tool-neutral and workflow-first. A first Archicad adapter can validate the approach, but the ontology is the architectural process, not a software API.
 
@@ -139,7 +139,7 @@ For BIM-specific validation, the architecture should consider IFC, IDS, BCF, and
 - Canonical first: no unsupported project truth.
 - Tool neutral: avoid locking the business logic to one CAD/BIM vendor.
 - Workflow first: assist the architect's job before optimizing for a specific tool.
-- Adapter based: connect to Archicad or another tool only where it creates real leverage.
+- Adapter based: connect to Archicad or another tool where it creates real leverage for model, drawing, document or site workflows.
 - Local first where possible: keep desktop tools usable through localhost bridges.
 - Human accountable: agents assist, but the architect remains responsible.
 - Evidence over eloquence: every claim should point to a source or marked assumption.

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AEDIFICA — Claim Review</title>
+  <link rel="icon" href="../../docs/design-system/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../../docs/design-system/colors_and_type.css">
+  <link rel="stylesheet" href="../../docs/design-system/aedifica-datum-ui.css">
+  <style>
+    .ds-ts.is-unknown { color: var(--st-unknown, #84847A); }
+    .ds-ts { white-space: nowrap; }
+    .wsr-actions li { margin: 6px 0; }
+    .wsr-val { font-family: var(--font-mono, monospace); }
+    td, th { word-break: break-word; }
+    .dt th:first-child, .dt td:first-child { width: 132px; white-space: nowrap; }
+  </style>
+</head>
+<body class="datum-viewport datum-surface">
+  <main class="slide" aria-label="AEDIFICA claims">
+    <div class="slide__topline">
+      <span><a href="app_shell.html">Workspace</a></span>
+      <span>Claim review</span>
+      <span><a href="project_intake.html">Intake</a></span>
+    </div>
+    <section class="slide__head">
+      <div class="slide__kicker">
+        <span class="snum">§ 09.3</span>
+        <span class="ds-eyebrow">Claim card · evidence · ledger</span>
+      </div>
+      <h1 class="d-title">Chaque affirmation porte son état.</h1>
+      <p class="d-lead">Sourced, computed, assumption, unknown — une seule grammaire. Les inconnues affichent l'action suivante ; les hypothèses exigent un statut de revue humaine explicite.</p>
+      <p style="margin-top:10px"><span class='ds-ts is-sourced' style='margin-right:8px'><span class='dot'></span>sourced · 5</span><span class='ds-ts is-computed' style='margin-right:8px'><span class='dot'></span>computed · 0</span><span class='ds-ts is-assume' style='margin-right:8px'><span class='dot'></span>assumption · 0</span><span class='ds-ts is-unknown' style='margin-right:8px'><span class='dot'></span>unknown · 5</span><span class='ds-ts is-unknown' style='margin-right:8px'><span class='dot'></span>conflict · 0</span></p>
+    </section>
+    <section class="slide__body">
+      <table class="dt">
+        <thead><tr><th>State</th><th>Claim</th><th>Value</th><th>Evidence</th><th>Human check</th></tr></thead>
+        <tbody><tr><td><span class='ds-ts is-sourced'><span class='dot'></span>sourced</span></td><td>Zone d&#x27;affectation</td><td class='wsr-val'>Zone centrale (15 LAT)</td><td>VD-OEREB</td><td>—</td></tr><tr><td><span class='ds-ts is-sourced'><span class='dot'></span>sourced</span></td><td>Degré de sensibilité au bruit</td><td class='wsr-val'>Degré de sensibilité III</td><td>VD-OEREB</td><td>—</td></tr><tr><td><span class='ds-ts is-sourced'><span class='dot'></span>sourced</span></td><td>Alignements / limites des constructions</td><td class='wsr-val'>Limite des constructions définie par un plan approuvé</td><td>VD-OEREB</td><td>—</td></tr><tr><td><span class='ds-ts is-sourced'><span class='dot'></span>sourced</span></td><td>Zone communale retenue</td><td class='wsr-val'>Centre historique</td><td>COMMUNE-RPGA</td><td>—</td></tr><tr><td><span class='ds-ts is-unknown'><span class='dot'></span>unknown</span></td><td>Surface de plancher maximale</td><td class='wsr-val'>Inconnu</td><td>—</td><td>Aucun IUS/IBUS numerique n&#x27;est disponible; verifier le gabarit communal et le contexte bati.</td></tr><tr><td><span class='ds-ts is-unknown'><span class='dot'></span>unknown</span></td><td>Emprise au sol maximale</td><td class='wsr-val'>Inconnu</td><td>—</td><td>Aucun IOS numerique n&#x27;est disponible; verifier les distances, longueurs et gabarits applicables.</td></tr><tr><td><span class='ds-ts is-unknown'><span class='dot'></span>unknown</span></td><td>Hauteur a la corniche</td><td class='wsr-val'>Inconnu</td><td>—</td><td>Verifier la regle de hauteur dans le reglement communal.</td></tr><tr><td><span class='ds-ts is-unknown'><span class='dot'></span>unknown</span></td><td>Hauteur au faite</td><td class='wsr-val'>Inconnu</td><td>—</td><td>Verifier la regle de hauteur dans le reglement communal.</td></tr><tr><td><span class='ds-ts is-unknown'><span class='dot'></span>unknown</span></td><td>Nombre de niveaux maximal</td><td class='wsr-val'>Inconnu</td><td>—</td><td>Verifier niveaux, combles et attiques dans le reglement communal.</td></tr><tr><td><span class='ds-ts is-sourced'><span class='dot'></span>sourced</span></td><td>Distance minimale aux limites</td><td class='wsr-val'>0</td><td>VD-OEREB, COMMUNE-RPGA</td><td>—</td></tr></tbody>
+      </table>
+    </section>
+    <footer class="slide__foot">
+      <span><b>Préparation sourcée par AEDIFICA. Pas une autorité.</b></span>
+      <span>§ claims</span>
+    </footer>
+  </main>
+</body>
+</html>

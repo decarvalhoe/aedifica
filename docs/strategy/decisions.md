@@ -5,6 +5,25 @@ Lightweight ADR-style record of strategic forks the owner has settled, so the ra
 
 ---
 
+## D-006 — MVP sequence: pull agent-to-software proof into R1A
+
+**Date:** 2026-05-31 · **Status:** Accepted
+
+The product scope is already corrected: Aedifica is a full ArchiOS for architects, not a regulatory-only
+surface and not an Archicad-only plugin. The remaining risk is sequencing. Keeping the multi-software
+drawing/model proof in a later `R4` slot makes the product feel like reports first and architecture-software
+assistance later.
+
+**Decision:** create `R1A Agent-To-Software Demo` before `R1B Project Workspace`. The first demonstrative slice
+must prove the loop `agent CLI -> API/adapter -> architectural model/drawing intent -> dry-run diff -> approval
+boundary -> ledger evidence`.
+
+**Consequence:** the regulatory/project-intelligence spine remains the bottom-up context layer, while a visible
+Archicad-shaped bridge becomes the top-down proof for the skeptical partner architect. Archicad remains the
+first adapter thread, not the product identity. Later live adapters must reuse the same action lifecycle.
+
+Spec: [`../specs/mvp1a-agent-to-architecture-software-demo.md`](../specs/mvp1a-agent-to-architecture-software-demo.md).
+
 ## D-005 — Pitch narrative: holistic per-phase value, not voice-to-design
 
 **Date:** 2026-05-29 · **Status:** Accepted

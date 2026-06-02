@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "report_id": "DEMO-TRANSCRIPT-001",
+  "kind": "demo_transcript",
+  "project_id": "DEMO-LAUSANNE-PALUD",
+  "client_name": "Famille Müller-Rochat",
+  "owner_name": "Müller-Rochat SA",
+  "contact": {
+    "email": "client@example-villa.ch",
+    "phone": "+41 79 123 45 67",
+    "address": "Chemin des Ormeaux 12, 1009 Pully"
+  },
+  "notes": "Appeler le client au 079 123 45 67 ou client@example-villa.ch. Plans dans C:\\Users\\architect\\Clients\\Muller\\plan.pln.",
+  "local_path": "C:\\Users\\architect\\Clients\\Muller\\dossier",
+  "claims": [
+    { "claim_id": "CLAIM-OEREB-ZONE", "state": "sourced", "value": "Zone centrale 15 LAT" },
+    { "claim_id": "CLAIM-ENVELOPE-SBP", "state": "unknown", "value": null }
+  ],
+  "source_refs": [
+    { "source_id": "VD-OEREB", "locator": "EGRID CH915772367853" }
+  ],
+  "content_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+}

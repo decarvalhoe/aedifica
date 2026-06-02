@@ -35,6 +35,7 @@ REQUIRED_ADAPTERS = {
     "rhino_compute",
     "sketchup_ruby",
     "autocad_bricscad",
+    "vectorworks_sdk",
 }
 REQUIRED_PRACTICE_PACKS = {"competitions_study_mandates", "construction_management_tools"}
 REQUIRED_BUSINESS_CATEGORIES = {"authoring_tools", "bauadministration", "standards_rails", "permit_ai", "construction_clouds"}

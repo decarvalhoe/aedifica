@@ -1,0 +1,105 @@
+{
+  "schema_version": "1.0",
+  "project_id": "DEMO-LAUSANNE-PALUD",
+  "name": "Demo Lausanne Palud",
+  "phase_code": "0",
+  "knowledge_regime": "context_first",
+  "jurisdiction": {
+    "country": "CH",
+    "canton": "VD",
+    "commune": "Lausanne"
+  },
+  "parcel": {
+    "egrid": "CH915772367853",
+    "number": "10072",
+    "oereb_parsed_evidence": "evidence/oereb_parsed_CH915772367853.json"
+  },
+  "regulatory_route": {
+    "schema_version": "1.0",
+    "route_id": "CH-VD-LAUSANNE",
+    "country": "CH",
+    "canton": "VD",
+    "commune": "Lausanne",
+    "selected_at": "2026-05-31T00:00:00+02:00",
+    "evaluated_at": "2026-05-31T00:00:00+02:00",
+    "selected_by": "pilot_fixture",
+    "active_layers": [
+      {
+        "layer_id": "CH/federal",
+        "level": "federal",
+        "jurisdiction": "CH",
+        "state": "active",
+        "evaluated_at": "2026-05-31T00:00:00+02:00",
+        "selected_at": "2026-05-31T00:00:00+02:00",
+        "source_ref": "registry/federal.json",
+        "schema_version": "1.0",
+        "source_version_id": "live_verified@2026-05-29",
+        "source_version": {
+          "source_status": "live_verified",
+          "verified_at": "2026-05-29",
+          "review_due": "2026-11-29",
+          "notes": "LAT and OPB refs/URLs verified from a live VD OEREB extract; LHand/AEAI URLs require production re-check."
+        }
+      },
+      {
+        "layer_id": "VD/cantonal",
+        "level": "cantonal",
+        "jurisdiction": "VD",
+        "state": "active",
+        "evaluated_at": "2026-05-31T00:00:00+02:00",
+        "selected_at": "2026-05-31T00:00:00+02:00",
+        "source_ref": "registry/canton_vd.json",
+        "schema_version": "1.0",
+        "source_version_id": "live_verified@2026-05-29",
+        "source_version": {
+          "source_status": "live_verified",
+          "verified_at": "2026-05-29",
+          "review_due": "2026-11-29",
+          "notes": "Refs/URLs verified from a live VD OEREB extract and VD public legal pages."
+        }
+      },
+      {
+        "layer_id": "Lausanne/communal",
+        "level": "communal",
+        "jurisdiction": "Lausanne",
+        "state": "active",
+        "evaluated_at": "2026-05-31T00:00:00+02:00",
+        "selected_at": "2026-05-31T00:00:00+02:00",
+        "source_ref": "lausanne/rpga_zones.json",
+        "schema_version": "1.0",
+        "source_version_id": "official_document_ingested@2026-05-29",
+        "source_version": {
+          "source_status": "official_document_ingested",
+          "verified_at": "2026-05-29",
+          "review_due": "2026-11-29",
+          "notes": "RPGA values are pilot-ingested from the official Lausanne PDF; re-check if MPGA/PACom adoption changes the urban zoning contract."
+        }
+      }
+    ],
+    "inactive_layers": [
+      {
+        "layer_id": "Pully/communal",
+        "level": "communal",
+        "jurisdiction": "Pully",
+        "state": "inactive",
+        "evaluated_at": "2026-05-31T00:00:00+02:00",
+        "inactive_reason": "not_selected_for_project",
+        "source_ref": "pully/rpga_zones.json",
+        "schema_version": "1.0",
+        "source_version_id": "official_document_ingested@2026-05-29",
+        "source_version": {
+          "source_status": "official_document_ingested",
+          "verified_at": "2026-05-29",
+          "review_due": "2026-11-29",
+          "notes": "RCATC values are pilot-ingested from the official Pully PDF; re-check Pully 2040 and zone reserve changes before production use."
+        }
+      }
+    ],
+    "freshness_warnings": []
+  },
+  "trust_contract": {
+    "language": "fr",
+    "footer_required": true,
+    "required_claim_states": ["sourced", "computed", "assumption", "unknown", "conflict", "decision"]
+  }
+}

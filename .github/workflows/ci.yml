@@ -33,14 +33,35 @@ jobs:
       - name: Validate jurisdiction packs
         run: python pilot/validate_packs.py
 
+      - name: Validate commune pack regressions
+        run: python pilot/validate_commune_packs.py
+
+      - name: Validate project manifest schema
+        run: python pilot/validate_manifest.py
+
+      - name: Validate source and evidence store
+        run: python pilot/validate_evidence_store.py
+
+      - name: Validate project-scoped constraint brief
+        run: python pilot/validate_brief.py
+
+      - name: Validate pack freshness gate
+        run: python pilot/validate_freshness.py
+
       - name: Validate phase-aware constraint matrices
         run: python pilot/validate_matrix.py
 
       - name: Validate permit checklists
         run: python pilot/validate_permit.py
 
+      - name: Validate dossier evidence manifest
+        run: python pilot/validate_dossier_evidence.py
+
       - name: Validate compliance gates
         run: python pilot/validate_compliance.py
+
+      - name: Validate phase-33 compliance workspace report
+        run: python pilot/validate_compliance_report.py
 
       - name: Validate research backbone
         run: python pilot/validate_research.py
@@ -48,8 +69,62 @@ jobs:
       - name: Validate project memory
         run: python pilot/validate_memory.py
 
+      - name: Validate project ledger
+        run: python pilot/validate_ledger.py
+
+      - name: Validate project workspace
+        run: python pilot/validate_workspace.py
+
       - name: Validate cost contracts
         run: python pilot/validate_cost.py
 
+      - name: Validate site contracts
+        run: python pilot/validate_site.py
+
+      - name: Validate adapter capability manifests
+        run: python pilot/validate_adapter_capability.py
+
+      - name: Validate privacy redaction pass
+        run: python pilot/validate_redaction.py
+
+      - name: Run contract test directory
+        run: python tests/contracts/run_contracts.py
+
       - name: Run offline pilot selfcheck
+        run: python pilot/selfcheck.py
+
+      - name: Run R1B milestone release gate
+        run: python pilot/release_gate.py R1B --no-selfcheck
+
+  product:
+    name: Product stack (DB + API)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.12"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install product dependencies
+        run: pip install -e ".[product,test]"
+
+      - name: Alembic migration applies on a clean SQLite db
+        env:
+          AEDIFICA_DATABASE_URL: sqlite:///ci.db
+        run: python -m alembic upgrade head
+
+      - name: Product test suite (models + repositories + API + ingestion)
+        run: python -m pytest tests/product -q
+
+      - name: Parity — offline engine stays green
         run: python pilot/selfcheck.py

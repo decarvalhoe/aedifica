@@ -12,8 +12,9 @@ and proposes additions. Treat every claim here as a **proposal for discussion**,
 > full SIA lifecycle, anchored on Switzerland's *binding machine-readable registries* (fedlex,
 > geo.admin.ch, the 26 cantonal geoportals, the RDPPF/ÖREB cadastre and the registre foncier).
 > It assists the architect's **fiduciary, coordinative, economic, regulatory and liability**
-> responsibilities — not just drawing. Software/BIM automation is a *downstream, optional action layer*,
-> never an assumption. The product is **a neutral engine + pluggable jurisdiction packs**; Switzerland
+> responsibilities, including drawing/model assistance when the workflow calls for it. Software/BIM automation
+> is a native *approved action layer*, never the whole product and never an unverified assumption. The product is
+> **a neutral engine + pluggable jurisdiction packs + universal architecture API**; Switzerland
 > is the first, deepest pack — which is exactly what makes the system both internationalizable *and*
 > defensible.
 
@@ -30,8 +31,9 @@ is the wrong flagship for the stated target (small/mid offices), for three sourc
 3. **The architect's real pains are money and risk** — fee erosion, permit/opposition risk, coordination
    liability, cost control — concentrated in SIA phases **32 / 41 / 52**, not in missing IFC properties.
 
-So the wedge moves to **bottom-up, registry-anchored regulatory + permit + cost intelligence that needs
-no BIM model**, and Auto-BIM becomes a later capability for the BIM-mature minority.
+So the first wedge moves to **bottom-up, registry-anchored regulatory + permit + cost intelligence that needs
+no BIM model**. Auto-BIM, model intelligence and controlled drawing assistance remain a native parallel product
+track, scheduled after the first proof points rather than removed from scope.
 
 ## Reading order
 
@@ -50,7 +52,8 @@ no BIM model**, and Auto-BIM becomes a later capability for the BIM-mature minor
 6. [`decisions.md`](decisions.md) — ADR-style log of settled strategic forks (wedge, pilot, cold-start, knowledge arch).
 7. [`poc-lausanne-parcel.md`](poc-lausanne-parcel.md) — **real, executed proof**: binding constraints for a Lausanne parcel from free Swiss APIs (validates the MVP1 pipeline).
 8. [`../specs/mvp1-parcel-constraints-intake.md`](../specs/mvp1-parcel-constraints-intake.md) — implementation-ready MVP1 spec.
-9. [`../pitch/aedifica-one-pager.html`](../pitch/aedifica-one-pager.html) — the visual one-pager (FR) to show the partner office.
+9. [`../pitch/aedifica-one-pager.html`](../pitch/aedifica-one-pager.html) — the viewport-fit visual one-pager (FR) to show the partner office.
+10. [`../design-system/aedifica-brand-book.html`](../design-system/aedifica-brand-book.html) — the canonical corrected Datum brand book export: identity defense, fracture, tokens, design system and surface rules.
 
 ## Relationship to the rest of the repo
 

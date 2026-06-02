@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "checklist_id": "HANDOVER-DEMO-LAUSANNE-PALUD",
+  "project_id": "DEMO-LAUSANNE-PALUD",
+  "phase_code": "61-63",
+  "items": [
+    {"item_id": "HO-KEYS", "title": "Remise des clés", "status": "open", "responsible_party": "Entreprise générale", "due_at": "2026-07-01", "required_evidence": "project://handover/keys_receipt.pdf", "evidence_refs": [{"evidence_id": "EVID-HO-KEYS", "kind": "handover_doc", "file_ref": "project://handover/keys_receipt.pdf"}]},
+    {"item_id": "HO-DEFECTS", "title": "Défauts ouverts traités ou acceptés", "status": "blocked", "responsible_party": "Architecte", "due_at": "2026-06-20", "required_evidence": "project://site/defect_register.json", "evidence_refs": [{"evidence_id": "EVID-HO-DEFECTS", "kind": "defect_register", "file_ref": "project://site/defect_register.json"}]},
+    {"item_id": "HO-WARRANTIES", "title": "Garanties et réserves consignées", "status": "closed", "responsible_party": "Architecte", "due_at": "2026-06-15", "required_evidence": "project://handover/warranties.pdf", "evidence_refs": [{"evidence_id": "EVID-HO-WARRANTIES", "kind": "handover_doc", "file_ref": "project://handover/warranties.pdf"}]},
+    {"item_id": "HO-DOCS", "title": "Documentation entreprise reçue", "status": "open", "responsible_party": "Entreprise générale", "due_at": "2026-07-01", "required_evidence": "project://handover/company_docs.zip", "evidence_refs": [{"evidence_id": "EVID-HO-DOCS", "kind": "handover_doc", "file_ref": "project://handover/company_docs.zip"}]}
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aedifica.dev/schemas/adapter-capability-1.0.json",
+  "title": "Aedifica adapter capability manifest",
+  "description": "Declares read/write/export/dry-run/transaction/verification capabilities for one software adapter. Designed to represent Archicad, IFC, Speckle and future Revit/Rhino/SketchUp/AutoCAD/BricsCAD/Vectorworks adapters.",
+  "type": "object",
+  "required": ["schema_version", "adapter_id", "family", "display_name", "transport", "capabilities"],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "adapter_id": { "type": "string", "minLength": 1 },
+    "family": {
+      "enum": ["archicad", "ifc", "speckle", "revit", "rhino", "sketchup", "autocad", "bricscad", "vectorworks"]
+    },
+    "display_name": { "type": "string", "minLength": 1 },
+    "transport": { "enum": ["json_bridge", "file", "api", "fixture"] },
+    "fixture_mode": { "type": "boolean" },
+    "capabilities": {
+      "type": "object",
+      "required": ["read", "write", "export", "dry_run", "transaction", "verification"],
+      "properties": {
+        "read": { "type": "array", "items": { "type": "string" } },
+        "write": { "type": "array", "items": { "type": "string" } },
+        "export": { "type": "array", "items": { "type": "string" } },
+        "dry_run": { "type": "boolean" },
+        "transaction": { "type": "boolean" },
+        "verification": { "type": "boolean" }
+      }
+    },
+    "notes": { "type": "string" }
+  }
+}

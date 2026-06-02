@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AEDIFICA — Adapter Approval</title>
+  <link rel="stylesheet" href="../../docs/design-system/aedifica-datum-ui.css">
+</head>
+<body>
+  <main class="slide" aria-label="AEDIFICA adapter approval">
+    <header class="slide__head">
+      <div class="slide__kicker"><span>R1A</span><span>Agent → API → logiciel</span></div>
+      <h1 class="d-title">Dry-run avant toute écriture.</h1>
+      <p class="d-lead">Le modèle reste intact tant que l’architecte n’a pas approuvé le périmètre.</p>
+    </header>
+    <section class="slide__body">
+      <div class="panel">
+        <h2>État adapter</h2>
+        <table class="dt">
+          <tbody>
+            <tr><th>Adapter</th><td>archicad_json</td></tr>
+            <tr><th>Mode</th><td>fixture</td></tr>
+            <tr><th>Lecture</th><td>selection · elements · properties</td></tr>
+            <tr><th>Écriture</th><td>bloquée sans approbation ledger</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="panel">
+        <h2>Actions proposées</h2>
+        <table class="dt">
+          <thead><tr><th>Item</th><th>Avant</th><th>Après</th><th>État</th></tr></thead>
+          <tbody>
+            <tr><td>RoomUsage</td><td>unknown</td><td>office</td><td><span class="chip">dry-run</span></td></tr>
+            <tr><td>SIA416SurfaceType</td><td>unknown</td><td>SU</td><td><span class="chip">dry-run</span></td></tr>
+            <tr><td>Annotation</td><td>none</td><td>AEAI check</td><td><span class="chip">review</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <footer class="slide__foot">
+      <span><b>Préparation sourcée par AEDIFICA. Pas une autorité.</b></span>
+      <span>Fixture mode · aucune mutation modèle</span>
+    </footer>
+  </main>
+</body>
+</html>

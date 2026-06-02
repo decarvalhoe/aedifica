@@ -1,0 +1,27 @@
+{
+  "model_version": "ARCHICAD-DEMO-V3",
+  "source_model_ref": "project://models/model_v3.pln",
+  "selected_elements": [
+    {
+      "element_id": "AC-WALL-001",
+      "type": "Wall",
+      "classification": "IfcWall",
+      "properties": {
+        "BuildingMaterial": "Masonry",
+        "FireRating": "EI30",
+        "RenovationStatus": "New"
+      }
+    },
+    {
+      "element_id": "AC-SPACE-101",
+      "type": "Zone",
+      "classification": "IfcSpace",
+      "properties": {
+        "ZoneName": "Bureau 101",
+        "RoomUsage": null,
+        "SIA416SurfaceType": null,
+        "NetArea": 24.5
+      }
+    }
+  ]
+}

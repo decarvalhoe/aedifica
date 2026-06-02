@@ -187,6 +187,56 @@
         }
       ],
       "links": ["MEM-CAMAC-FIRE-OPEN", "MEM-HANDOFF-41-001"]
+    },
+    {
+      "memory_id": "MEM-DEC-31-OPEN",
+      "record_type": "decision",
+      "phase_code": "31",
+      "title": "Open decision: confirm contiguous-context envelope strategy",
+      "summary": "Architect has not yet decided whether to align strictly on the contiguous built gabarit; pending a site visit.",
+      "claim_state": "decision",
+      "status": "open",
+      "source_refs": [
+        {
+          "source_id": "LSN-RPGA",
+          "locator": "Centre historique, contiguous context",
+          "valid_as_of": "2026-05-29",
+          "confidence": "medium"
+        }
+      ],
+      "evidence_refs": [
+        {
+          "evidence_id": "EVID-OEREB-CH915772367853-2026-05-29",
+          "kind": "api_extract",
+          "file_ref": "project://evidence/oereb_CH915772367853.json"
+        }
+      ],
+      "links": ["MEM-DEC-31-001"]
+    },
+    {
+      "memory_id": "MEM-UNK-32-ENVELOPE",
+      "record_type": "change",
+      "phase_code": "32",
+      "title": "Unknown: numeric envelope index pending commune verification",
+      "summary": "No numeric IUS/IBUS is available in open data for the historic centre; the envelope index stays unknown until the communal règlement is verified.",
+      "claim_state": "unknown",
+      "status": "pending_human_review",
+      "source_refs": [
+        {
+          "source_id": "LSN-RPGA",
+          "locator": "Centre historique numeric index",
+          "valid_as_of": "2026-05-29",
+          "confidence": "low"
+        }
+      ],
+      "evidence_refs": [
+        {
+          "evidence_id": "EVID-OEREB-CH915772367853-2026-05-29",
+          "kind": "api_extract",
+          "file_ref": "project://evidence/oereb_CH915772367853.json"
+        }
+      ],
+      "links": ["MEM-DEC-31-OPEN"]
     }
   ],
   "queries": [
@@ -216,6 +266,41 @@
         "phase_code": "33"
       },
       "expected_record_ids": ["MEM-CHANGE-V4-ENERGY", "MEM-CAMAC-FIRE-OPEN"]
+    },
+    {
+      "query_id": "Q-CARRYOVER-PERMIT-BLOCKERS",
+      "question": "Which blockers are still open before permit filing?",
+      "intent": "open_blockers_before_permit",
+      "parameters": {},
+      "expected_record_ids": ["MEM-CHANGE-V4-ENERGY", "MEM-CAMAC-FIRE-OPEN"]
+    },
+    {
+      "query_id": "Q-CARRYOVER-TENDER-SITE",
+      "question": "Which conditions must carry to tender or site?",
+      "intent": "conditions_for_tender_site",
+      "parameters": {},
+      "expected_record_ids": ["MEM-HANDOFF-41-001", "MEM-SITE-52-001"]
+    },
+    {
+      "query_id": "Q-CHANGES-SINCE-REPORT",
+      "question": "Which active changes or generated records occurred since a report?",
+      "intent": "changes_since_report",
+      "parameters": {"report_id": "BRIEF-DEMO-LAUSANNE-PALUD-PARCEL"},
+      "expected_record_ids": ["MEM-CHANGE-V4-ENERGY"]
+    },
+    {
+      "query_id": "Q-OPEN-DECISIONS",
+      "question": "Which decisions are still open?",
+      "intent": "open_decisions",
+      "parameters": {},
+      "expected_record_ids": ["MEM-DEC-31-OPEN"]
+    },
+    {
+      "query_id": "Q-UNKNOWN-CLAIMS",
+      "question": "Which claims are still unknown and need human review?",
+      "intent": "unknown_claims",
+      "parameters": {},
+      "expected_record_ids": ["MEM-UNK-32-ENVELOPE"]
     }
   ]
 }

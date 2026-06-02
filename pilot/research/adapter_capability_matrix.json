@@ -54,6 +54,12 @@
       "title": "SketchUp Ruby API",
       "url": "https://help.sketchup.com/en/sketchup/developing-tools-sketchup-ruby-api-and-console",
       "valid_as_of": "2026-05-31"
+    },
+    {
+      "source_id": "VECTORWORKS-SDK",
+      "title": "Vectorworks SDK downloads and scripting resources",
+      "url": "https://www.vectorworks.net/en-US/support/custom/sdk/sdkdown",
+      "valid_as_of": "2026-05-31"
     }
   ],
   "adapters": [
@@ -136,6 +142,16 @@
       "export_capabilities": ["dwg_pdf_batches"],
       "limits": ["cad_semantics_are_layer/block_based", "bim_context_must_be_inferred"],
       "recommended_use": "Later drawing/document automation, not canonical project memory."
+    },
+    {
+      "adapter_id": "vectorworks_sdk",
+      "issues": [14, 80],
+      "kind": "desktop_sdk_and_scripting",
+      "read_capabilities": ["document_objects", "layers_classes", "records", "resources"],
+      "write_capabilities": ["scripts", "plugins", "object_records", "drawing_commands"],
+      "export_capabilities": ["configured_file_exports", "worksheet_reports"],
+      "limits": ["desktop_runtime_required", "plugin_distribution_required", "bim_semantics_depend_on_office_usage"],
+      "recommended_use": "Later adapter for offices using Vectorworks; treat as a software-specific bridge behind the same dry-run and approval lifecycle."
     }
   ]
 }

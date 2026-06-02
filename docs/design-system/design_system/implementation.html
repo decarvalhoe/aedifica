@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AEDIFICA — Datum · Implementation</title>
+<link rel="stylesheet" href="../colors_and_type.css">
+<link rel="stylesheet" href="ds.css">
+<style>
+  pre.code { background:var(--ink); color:var(--paper); font-family:var(--font-mono); font-size:12px; line-height:1.65; padding:20px 22px; overflow:auto; border:1px solid var(--ink); }
+  pre.code .k { color:#8FB8D8; background:none; border:none; padding:0; }
+  pre.code .s { color:#C9A36B; }
+  pre.code .c { color:var(--n-400); }
+</style>
+</head>
+<body data-page="implementation">
+
+<main class="ds-wrap">
+  <section class="ds-hero">
+    <p class="ds-eyebrow">§ 10 · Implementation</p>
+    <h1 class="ds-title-1">Build with it</h1>
+    <p class="ds-lead">Recipes, naming, and handoff. Link the token layer, copy the assets, and compose from the components. Don't re-derive values — they all live in <span class="k">colors_and_type.css</span>.</p>
+  </section>
+
+  <!-- QUICK START -->
+  <section class="doc-section">
+    <div class="doc-section__head"><div class="doc-section__num">§ 10.1</div><div class="doc-section__title"><h2 class="ds-title-2">Quick start</h2></div></div>
+    <pre class="code"><span class="c">&lt;!-- 1. token layer · 2. your page --&gt;</span>
+&lt;link rel="stylesheet" href="colors_and_type.css"&gt;
+
+&lt;body style="background:var(--paper); color:var(--fg-1);
+              font-family:var(--font-ui)"&gt;
+
+  &lt;p class="ds-eyebrow"&gt;Le portefeuille&lt;/p&gt;
+  &lt;h1 class="ds-display-1"&gt;Parcelle 4412&lt;/h1&gt;
+
+  &lt;span class="chip" style="color:var(--st-sourced);
+        background:var(--st-sourced-bg);
+        border-color:var(--st-sourced-line)"&gt;Sourced&lt;/span&gt;
+
+  &lt;svg class="i"&gt;&lt;use href="assets/functional-icons.svg#ic-parcel"/&gt;&lt;/svg&gt;
+&lt;/body&gt;</pre>
+  </section>
+
+  <!-- NAMING -->
+  <section class="doc-section">
+    <div class="doc-section__head"><div class="doc-section__num">§ 10.2</div><div class="doc-section__title"><h2 class="ds-title-2">Naming conventions</h2></div></div>
+    <table class="spec">
+      <thead><tr><th>Prefix</th><th>Meaning</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td class="tok">--ink / --paper / --sheet</td><td class="use">core surfaces</td><td class="val">var(--paper)</td></tr>
+        <tr><td class="tok">--n-*</td><td class="use">neutral ramp (0–900)</td><td class="val">var(--n-500)</td></tr>
+        <tr><td class="tok">--accent / --accent-2</td><td class="use">datum red / concrete grey</td><td class="val">var(--accent)</td></tr>
+        <tr><td class="tok">--ts-{state}</td><td class="use">trust-state hue (six)</td><td class="val">var(--ts-conflict)</td></tr>
+        <tr><td class="tok">--fs-* / --fw-*</td><td class="use">type size / weight</td><td class="val">var(--fs-body)</td></tr>
+        <tr><td class="tok">--s-* / --su</td><td class="use">spacing scale / module</td><td class="val">var(--s-5)</td></tr>
+        <tr><td class="tok">.ds-*</td><td class="use">type classes</td><td class="val">.ds-display-1</td></tr>
+        <tr><td class="tok">ic-*</td><td class="use">sprite symbol ids</td><td class="val">#ic-parcel</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- REACT HANDOFF -->
+  <section class="doc-section">
+    <div class="doc-section__head"><div class="doc-section__num">§ 10.3</div><div class="doc-section__title"><h2 class="ds-title-2">React handoff</h2><p>The state model maps to one tiny component. Drive everything off the <span class="k">State</span> enum.</p></div></div>
+    <pre class="code"><span class="k">const</span> STATE = {
+  sourced:    { hue:<span class="s">'#1F7A44'</span>, dot:<span class="s">'filled'</span> },
+  computed:   { hue:<span class="s">'#475569'</span>, dot:<span class="s">'filled'</span> },
+  assumption: { hue:<span class="s">'#9A6A10'</span>, dot:<span class="s">'filled'</span> },
+  unknown:    { hue:<span class="s">'#84847A'</span>, dot:<span class="s">'hollow'</span>, border:<span class="s">'dashed'</span> },
+  conflict:   { hue:<span class="s">'#C1122C'</span>, dot:<span class="s">'filled'</span> },
+  decision:   { hue:<span class="s">'#16171A'</span>, fill:<span class="k">true</span>, dot:<span class="s">'white'</span> },
+};
+
+<span class="k">function</span> StateChip({ state }) {
+  <span class="k">const</span> s = STATE[state];
+  <span class="k">return</span> (
+    &lt;span className={`ds-ts is-${state}`}&gt;
+      &lt;span className="dot" /&gt; {state}
+    &lt;/span&gt;
+  );
+}</pre>
+    <div class="note" style="margin-top:20px"><span class="note__label">Rule</span> Never render a state with colour alone — always include the label. The <span class="k">.ds-ts.is-{state}</span> class carries hue, border and dot; the JS map mirrors the CSS custom properties for convenience, not as a second source of truth.</div>
+  </section>
+
+  <!-- FILE INVENTORY -->
+  <section class="doc-section">
+    <div class="doc-section__head"><div class="doc-section__num">§ 10.4</div><div class="doc-section__title"><h2 class="ds-title-2">File inventory</h2></div></div>
+    <table class="spec">
+      <tbody>
+        <tr><td class="tok">colors_and_type.css</td><td class="use">canonical token layer + base type classes</td></tr>
+        <tr><td class="tok">design_system/*.html</td><td class="use">the 11 navigable system pages</td></tr>
+        <tr><td class="tok">design_system/ds.css · ds.js</td><td class="use">doc chrome + injected header/nav/disclaimer</td></tr>
+        <tr><td class="tok">design_system/design-system-manifest.json</td><td class="use">machine-readable inventory (v4)</td></tr>
+        <tr><td class="tok">assets/logo-aedifica-*.svg</td><td class="use">ÆDIFICA wordmark lockups + favicon</td></tr>
+        <tr><td class="tok">assets/functional-icons.svg</td><td class="use">proprietary sprite — no external library</td></tr>
+        <tr><td class="tok">fonts/</td><td class="use">Space Grotesk (variable) · IBM Plex Mono</td></tr>
+        <tr><td class="tok">README.md · SKILL.md</td><td class="use">human + agent entry points</td></tr>
+        <tr><td class="tok">preview/</td><td class="use">specimen cards for the Design System tab</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- SKILL PROMPT -->
+  <section class="doc-section">
+    <div class="doc-section__head"><div class="doc-section__num">§ 10.5</div><div class="doc-section__title"><h2 class="ds-title-2">Skill prompt</h2><p>What an agent should hold in mind when generating an AEDIFICA surface.</p></div></div>
+    <pre class="code"><span class="c">## AEDIFICA — Datum</span>
+Radical Swiss, architectonic, evidence-backed. Ink on warm paper,
+square corners, hairline structure, datum lines, controlled density.
+
+DO   · Space Grotesk (300 display / 400-500 UI) + IBM Plex Mono (annotations)
+     · every claim carries a trust state (sourced…decision), colour + label
+     · keep the disclaimer: "Préparation sourcée par AEDIFICA. Pas une autorité."
+     · use the proprietary sprite; mark demo data DEMO
+
+DON'T· no gradient, blob, glassmorphism, neumorphism, drop-shadow magic
+     · no authority posture, no guaranteed outcome
+     · no IBM Plex Sans, no third sans, no external icon library
+     · never invent values — read colors_and_type.css</pre>
+  </section>
+
+</main>
+
+<script src="ds.js"></script>
+</body>
+</html>

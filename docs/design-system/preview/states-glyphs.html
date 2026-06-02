@@ -1,0 +1,16 @@
+<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><link rel="stylesheet" href="../colors_and_type.css">
+<style>body{margin:0;padding:24px 26px;background:var(--surface)}
+.row{display:grid;grid-template-columns:repeat(3,1fr);gap:18px 16px}
+.cell{display:flex;align-items:center;gap:11px}
+.sq{width:30px;height:30px;flex:none;border:1.5px solid currentColor}
+.solid{background:currentColor}.dash{border-style:dashed;background:transparent}
+.lbl{font-family:var(--font-mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+.sub{font-family:var(--font-mono);font-size:9px;color:var(--mut);display:block;margin-top:2px;text-transform:none;letter-spacing:0}</style></head>
+<body><div class="row">
+  <div class="cell" style="color:var(--ts-sourced)"><span class="sq solid"></span><span class="lbl">Sourced<span class="sub">source citable</span></span></div>
+  <div class="cell" style="color:var(--ts-computed)"><span class="sq solid"></span><span class="lbl">Computed<span class="sub">dérivé / calculé</span></span></div>
+  <div class="cell" style="color:var(--ts-assume)"><span class="sq solid"></span><span class="lbl">Assumption<span class="sub">à confirmer</span></span></div>
+  <div class="cell" style="color:var(--ts-unknown)"><span class="sq dash"></span><span class="lbl">Unknown<span class="sub">vérif. humaine</span></span></div>
+  <div class="cell" style="color:var(--ts-conflict)"><span class="sq solid"></span><span class="lbl">Conflict<span class="sub">sources en désaccord</span></span></div>
+  <div class="cell" style="color:var(--ts-decision)"><span class="sq solid"></span><span class="lbl">Decision<span class="sub">arbitré, figé</span></span></div>
+</div></body></html>

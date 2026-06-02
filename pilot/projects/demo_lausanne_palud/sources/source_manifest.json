@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "sources": [
+    {
+      "source_id": "VD-OEREB",
+      "title": "Vaud RDPPF/OEREB parsed extract",
+      "kind": "parcel_evidence",
+      "valid_as_of": "2026-05-29",
+      "file_ref": "evidence/oereb_parsed_CH915772367853.json"
+    },
+    {
+      "source_id": "COMMUNE-RPGA",
+      "title": "Lausanne communal ruleset",
+      "kind": "communal_pack",
+      "valid_as_of": "2026-05-29",
+      "file_ref": "../../lausanne/rpga_zones.json"
+    }
+  ]
+}
+

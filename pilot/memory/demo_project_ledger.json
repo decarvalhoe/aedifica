@@ -1,0 +1,69 @@
+{
+  "schema_version": "1.0",
+  "ledger_id": "LEDGER-DEMO-LAUSANNE-PALUD",
+  "project_id": "DEMO-LAUSANNE-PALUD",
+  "entries": [
+    {
+      "ledger_id": "LEDGER-REPORT-R1-PARCEL",
+      "timestamp": "2026-05-31T08:00:00+02:00",
+      "project_id": "DEMO-LAUSANNE-PALUD",
+      "event_type": "report_generation",
+      "actor": {"actor_type": "system", "name": "Aedifica pilot", "role": "report generator"},
+      "phase": {"phase_code": "0", "label": "Fondation / faisabilite"},
+      "summary": "Generated the R1 sourced parcel brief and persisted report evidence.",
+      "basis": {"source_refs": [{"source_id": "VD-OEREB", "locator": "EGRID CH915772367853", "valid_as_of": "2026-05-29", "confidence": "high"}]},
+      "after_state": {"report_id": "BRIEF-DEMO-LAUSANNE-PALUD-PARCEL"}
+    },
+    {
+      "ledger_id": "LEDGER-DECISION-CENTRE-HISTORIQUE",
+      "timestamp": "2026-05-31T08:10:00+02:00",
+      "project_id": "DEMO-LAUSANNE-PALUD",
+      "event_type": "decision",
+      "actor": {"actor_type": "human", "name": "Architect", "role": "liable professional"},
+      "phase": {"phase_code": "31", "label": "Avant-projet"},
+      "summary": "Use Centre historique as the working communal zone, with contiguous-context warning.",
+      "basis": {"source_refs": [{"source_id": "COMMUNE-RPGA", "locator": "Art. 83-94", "valid_as_of": "2026-05-29", "confidence": "high"}]},
+      "after_state": {"selected_communal_zone": "Centre historique"}
+    },
+    {
+      "ledger_id": "LEDGER-APPROVAL-BRIDGE-DRYRUN",
+      "timestamp": "2026-05-31T08:20:00+02:00",
+      "project_id": "DEMO-LAUSANNE-PALUD",
+      "event_type": "approval",
+      "actor": {"actor_type": "human", "name": "Architect", "role": "liable professional"},
+      "phase": {"phase_code": "32", "label": "Projet de l'ouvrage"},
+      "summary": "Approve a limited model metadata dry-run scope.",
+      "basis": {"evidence_refs": [{"evidence_id": "EVID-MODEL-V3", "kind": "model_snapshot", "file_ref": "project://models/model_v3.ifc"}]},
+      "after_state": {"approval_scope": "dry-run only"}
+    },
+    {
+      "ledger_id": "LEDGER-ADAPTER-DRYRUN-001",
+      "timestamp": "2026-05-31T08:25:00+02:00",
+      "project_id": "DEMO-LAUSANNE-PALUD",
+      "event_type": "adapter_dry_run",
+      "actor": {"actor_type": "system", "name": "Aedifica model bridge", "role": "adapter"},
+      "phase": {"phase_code": "32", "label": "Projet de l'ouvrage"},
+      "summary": "Prepared a dry-run property update plan without mutating the model.",
+      "basis": {"evidence_refs": [{"evidence_id": "EVID-MODEL-V3", "kind": "model_snapshot", "file_ref": "project://models/model_v3.ifc"}]},
+      "after_state": {"mutating": false, "plan_only": true}
+    },
+    {
+      "ledger_id": "LEDGER-ADAPTER-EXECUTION-001",
+      "timestamp": "2026-05-31T08:30:00+02:00",
+      "project_id": "DEMO-LAUSANNE-PALUD",
+      "event_type": "adapter_execution",
+      "mutating": true,
+      "actor": {"actor_type": "system", "name": "Aedifica model bridge", "role": "adapter"},
+      "phase": {"phase_code": "32", "label": "Projet de l'ouvrage"},
+      "summary": "Demo mutating adapter execution is allowed only after explicit approval.",
+      "basis": {"evidence_refs": [{"evidence_id": "EVID-MODEL-V3", "kind": "model_snapshot", "file_ref": "project://models/model_v3.ifc"}]},
+      "approval": {
+        "approved_by": "Architect",
+        "approved_at": "2026-05-31T08:29:00+02:00",
+        "basis": "LEDGER-APPROVAL-BRIDGE-DRYRUN",
+        "scope": "demo property update on selected spaces only"
+      },
+      "after_state": {"executed": true}
+    }
+  ]
+}

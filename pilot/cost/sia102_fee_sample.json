@@ -23,6 +23,24 @@
     "hourly_rate_chf": 165,
     "estimated_fee_chf": 11880,
     "target_margin_percent": 18,
+    "assumptions": [
+      "Hourly model used because paid SIA coefficients are not embedded in the pilot.",
+      "Scope is limited to phase 33 permit coordination for the demo parcel."
+    ],
+    "special_prestations": [
+      {
+        "prestation_id": "SP-FIRE-COORD",
+        "title": "Fire-safety specialist coordination",
+        "pricing_status": "excluded_or_extra",
+        "estimated_hours": 6
+      },
+      {
+        "prestation_id": "SP-OPPOSITION-SUPPORT",
+        "title": "Opposition response support during public inquiry",
+        "pricing_status": "optional_allowance",
+        "estimated_hours": 10
+      }
+    ],
     "absorbed_prestations": [
       {
         "flag_id": "ABSORB-PERMIT-FIRE-001",

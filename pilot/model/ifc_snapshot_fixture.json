@@ -1,0 +1,42 @@
+{
+  "adapter_id": "ifc_ifcopenshell",
+  "source_model_version": "IFC-DEMO-V1",
+  "source_model_ref": "project://exports/demo_lausanne_palud.ifc",
+  "snapshot_mode": "fixture",
+  "property_sets": [
+    {
+      "pset_id": "PSET-SPACE-COMMON",
+      "name": "Pset_SpaceCommon",
+      "properties": ["Reference", "OccupancyType", "GrossPlannedArea"]
+    },
+    {
+      "pset_id": "PSET-AEDIFICA-ROOM",
+      "name": "AEDIFICA_RoomProgram",
+      "properties": ["RoomUsage", "SIA416SurfaceType"]
+    }
+  ],
+  "elements": [
+    {
+      "element_id": "2G7qIFCSPACE101",
+      "type": "IfcSpace",
+      "classification": "IfcSpace",
+      "properties": {
+        "Name": "Bureau 101",
+        "RoomUsage": null,
+        "SIA416SurfaceType": null,
+        "NetFloorArea": 24.5
+      },
+      "quantity_refs": ["QTO-SPACE-101"]
+    },
+    {
+      "element_id": "1A9qIFCWALL001",
+      "type": "IfcWall",
+      "classification": "IfcWall",
+      "properties": {
+        "FireRating": "EI30",
+        "LoadBearing": false
+      },
+      "quantity_refs": ["QTO-WALL-001"]
+    }
+  ]
+}

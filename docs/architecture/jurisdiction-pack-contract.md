@@ -13,6 +13,10 @@ The selector activates only the route needed by a project:
 Federal core + selected canton + selected commune
 ```
 
+Project manifests store the selected route as a durable object, not only a
+display string: active layers, inactive layers, selection timestamps, source
+versions, and non-blocking freshness warnings.
+
 ## Version Contract
 
 Every pack must declare:
@@ -70,3 +74,8 @@ Pilot packs use a six-month `review_due` by default. Review sooner when:
 
 This contract does not make the output authoritative. It makes the evidence
 state visible enough for an architect to verify and decide.
+
+Commune availability is governed by
+[`commune-support-policy.md`](commune-support-policy.md). New commune packs
+should follow
+[`../planning/next-commune-ingestion-checklist.md`](../planning/next-commune-ingestion-checklist.md).

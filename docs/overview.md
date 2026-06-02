@@ -11,7 +11,7 @@
 Aedifica (**ArchiOS Suisse**) est une **couche d'intelligence réglementaire et projet** qui transforme une
 parcelle + un programme + les registres suisses liants en **savoir de projet sourcé et phase-aware**, le
 porte comme **mémoire continue** sur tout le mandat SIA, et assiste l'architecte dans son travail
-**fiduciaire, de coordination, économique, réglementaire et de responsabilité** — pas seulement le dessin.
+**fiduciaire, de coordination, économique, réglementaire, de dessin/modèle et de responsabilité**.
 
 ## 2 · Le problème
 
@@ -23,16 +23,19 @@ qu'ils n'ont pas.
 
 ## 3 · Le message produit
 
-> Le rêve « parler à une IA qui dessine » ≈ **5 %** de la valeur. Les **95 %** : un gain concret **à chaque
-> étape**, de la gestion documentaire initiale à la livraison finale — sourcé, tracé, dans les outils du bureau.
+> Le rêve « parler à une IA qui dessine » est visible et reste important, mais il ne suffit pas. La valeur est
+> un gain concret **à chaque étape**, de la gestion documentaire initiale à la livraison finale — sourcé, tracé,
+> et capable d'agir dans les outils du bureau quand l'architecte l'approuve.
 
 Produit **généralisable** (pas verrouillé sur Archicad, pas un logiciel de dessin). Le bureau partenaire
-(Archicad/BIM) est le **premier utilisateur pilote**, pas l'identité du produit.
+(Archicad/BIM) est le **premier utilisateur pilote**, pas l'identité du produit. L'API multi-logiciels
+pour assister le dessin, le modèle, les exports et les contrôles reste un axe produit natif.
 
 ## 4 · L'approche
 
 - **Canonical-first (bottom-up)** : sources → unités canoniques traçables (NOMOS), avec provenance + validité temporelle.
 - **Orchestration top-down** : des agents proposent / vérifient / journalisent ; l'humain reste responsable.
+- **Action layer multi-logiciels** : MCP/API pour inspecter, générer, contrôler ou modifier des dessins/modèles/documents après dry-run, approbation et ledger.
 - **Moteur neutre + jurisdiction packs** : la Suisse = 1ᵉ pack (le plus profond). Internationaliser = ajouter un pack.
 - **Route réglementaire (sélecteur)** : par projet, on n'active que `Fédéral + canton choisi + commune choisie`.
 - **Contrat de preuve** : chaque affirmation est sourcée (article + version + date) ou marquée hypothèse — **jamais une autorité**.
@@ -82,16 +85,21 @@ Références de construction:
 
 Cette fragmentation est **le fossé concurrentiel** : aucun outil étranger ne la couvre.
 
-## 7 · Feuille de route MVP (séquence révisée)
+## 7 · Feuille de route MVP (séquence rebasée)
 
 | Jalon | Cœur | Statut |
 |---|---|---|
 | **MVP0 Foundation** | moteur + schéma NOMOS + packs + contrat de preuve | 🟡 en cours (corpus pilote semé) |
-| **MVP1 Parcelle & Contraintes** | parcelle → contraintes + enveloppe sourcées (sans BIM) | ✅ **prototype fonctionnel** |
-| **MVP2 Permis & Opposition** | radar d'opposition + complétude dossier (phase 33) | 🟡 radar + pré-check dossier/compliance prototypes |
-| **MVP3 Honoraires, Coûts & Soumission** | copilote SIA 102 + pont eCCC↔NPK↔CFC | 🔜 |
-| **MVP4 Mémoire & Coordination** | mémoire de projet continue + traçabilité | 🔜 |
-| **Later** | Auto-BIM/Archicad (fil hybride), voice-to-design | 🔜 (fil démo Archicad actif) |
+| **R1A Agent → API → logiciel d'architecture** | CLI agentique, bridge Archicad-shaped, intention de dessin/modèle, dry-run diff, approval/ledger | ✅ **contrat offline fonctionnel**, live Archicad à connecter |
+| **R1B Workspace projet** | parcelle → contraintes + enveloppe sourcées, rapport, mémoire projet | ✅ **prototype fonctionnel**, productisation à durcir |
+| **R2 Permis & Opposition** | radar d'opposition + complétude dossier (phase 33) | 🟡 radar + pré-check dossier/compliance prototypes |
+| **R3 Mémoire & Ledger** | décisions, preuves, approvals, handoffs | 🟡 fixtures/validators en place |
+| **R4 Adapters live** | Archicad JSON réel d'abord, puis IFC/Speckle/Revit/Rhino/SketchUp/AutoCAD/BricsCAD/Vectorworks | 🔜 |
+| **R5/R6 Économie + chantier** | honoraires, coûts, soumissions, PV, défauts, handover | 🟡 contrats pilotes |
+
+La traduction logicielle de cette séquence vit désormais dans
+[`planning/software-roadmap.md`](planning/software-roadmap.md) et
+[`planning/epics-and-backlog.md`](planning/epics-and-backlog.md).
 
 ## 8 · Ce qui est déjà fonctionnel — le pilote ([`../pilot/`](../pilot/))
 
@@ -113,6 +121,8 @@ Code Python (stdlib), ancré sur les **API publiques gratuites** suisses, pouss�
 | `validate_memory.py` | mémoire projet cross-phase + requêtes avec provenance | ✅ |
 | `validate_cost.py` | honoraires SIA 102 + pont eCCC/NPK/CFC + round-trip `.crbx` | ✅ |
 | `model_bridge_demo.py` | prototype dry-run du bridge modèle local Archicad JSON | ✅ |
+| `model/design_intent_fixture.json` | intention structurée de dessin/modèle pour le demo agent → API → logiciel | ✅ |
+| `agent_software_demo.py` | CLI dédié R1A : inspection modèle, items générés, dry-run diff, état d'approbation | ✅ |
 | `trust.py` | footer/contrat de rendu non-autoritaire partagé par les sorties pilote | ✅ |
 | `selfcheck.py` | tests hors-ligne | ✅ 48/48 |
 
@@ -136,9 +146,31 @@ et validés par CI.
 
 ## 9 · Backlog & gouvernance
 
-- **38 issues** GitHub, **6 milestones** (MVP0→4 + Later), labels de priorité P0–P3, [carte des dépendances #38](https://github.com/decarvalhoe/aedifica/issues/38).
-- Code relié aux issues par commentaires de progression ([#15](https://github.com/decarvalhoe/aedifica/issues/15), [#23](https://github.com/decarvalhoe/aedifica/issues/23), [#24](https://github.com/decarvalhoe/aedifica/issues/24), [#26](https://github.com/decarvalhoe/aedifica/issues/26), [#27](https://github.com/decarvalhoe/aedifica/issues/27)).
-- Décisions tracées dans [`strategy/decisions.md`](strategy/decisions.md) ; corrections en cours dans [`review/foundations-audit.md`](review/foundations-audit.md).
+- Les premières vagues GitHub `AED-001` à `AED-080` sont fermées : elles ont servi à transformer les fondations
+  en docs, contrats, fixtures, validations et preuve offline agent -> logiciel.
+- La vague active est définie comme backlog logiciel dans
+  [`planning/epics-and-backlog.md`](planning/epics-and-backlog.md) : `AED-081` à `AED-123`, soit 43 issues
+  GitHub re-atomisées autour de la productisation R1B, puis R2/R3/R4/R5/R6.
+  **Statut : les 43 issues sont implémentées** (package `aedifica/` + modules pilote, schémas,
+  validateurs et surfaces Datum) avec gate de release vert
+  (`python pilot/release_gate.py R1B` → 19 validateurs + selfcheck). Voir
+  [`architecture/package-boundaries.md`](architecture/package-boundaries.md).
+- **Phase produit (2026-06) :** un substrat de livraison a été construit (vagues W1/W3 — package `aedifica/db`,
+  API FastAPI, app Next.js Datum, Postgres, Docker/GHCR, multi-tenant, ingestion de communes à la demande).
+  Voir [`architecture/adr-0002-product-architecture.md`](architecture/adr-0002-product-architecture.md).
+- **Réancrage (2026-06-02, décision B)** après le contrôle d'alignement
+  [`review/direction-alignment.md`](review/direction-alignment.md) : le produit **n'est pas** la web-app de
+  workspace réglementaire — c'est la **couche ArchiOS** (moteur + mémoire + **API universelle d'action** +
+  agents). La prochaine vague **W4** expose dans le runtime la moitié top-down encore absente : **boucle
+  d'action multi-logiciels** (dry-run → approbation → ledger), **requêtes mémoire**, et un **orchestrateur
+  « prochaine étape par phase »** — pas de nouvelles surfaces CRUD. Backlog :
+  [`planning/wave-4-action-layer-backlog.md`](planning/wave-4-action-layer-backlog.md).
+- Les seules issues plus anciennes encore ouvertes sont les validations live `#105` et `#115`, bloquées par
+  l'accès à un endpoint Archicad/modèle partenaire.
+- Les listes de delivery, Definition of Ready/Done, release gates et checklists démo vivent dans
+  [`planning/development-checklists.md`](planning/development-checklists.md).
+- Décisions tracées dans [`strategy/decisions.md`](strategy/decisions.md) ; corrections et dette historique
+  restent visibles dans [`review/foundations-audit.md`](review/foundations-audit.md).
 
 ## 10 · Décisions prises & questions ouvertes
 
@@ -146,23 +178,31 @@ et validés par CI.
 fil Archicad) ; pilote **Vaud / Lausanne** ; cold-start **hybride** (ingestion à la demande + corpus semé) ;
 **route réglementaire** composable ; projet **contexte-first** pour les petits projets.
 
-**Ouvertes** : périmètre du « pack-0 » (séparation moteur/pack maintenant vs refactor plus tard) ; **modèle
-économique / qui paie**.
+**Ouvertes pour le passage logiciel** : app locale web vs desktop-local ; stockage `files + manifest` seul vs
+SQLite local ; version Archicad live disponible pour le `R1A` réel ; prochaine commune à ingérer après Lausanne/Pully ;
+prochaine commune à ingérer après Lausanne/Pully.
 
 ## 11 · Prochaines étapes
 
-1. Adjacence de voisinage réelle + ombres sur la volumétrie réelle (radar).
-2. Passage à l'échelle : plus de communes (ingestion à la demande).
-3. Formaliser le **moteur neutre + packs** (ADR [#22](https://github.com/decarvalhoe/aedifica/issues/22)).
-4. Prochain bloc produit : copilote **honoraires/coûts**
-   ([#29](https://github.com/decarvalhoe/aedifica/issues/29)/[#30](https://github.com/decarvalhoe/aedifica/issues/30)).
+1. Traiter les P0 R1B `#119` à `#126`, `#130`, `#131` et `#159` pour convertir le pilote en workspace projet.
+2. Connecter le bridge Archicad JSON live dès qu'un poste Archicad partenaire est disponible (`#105`, `#115`).
+3. Construire `R2` sur le workspace : complétude dossier, gates phase 33, radar d'opposition et limites explicites.
+4. Tirer `R3` vers l'avant dès qu'une action implique approbation, preuve ou responsabilité professionnelle.
+5. Garder `R4` multi-logiciels actif : Archicad d'abord, mais IFC/Speckle/export intents et futurs adapters dans le meme cycle d'action.
 
 ## 12 · Carte des documents (où lire quoi)
 
 | Pour… | Lire |
 |---|---|
 | Le pitch visuel (1 page) | [`pitch/aedifica-one-pager.html`](pitch/aedifica-one-pager.html) |
+| Le brand book Datum canonique | [`design-system/aedifica-brand-book.html`](design-system/aedifica-brand-book.html) |
+| Le plan de développement logiciel | [`planning/software-development-plan.md`](planning/software-development-plan.md) |
+| La roadmap d'exécution | [`planning/software-roadmap.md`](planning/software-roadmap.md) |
+| Les épics et le backlog candidat | [`planning/epics-and-backlog.md`](planning/epics-and-backlog.md) |
+| Les listes de delivery | [`planning/development-checklists.md`](planning/development-checklists.md) |
 | La vision complète | [`vision.md`](vision.md) · [`product/holistic-assistance.md`](product/holistic-assistance.md) |
+| Le garde-fou de scope produit | [`product/scope-realignment.md`](product/scope-realignment.md) |
+| Le design system validé | [`design-system/README.md`](design-system/README.md) · [`design-system/design-system-manifest.json`](design-system/design-system-manifest.json) |
 | Le challenge + brainstorm | [`strategy/challenge-and-brainstorm.md`](strategy/challenge-and-brainstorm.md) |
 | Le métier d'architecte (réel, SIA) | [`strategy/architect-reality.md`](strategy/architect-reality.md) |
 | La pile réglementaire suisse | [`strategy/swiss-regulatory-stack.md`](strategy/swiss-regulatory-stack.md) |
@@ -182,6 +222,7 @@ fil Archicad) ; pilote **Vaud / Lausanne** ; cold-start **hybride** (ingestion �
 | Le copilote honoraires | [`cost/sia102-fee-profitability-copilot.md`](cost/sia102-fee-profitability-copilot.md) |
 | Le pont eCCC/NPK/CFC | [`cost/eccc-npk-cfc-bridge.md`](cost/eccc-npk-cfc-bridge.md) |
 | La spec MVP1 | [`specs/mvp1-parcel-constraints-intake.md`](specs/mvp1-parcel-constraints-intake.md) |
+| La spec R1A agent → logiciel | [`specs/mvp1a-agent-to-architecture-software-demo.md`](specs/mvp1a-agent-to-architecture-software-demo.md) |
 | La spec assistant permis | [`specs/mvp2-permit-dossier-assistant.md`](specs/mvp2-permit-dossier-assistant.md) |
 | La spec Auto-BIM / Model Intelligence | [`specs/later-model-intelligence.md`](specs/later-model-intelligence.md) |
 | La spec tender/quantités | [`specs/later-tender-quantity-workflows.md`](specs/later-tender-quantity-workflows.md) |
@@ -190,4 +231,4 @@ fil Archicad) ; pilote **Vaud / Lausanne** ; cold-start **hybride** (ingestion �
 | La preuve API (Lausanne) | [`strategy/poc-lausanne-parcel.md`](strategy/poc-lausanne-parcel.md) |
 | Le pilote (code) | [`../pilot/README.md`](../pilot/README.md) |
 
-_Dernière mise à jour : 2026-05-29._
+_Dernière mise à jour : 2026-05-31._

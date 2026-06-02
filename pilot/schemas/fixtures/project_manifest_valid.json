@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "project_id": "FIXTURE-VALID-001",
+  "name": "Fixture valid project",
+  "phase_code": "31",
+  "knowledge_regime": "context_first",
+  "jurisdiction": {
+    "country": "CH",
+    "canton": "VD",
+    "commune": "Lausanne"
+  },
+  "parcel": {
+    "egrid": "CH000000000000",
+    "number": "0000"
+  },
+  "regulatory_route": {
+    "schema_version": "1.0",
+    "route_id": "CH-VD-LAUSANNE",
+    "country": "CH",
+    "canton": "VD",
+    "commune": "Lausanne",
+    "selected_at": "2026-05-31T00:00:00+02:00",
+    "evaluated_at": "2026-05-31T00:00:00+02:00",
+    "active_layers": [
+      {
+        "layer_id": "CH/federal",
+        "level": "federal",
+        "jurisdiction": "CH",
+        "state": "active"
+      }
+    ],
+    "inactive_layers": [],
+    "freshness_warnings": []
+  },
+  "trust_contract": {
+    "language": "fr",
+    "footer_required": true,
+    "required_claim_states": ["sourced", "computed", "assumption", "unknown"]
+  }
+}

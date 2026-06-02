@@ -4,9 +4,11 @@ Thumbs.db
 *.log
 *.tmp
 .tmp_*
+.superpowers/
+.claude/
 
 # Ingested source corpus (large binaries; re-downloadable from official URLs — see pilot/lausanne/INGESTION.md)
-sources/
+/sources/
 
 # Generated fiches (run `python pilot/fiche.py` to regenerate)
 pilot/out/
@@ -16,6 +18,11 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
+*.egg-info/
+
+# Dev databases (SQLite)
+*.db
+*.sqlite3
 
 # Node
 node_modules/
@@ -27,3 +34,7 @@ build/
 .env.*
 !.env.example
 
+# Next.js
+.next/
+next-env.d.ts
+*.tsbuildinfo

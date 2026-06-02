@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "register_id": "QREG-DEMO-LAUSANNE-PALUD",
+  "project_id": "DEMO-LAUSANNE-PALUD",
+  "sources": [
+    {
+      "source_id": "QS-ENVELOPE",
+      "origin": "manual",
+      "version": "v1",
+      "captured_at": "2026-05-20",
+      "unit_system": "SI",
+      "confidence": "low",
+      "superseded": true,
+      "quantities": [
+        { "item": "Surface de plancher", "quantity": 480, "unit": "m2" }
+      ]
+    },
+    {
+      "source_id": "QS-ENVELOPE",
+      "origin": "ifc",
+      "version": "v2",
+      "captured_at": "2026-05-29",
+      "unit_system": "SI",
+      "confidence": "medium",
+      "superseded": false,
+      "quantities": [
+        { "item": "Surface de plancher", "quantity": 500, "unit": "m2" },
+        { "item": "Surface de façade", "quantity": 320, "unit": "m2" }
+      ]
+    }
+  ]
+}
