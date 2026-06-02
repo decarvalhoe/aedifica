@@ -6,17 +6,27 @@ import { api } from "@/lib/api";
 const DEMO_ID = "DEMO-LAUSANNE-PALUD";
 const META = { name: "Place de la Palud", commune: "Lausanne", phase: "Faisabilité · SIA 0–31" };
 
-type View = "dashboard" | "terrain" | "permis" | "opposition" | "conformite" | "copilote" | "memoire";
+type View = "dashboard" | "terrain" | "permis" | "opposition" | "conformite" | "copilote" | "memoire" | "couts" | "chantier";
+type Status = "live" | "preview" | "soon";
 
-const NAV: { id: View; lb: string; ds: string; ico: string }[] = [
-  { id: "dashboard", lb: "Tableau de bord", ds: "Vue d'ensemble du projet", ico: "grid" },
-  { id: "terrain", lb: "Terrain & zonage", ds: "Ce que la parcelle autorise", ico: "pin" },
-  { id: "permis", lb: "Dossier de permis", ds: "Complétude pièce par pièce", ico: "doc" },
-  { id: "opposition", lb: "Risque d'opposition", ds: "Motifs probables, sur les faits", ico: "shield" },
-  { id: "conformite", lb: "Conformité", ds: "Obligations à lever avant dépôt", ico: "check" },
-  { id: "copilote", lb: "Copilote IA · maquette", ds: "L'IA agit sur Archicad, sous contrôle", ico: "spark" },
-  { id: "memoire", lb: "Mémoire du projet", ds: "Tout ce qui est su, décidé, modifié", ico: "clock" },
+const NAV: { id: View; lb: string; ds: string; ico: string; st: Status }[] = [
+  { id: "dashboard", lb: "Tableau de bord", ds: "Vue d'ensemble du projet", ico: "grid", st: "live" },
+  { id: "terrain", lb: "Terrain & zonage", ds: "Ce que la parcelle autorise", ico: "pin", st: "live" },
+  { id: "copilote", lb: "Copilote IA · maquette", ds: "Agit sur la maquette, sous contrôle", ico: "spark", st: "live" },
+  { id: "memoire", lb: "Mémoire du projet", ds: "Su, décidé, modifié — interrogeable", ico: "clock", st: "live" },
+  { id: "permis", lb: "Dossier de permis", ds: "Complétude pièce par pièce", ico: "doc", st: "preview" },
+  { id: "opposition", lb: "Risque d'opposition", ds: "Motifs probables, sur les faits", ico: "shield", st: "preview" },
+  { id: "conformite", lb: "Conformité", ds: "Obligations à lever avant dépôt", ico: "check", st: "preview" },
+  { id: "couts", lb: "Coûts & appels d'offres", ds: "Estimation et soumissions", ico: "coin", st: "soon" },
+  { id: "chantier", lb: "Chantier & remise", ds: "Suivi d'exécution et handover", ico: "cone", st: "soon" },
 ];
+const STATUS: Record<Status, [string, string]> = {
+  live: ["live", "Opérationnel"], preview: ["preview", "Données de référence"], soon: ["soon", "À venir"],
+};
+const GROUPS: { title: string; st: Status }[] = [
+  { title: "Opérationnel", st: "live" }, { title: "Données de référence", st: "preview" }, { title: "À venir", st: "soon" },
+];
+function Badge({ st }: { st: Status }) { const [c, l] = STATUS[st]; return <span className={`badge ${c}`}><span className="d" />{l}</span>; }
 
 const TRUST: Record<string, [string, string]> = {
   sourced: ["is-sourced", "Source officielle"], computed: ["is-computed", "Calculé"],
@@ -74,6 +84,8 @@ function Icon({ n }: { n: string }) {
     check: <><path d="M2.5 8.5 6 12l7.5-8.5" /></>,
     spark: <><path d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3M3.5 3.5l2 2M10.5 10.5l2 2M12.5 3.5l-2 2M5.5 10.5l-2 2" /></>,
     clock: <><circle cx="8" cy="8" r="6.2" /><path d="M8 4.5V8l2.5 1.6" /></>,
+    coin: <><circle cx="8" cy="8" r="6.2" /><path d="M8 4.3v7.4M6.2 6.3h3M6.2 8.3h3" /></>,
+    cone: <><path d="M8 2.2 12 13H4Z" /><path d="M6 8.5h4M3 13h10" /></>,
   };
   return <svg className="ico" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round">{p[n]}</svg>;
 }
@@ -115,7 +127,7 @@ export default function App() {
     if (!hasClaims) await api(`/projects/${DEMO_ID}/intake`, { method: "POST", token: tk, body: { query: `${META.name}, ${META.commune}`, live: false } });
     await loadAll(tk);
   }
-  async function startDemo() {
+  async function openWorkspace() {
     setBusy(true); setErr("");
     try {
       let tk = token || (await bootstrap());
@@ -139,9 +151,16 @@ export default function App() {
         <div className="box">
           <span className="eyebrow">Æ Aedifica · ArchiOS Suisse</span>
           <h1>Le copilote de l&apos;architecte suisse</h1>
-          <p>Il maîtrise la réglementation (et avoue ce qu&apos;il ignore), prépare vos dossiers de permis, et agit sur vos maquettes BIM — toujours sous votre contrôle.</p>
-          <button className="ds-btn" onClick={startDemo} disabled={busy}>{busy ? "Ouverture…" : "Démarrer la démo"}</button>
-          <p className="note">Projet de démonstration : {META.name}, {META.commune}. Aucune donnée inventée — chaque chiffre est sourcé ou marqué « à vérifier ».</p>
+          <p>Il maîtrise la réglementation (et avoue ce qu&apos;il ignore), prépare vos dossiers, et agit sur vos maquettes BIM — toujours sous votre contrôle.</p>
+          <button className="proj-row" onClick={openWorkspace} disabled={busy} style={{ width: "100%", cursor: busy ? "default" : "pointer" }}>
+            <Icon n="pin" /><span style={{ flex: 1 }}><span className="nm" style={{ display: "block" }}>{META.name}</span><span className="me">{META.commune} · VD · {META.phase}</span></span>
+            <span className="chip">{busy ? "Ouverture…" : "Ouvrir"}</span>
+          </button>
+          <div className="proj-row soon" style={{ width: "100%" }}>
+            <Icon n="grid" /><span style={{ flex: 1 }}><span className="nm" style={{ display: "block" }}>Nouveau projet</span><span className="me">Création de projet à venir</span></span>
+            <span className="badge soon"><span className="d" />À venir</span>
+          </div>
+          <p className="note">Instance locale. Les valeurs marquées « source officielle » sont réelles ; les surfaces « données de référence » et « à venir » sont signalées comme telles.</p>
           {err && <p className="note" style={{ color: "var(--ts-conflict)" }}>{err}</p>}
         </div>
       </div>
@@ -159,31 +178,36 @@ export default function App() {
           <div className="meta">{META.commune} · VD<br />{META.phase}</div>
         </div>
         <nav className="nav">
-          <div className="grp">Analyse réglementaire</div>
-          {NAV.slice(0, 5).map((n) => (
-            <button key={n.id} className={`navitem ${view === n.id ? "on" : ""}`} onClick={() => setView(n.id)}>
-              <Icon n={n.ico} /><span><span className="lb">{n.lb}</span><span className="ds">{n.ds}</span></span>
-            </button>
-          ))}
-          <div className="grp">Action & mémoire</div>
-          {NAV.slice(5).map((n) => (
-            <button key={n.id} className={`navitem ${view === n.id ? "on" : ""}`} onClick={() => setView(n.id)}>
-              <Icon n={n.ico} /><span><span className="lb">{n.lb}</span><span className="ds">{n.ds}</span></span>
-            </button>
+          {GROUPS.map((grp) => (
+            <div key={grp.st}>
+              <div className="grp">{grp.title}</div>
+              {NAV.filter((n) => n.st === grp.st).map((n) => (
+                <button key={n.id} className={`navitem ${view === n.id ? "on" : ""} ${n.st}`} onClick={() => setView(n.id)}>
+                  <Icon n={n.ico} /><span className="lbwrap"><span className="lb">{n.lb}</span><span className="ds">{n.ds}</span></span>
+                  {n.st === "preview" && <span className="tag">Aperçu</span>}
+                  {n.st === "soon" && <span className="tag">Bientôt</span>}
+                </button>
+              ))}
+            </div>
           ))}
         </nav>
-        <div className="foot"><span className="d" />Connecté · démo locale</div>
+        <div className="foot"><span className="d" />Instance locale · Aedifica</div>
       </aside>
 
       <main className="main">
         <div className="top">
           <span className="t-nm">{cur.lb}</span>
-          <span className="chip">{META.commune}</span>
-          <span className="chip">{META.phase}</span>
+          <Badge st={cur.st} />
           <span className="sp" />
+          <span className="chip">{META.commune}</span>
           <span className="chip">L&apos;IA propose — l&apos;architecte décide</span>
         </div>
         <div className="view">
+          {cur.st === "preview" && (
+            <div className="banner" style={{ borderLeftColor: "var(--ts-assume)" }}>
+              <b>Données de référence.</b> Cette surface tourne sur un dossier de référence (Place de la Palud) : les règles, la structure et les états « fourni / manquant » sont en place. Le branchement au dossier réel de votre projet est la prochaine étape — rien n&apos;est inventé ici.
+            </div>
+          )}
           {view === "dashboard" && <Dashboard d={d} go={setView} />}
           {view === "terrain" && <Terrain claims={d.claims} />}
           {view === "permis" && <Permis d={d.permit} />}
@@ -191,9 +215,25 @@ export default function App() {
           {view === "conformite" && <Conformite d={d.compliance} />}
           {view === "copilote" && <Copilote token={token} ledger={d.ledger} onChange={refreshLedger} />}
           {view === "memoire" && <Memoire unknowns={d.unknowns} ledger={d.ledger} />}
+          {view === "couts" && <Soon title="Coûts & appels d'offres" engine="le moteur de coûts et de soumissions (contrats E29, vérifiés hors-ligne)" what="estimation paramétrique, métrés et comparatif de soumissions" />}
+          {view === "chantier" && <Soon title="Chantier & remise" engine="le moteur chantier et handover (contrats E30, vérifiés hors-ligne)" what="suivi d'exécution, levée des réserves et dossier de remise" />}
         </div>
       </main>
     </div>
+  );
+}
+
+/* ---- À venir (honest placeholder) ------------------------------------ */
+function Soon({ title, engine, what }: { title: string; engine: string; what: string }) {
+  return (
+    <>
+      <div className="vhead"><div className="row-head"><h2>{title}</h2><Badge st="soon" /></div>
+        <p>Surface en préparation : {what} arrivent dans une prochaine vague produit.</p></div>
+      <div className="placeholder">
+        <h4>À venir dans le produit</h4>
+        <p>L&apos;ossature existe déjà côté moteur — {engine}. Il reste à la brancher sur une surface dédiée. Rien n&apos;est simulé ici : on préfère l&apos;annoncer plutôt que d&apos;afficher du faux.</p>
+      </div>
+    </>
   );
 }
 
@@ -211,7 +251,7 @@ function Dashboard({ d, go }: { d: any; go: (v: View) => void }) {
         <h2>Vue d&apos;ensemble</h2>
         <p>L&apos;état du projet en un coup d&apos;œil : ce qui est fiable, ce qui manque, et ce qu&apos;il faut traiter ensuite.</p>
       </div>
-      <div className="banner"><b>Comment lire cet outil :</b> chaque donnée réglementaire est soit <b>sourcée</b> (lien officiel), soit honnêtement marquée <b>« à vérifier »</b>. L&apos;outil n&apos;invente jamais et ne décide jamais à votre place.</div>
+      <div className="banner"><b>Comment lire cet outil :</b> chaque donnée est soit <b>sourcée</b> (lien officiel), soit marquée <b>« à vérifier »</b> — jamais inventée. Et chaque surface annonce sa maturité : <b>opérationnelle</b>, <b>données de référence</b> (réf.), ou <b>à venir</b>. L&apos;IA propose ; l&apos;architecte décide.</div>
       <div className="kpis">
         <button className="kpi" onClick={() => go("terrain")}>
           <div className="lab">Contraintes terrain</div>
@@ -219,12 +259,12 @@ function Dashboard({ d, go }: { d: any; go: (v: View) => void }) {
           <div className="sub"><span className="dot" style={{ background: "var(--ts-assume)" }} />{verify} à vérifier</div>
         </button>
         <button className="kpi" onClick={() => go("permis")}>
-          <div className="lab">Dossier de permis</div>
+          <div className="lab">Dossier de permis <span className="kref">réf.</span></div>
           <div className="num">{blockers === 0 ? "Prêt" : blockers}</div>
           <div className="sub">{blockers === 0 ? "aucun blocage" : "pièces requises manquantes"}</div>
         </button>
         <button className="kpi" onClick={() => go("opposition")}>
-          <div className="lab">Risque d&apos;opposition</div>
+          <div className="lab">Risque d&apos;opposition <span className="kref">réf.</span></div>
           <div className="num" style={{ textTransform: "capitalize" }}>{opp}</div>
           <div className="sub">score {d.opposition?.score ?? "—"}</div>
         </button>
@@ -370,7 +410,7 @@ function Copilote({ token, ledger, onChange }: { token: string; ledger?: any[]; 
     <>
       <div className="vhead"><h2>Copilote IA · maquette Archicad</h2><p>L&apos;IA prépare une modification de votre maquette, vous la prévisualisez, vous la validez, elle l&apos;applique — et tout reste tracé et réversible. <b>Rien ne change sans votre accord.</b></p></div>
 
-      <div className="banner">Demande simulée : <b>« Classe l&apos;espace AC-SPACE-101 en bureau et mets à jour ses propriétés. »</b> Adapter : maquette Archicad (archicad_json).</div>
+      <div className="banner">Boucle d&apos;action <b>réelle</b> : aperçu → validation → exécution → journal. L&apos;adaptateur Archicad fonctionne en mode <b>replay</b> (modèle rejoué) ; la connexion à une instance Archicad <b>live</b> est la prochaine étape. Exemple : <b>« classer l&apos;espace AC-SPACE-101 en bureau »</b>.</div>
 
       <div className="stepper">
         <div className={`step ${s3 ? "done" : s1 && !s3 ? "act" : ""}`}><div className="idx">Étape 1</div><div className="nm">Aperçu (simulation)</div></div>
