@@ -18,6 +18,11 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
+*.egg-info/
+
+# Dev databases (SQLite)
+*.db
+*.sqlite3
 
 # Node
 node_modules/

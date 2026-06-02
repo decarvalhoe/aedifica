@@ -1,0 +1,26 @@
+[project]
+name = "aedifica"
+version = "0.1.0"
+description = "Aedifica — ArchiOS Suisse: regulatory/project intelligence engine + multi-project product."
+requires-python = ">=3.11"
+# The engine core is stdlib-only (pilot/ + aedifica/ package, exercised by
+# pilot/selfcheck.py). It has NO runtime dependencies on purpose.
+dependencies = []
+
+[project.optional-dependencies]
+# The deployed product layer (FastAPI API + SQL persistence). Installed for the
+# api/db stack and the product test suite; NOT required by the offline engine.
+product = [
+    "SQLAlchemy>=2.0",
+    "alembic>=1.13",
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+    "pydantic>=2.6",
+]
+test = [
+    "pytest>=8.0",
+    "httpx>=0.27",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/product"]
