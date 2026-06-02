@@ -36,6 +36,11 @@ class ProjectIn(BaseModel):
     phase_code: str = "0"
 
 
+class IntakeIn(BaseModel):
+    query: str
+    live: bool = True
+
+
 class CommuneIn(BaseModel):
     commune: str
     canton: str = "VD"
@@ -142,6 +147,23 @@ def create_app(engine=None, create_all: bool = False) -> FastAPI:
             "brief_id": brief["brief_id"],
             "claim_state_summary": brief.get("claim_state_summary"),
             "persisted": counts,
+            "project": repository.project_summary(session, project),
+        }
+
+    @app.post("/api/projects/{project_id}/intake")
+    def parcel_intake(project_id: str, body: IntakeIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        project = _project(session, user, project_id)
+        from ..pipeline import build_live_brief
+
+        brief = build_live_brief(body.query, body.live)
+        counts = repository.save_brief(session, project, brief)
+        session.commit()
+        return {
+            "mode": brief.get("mode"),
+            "reason": brief.get("reason"),
+            "persisted": counts,
+            "claim_state_summary": sorted({c["state"] for c in brief.get("claims", [])}),
             "project": repository.project_summary(session, project),
         }
 
