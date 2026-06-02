@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..db import Base, make_engine, make_session_factory, models as m, repository
+from ..ingestion import service as ingestion
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 DEMO_DIR = os.path.join(ROOT, "pilot", "projects", "demo_lausanne_palud")
@@ -30,6 +31,21 @@ class ProjectIn(BaseModel):
     country: str = "CH"
     canton: str = "VD"
     phase_code: str = "0"
+
+
+class CommuneIn(BaseModel):
+    commune: str
+    canton: str = "VD"
+    source_authority: str | None = None
+
+
+class CommuneIngestIn(BaseModel):
+    version: str
+    zones: dict
+    source_authority: str
+    valid_as_of: str
+    review_due: str
+    sources: list | None = None
 
 
 def _err(status: int, code: str, message: str) -> HTTPException:
@@ -102,6 +118,40 @@ def create_app(engine=None, org_name: str = "Default Org", create_all: bool = Fa
             "persisted": counts,
             "project": repository.project_summary(session, project),
         }
+
+    @app.get("/api/communes")
+    def list_communes(session: Session = Depends(get_session)):
+        return {"communes": ingestion.list_packs(session)}
+
+    @app.post("/api/communes", status_code=201)
+    def request_commune(body: CommuneIn, session: Session = Depends(get_session)):
+        pack = ingestion.request_commune(session, body.commune, body.canton, body.source_authority)
+        session.commit()
+        return {"requested": {"id": pack.id, "commune": pack.commune, "status": pack.status}}
+
+    @app.post("/api/communes/{pack_id}/ingest")
+    def ingest_commune(pack_id: int, body: CommuneIngestIn, session: Session = Depends(get_session)):
+        pack = session.get(m.CommunePack, pack_id)
+        if pack is None:
+            raise _err(404, "PACK_NOT_FOUND", str(pack_id))
+        ingested = ingestion.ingest_pack(
+            session, pack.commune, pack.canton, body.version, body.zones,
+            body.source_authority, body.valid_as_of, body.review_due, body.sources,
+        )
+        session.commit()
+        return {"ingested": {"id": ingested.id, "commune": ingested.commune, "status": ingested.status}}
+
+    @app.post("/api/communes/{pack_id}/promote")
+    def promote_commune(pack_id: int, session: Session = Depends(get_session)):
+        pack = ingestion.promote(session, pack_id)
+        if pack is None:
+            raise _err(404, "PACK_NOT_FOUND", str(pack_id))
+        session.commit()
+        return {"promoted": {"id": pack.id, "commune": pack.commune, "status": pack.status}}
+
+    @app.get("/api/communes/{commune}/{canton}/support")
+    def commune_support(commune: str, canton: str, session: Session = Depends(get_session)):
+        return {"support": ingestion.support_state(session, commune, canton)}
 
     return app
 
