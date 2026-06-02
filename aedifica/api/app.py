@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from ..db import Base, make_engine, make_session_factory, models as m, repository
 from ..ingestion import service as ingestion
-from . import actions, auth
+from . import actions, auth, orchestration
 from .config import get_settings
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -237,6 +237,26 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         result = actions.execute(session, project, user, body.transaction)
         session.commit()
         return result
+
+    # ---- memory queries + per-phase next step (north-star Q&A) ----------- #
+    @app.get("/api/projects/{project_id}/memory/{kind}")
+    def project_memory(project_id: str, kind: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.read")
+        project = _project(session, user, project_id)
+        fn = {"unknowns": orchestration.unknowns, "decisions": orchestration.decisions, "changes": orchestration.changes}.get(kind)
+        if fn is None:
+            raise _err(404, "UNKNOWN_QUERY", f"memory query {kind!r}; use unknowns|decisions|changes")
+        return {kind: fn(session, project)}
+
+    @app.get("/api/projects/{project_id}/memory/source/{source_id}")
+    def project_memory_source(project_id: str, source_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.read")
+        return orchestration.source(session, _project(session, user, project_id), source_id)
+
+    @app.get("/api/projects/{project_id}/next-step")
+    def project_next_step(project_id: str, phase: str | None = None, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.read")
+        return orchestration.next_step(session, _project(session, user, project_id), phase)
 
     @app.post("/api/projects/{project_id}/brief")
     def generate_brief(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
