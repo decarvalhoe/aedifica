@@ -132,6 +132,11 @@ def create_app(engine=None, create_all: bool = False) -> FastAPI:
         require(user, "project.read")
         return {"project": repository.project_summary(session, _project(session, user, project_id))}
 
+    @app.get("/api/projects/{project_id}/claims")
+    def project_claims(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.read")
+        return {"claims": repository.claims_for(session, _project(session, user, project_id))}
+
     @app.post("/api/projects/{project_id}/brief")
     def generate_brief(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
