@@ -857,6 +857,11 @@ _gate_r4 = release_gate.run_gate("R4")
 check("R4 release gate lists blocked live deps (#105/#115) as non-failures", {d["id"] for d in _gate_r4["blocked_live"]} == {"#105", "#115"})
 check("release gate output is pasteable markdown", "Release gate" in release_gate.render_markdown(_gate_r1b))
 check("partner feedback template exists", os.path.exists(os.path.join(os.path.dirname(HERE), "docs", "validation", "partner-feedback-template.md")))
+import demo_cockpit  # noqa: E402
+_cockpit_lookup = demo_cockpit.build_lookup("Place de la Palud, Lausanne", live=False)
+check("demo cockpit lookup returns constraints + envelope + opposition", len(_cockpit_lookup["constraints"]) >= 1 and len(_cockpit_lookup["envelope"]) >= 1 and "overall" in _cockpit_lookup["opposition"])
+check("demo cockpit permit and model builders return structured data", bool(demo_cockpit.build_permit()["state"]) and bool(demo_cockpit.build_model()["model_version"]))
+check("demo cockpit static export inlines the demo payload", "window.__DEMO__" in demo_cockpit.build_static_html(live=False))
 
 print("-" * 48)
 print(f"{_n - _fail}/{_n} checks passed" + ("" if not _fail else f"  ({_fail} FAILED)"))
