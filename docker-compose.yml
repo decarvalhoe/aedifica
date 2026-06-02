@@ -1,0 +1,43 @@
+# Full product stack: Postgres + FastAPI API + Next.js web.
+#   docker compose up --build
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: aedifica
+      POSTGRES_PASSWORD: aedifica
+      POSTGRES_DB: aedifica
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aedifica"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      AEDIFICA_ENV: prod
+      AEDIFICA_DATABASE_URL: postgresql+psycopg://aedifica:aedifica@db:5432/aedifica
+      AEDIFICA_CORS_ORIGINS: http://localhost:3000
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8090:8090"
+
+  web:
+    build:
+      context: ./web
+    environment:
+      AEDIFICA_API: http://api:8090
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata: {}

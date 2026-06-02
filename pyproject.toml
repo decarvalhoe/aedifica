@@ -16,6 +16,7 @@ product = [
     "fastapi>=0.110",
     "uvicorn>=0.29",
     "pydantic>=2.6",
+    "psycopg[binary]>=3.1",
 ]
 test = [
     "pytest>=8.0",

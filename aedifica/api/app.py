@@ -10,12 +10,15 @@ from __future__ import annotations
 import os
 
 from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from ..db import Base, make_engine, make_session_factory, models as m, repository
 from ..ingestion import service as ingestion
 from . import auth
+from .config import get_settings
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 DEMO_DIR = os.path.join(ROOT, "pilot", "projects", "demo_lausanne_palud")
@@ -60,9 +63,17 @@ def _err(status: int, code: str, message: str) -> HTTPException:
     return HTTPException(status_code=status, detail={"code": code, "message": message})
 
 
-def create_app(engine=None, create_all: bool = False) -> FastAPI:
+def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
+    settings = settings or get_settings()
     app = FastAPI(title="Aedifica API", version="0.1.0")
-    engine = engine or make_engine()
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    engine = engine or make_engine(settings.database_url)
     if create_all:
         Base.metadata.create_all(engine)
     session_factory = make_session_factory(engine)
@@ -96,7 +107,15 @@ def create_app(engine=None, create_all: bool = False) -> FastAPI:
     # ---- public ---------------------------------------------------------- #
     @app.get("/api/health")
     def health():
-        return {"status": "ok", "version": "0.1.0"}
+        return {"status": "ok", "version": "0.1.0", "env": settings.env}
+
+    @app.get("/api/ready")
+    def ready(session: Session = Depends(get_session)):
+        try:
+            session.execute(text("SELECT 1"))
+        except Exception as exc:  # pragma: no cover - DB down path
+            raise _err(503, "DB_UNAVAILABLE", str(exc))
+        return {"status": "ready"}
 
     @app.post("/api/orgs", status_code=201)
     def bootstrap_org(body: OrgIn, session: Session = Depends(get_session)):
@@ -215,5 +234,5 @@ def create_app(engine=None, create_all: bool = False) -> FastAPI:
     return app
 
 
-# Uvicorn entry point: `uvicorn aedifica.api.app:app` (dev; create tables once).
-app = create_app(create_all=os.environ.get("AEDIFICA_CREATE_ALL") == "1")
+# Uvicorn entry point: `uvicorn aedifica.api.app:app` (dev; AEDIFICA_CREATE_ALL=1 to create tables).
+app = create_app(create_all=get_settings().create_all)
