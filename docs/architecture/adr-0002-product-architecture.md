@@ -1,8 +1,26 @@
-# ADR-0002 — Product architecture: multi-project web app, SQL, on-demand communes
+# ADR-0002 — Product runtime architecture (delivery substrate for the ArchiOS layer)
 
-> Status: **accepted 2026-06-02** (owner-confirmed). Supersedes the "offline
-> contracts + fixtures" framing as the *delivery* target. The stdlib engine and
-> its validators remain the **test backbone**, not the product shape.
+> Status: **accepted 2026-06-02; reframed 2026-06-02 (owner: option B)** after the
+> direction-alignment check (`../review/direction-alignment.md`). The stdlib engine
+> + validators remain the **test backbone**.
+
+## Product center — what this ADR is and is NOT (correction 2026-06-02)
+
+This ADR describes the **delivery substrate** (how the product runs), **not the
+product definition**. Per `../product/scope-realignment.md` and `strategy/
+decisions.md` (D-001, D-005, **D-006**), the product **is the ArchiOS operating
+layer**:
+
+1. a **neutral engine + canonical project memory** (bottom-up), and
+2. a **universal multi-software action API + agentic per-phase orchestration**
+   (top-down) — `inspect → generate intent → dry-run diff → scoped approval →
+   ledger`, across Archicad/IFC/Speckle/… adapters.
+
+The web app, SQL and Docker below are **the runtime that carries that layer** —
+they must not redefine the product as a "regulatory workspace SaaS." Guardrail:
+the regulatory wedge is one lane; the action loop + memory + next-step
+orchestration are first-class and must be exposed in the runtime, not left as
+engine contracts (this is the re-balance decided as option B).
 
 ## Context
 
@@ -12,9 +30,10 @@ checks). That backlog is exhausted; only #105/#115 (live partner Archicad) stay
 blocked. The owner has set the next phase: a **final multi-project product
 vision**, not more static fixtures.
 
-## Decision
+## Decision (runtime substrate)
 
-Build Aedifica as a **deployed, multi-tenant web application**.
+Run the ArchiOS layer as a **deployed, multi-tenant web application** (this is the
+substrate, per the correction above — not the product's identity).
 
 | Concern | Decision | Why |
 |---|---|---|

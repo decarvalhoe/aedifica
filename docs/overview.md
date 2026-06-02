@@ -155,6 +155,16 @@ et validés par CI.
   validateurs et surfaces Datum) avec gate de release vert
   (`python pilot/release_gate.py R1B` → 19 validateurs + selfcheck). Voir
   [`architecture/package-boundaries.md`](architecture/package-boundaries.md).
+- **Phase produit (2026-06) :** un substrat de livraison a été construit (vagues W1/W3 — package `aedifica/db`,
+  API FastAPI, app Next.js Datum, Postgres, Docker/GHCR, multi-tenant, ingestion de communes à la demande).
+  Voir [`architecture/adr-0002-product-architecture.md`](architecture/adr-0002-product-architecture.md).
+- **Réancrage (2026-06-02, décision B)** après le contrôle d'alignement
+  [`review/direction-alignment.md`](review/direction-alignment.md) : le produit **n'est pas** la web-app de
+  workspace réglementaire — c'est la **couche ArchiOS** (moteur + mémoire + **API universelle d'action** +
+  agents). La prochaine vague **W4** expose dans le runtime la moitié top-down encore absente : **boucle
+  d'action multi-logiciels** (dry-run → approbation → ledger), **requêtes mémoire**, et un **orchestrateur
+  « prochaine étape par phase »** — pas de nouvelles surfaces CRUD. Backlog :
+  [`planning/wave-4-action-layer-backlog.md`](planning/wave-4-action-layer-backlog.md).
 - Les seules issues plus anciennes encore ouvertes sont les validations live `#105` et `#115`, bloquées par
   l'accès à un endpoint Archicad/modèle partenaire.
 - Les listes de delivery, Definition of Ready/Done, release gates et checklists démo vivent dans
