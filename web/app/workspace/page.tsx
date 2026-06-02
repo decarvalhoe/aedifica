@@ -40,6 +40,31 @@ function human(e: any): string {
   return e.summary;
 }
 
+// UI localisation of engine-sourced labels (engine fixtures stay language-neutral).
+const FR: Record<string, string> = {
+  architect: "Architecte", architect_or_surveyor: "Architecte / géomètre", specialist: "Spécialiste",
+  architect_or_specialist: "Architecte / spécialiste", aedifica: "Aedifica",
+  platform: "Plateforme", plans: "Plans", parcel: "Parcelle", project: "Projet", compliance: "Conformité",
+  special_authorizations: "Autorisations spéciales",
+  energy: "Énergie", fire: "Incendie", accessibility: "Accessibilité", structure: "Structure", bim: "BIM",
+  heritage: "patrimoine", alignment: "alignements", neighbor: "voisinage", shadow: "ombres", visibility: "vues",
+  "Questionnaire general ACTIS-CAMAC": "Questionnaire général ACTIS-CAMAC",
+  "Plan de situation / geometre when required": "Plan de situation / géomètre (si requis)",
+  "Signed permit plans": "Plans d'enquête signés",
+  "Parcel identity and RDPPF/OEREB evidence": "Identité de la parcelle et extrait RDPPF/OEREB",
+  "Project description and works type": "Description du projet et nature des travaux",
+  "Energy forms and SIA 380/1 justification when applicable": "Formulaires énergie et justificatif SIA 380/1 (si applicable)",
+  "Fire-safety evidence / ECA-AEAI position when applicable": "Justificatif incendie / position ECA-AEAI (si applicable)",
+  "Special questionnaires triggered by project scope": "Questionnaires particuliers selon le projet",
+  "Phase-aware constraints and unknowns handoff": "Matrice de contraintes par phase et inconnues restantes",
+  "Energy dossier and SIA 380/1 justification": "Dossier énergie et justificatif SIA 380/1",
+  "Fire-safety evidence under AEAI/ECA Vaud framework": "Justificatif incendie (cadre AEAI/ECA Vaud)",
+  "Accessibility / construction without obstacles": "Accessibilité / construction sans obstacles",
+  "Structural and seismic basis": "Bases structurales et sismiques",
+  "BIM / digital information convention is contractual, not a legal permit gate": "Convention BIM / information numérique (contractuelle, non exigée par le permis)",
+};
+function fr(s?: string): string { if (!s) return s || ""; return FR[s] ?? FR[s.toLowerCase()] ?? s; }
+
 function Icon({ n }: { n: string }) {
   const p: Record<string, ReactNode> = {
     grid: <><rect x="2" y="2" width="5" height="5" /><rect x="9" y="2" width="5" height="5" /><rect x="2" y="9" width="5" height="5" /><rect x="9" y="9" width="5" height="5" /></>,
@@ -215,7 +240,7 @@ function Dashboard({ d, go }: { d: any; go: (v: View) => void }) {
           {(d.next || []).slice(0, 5).map((s: any, i: number) => (
             <div className="attn" key={i}>
               <span className="ix">{String(i + 1).padStart(2, "0")}</span>
-              <span><span className="tx">{s.title}</span><span className="mt">{s.action || s.kind} · phase {s.phase}</span></span>
+              <span><span className="tx">{fr(s.title)}</span><span className="mt">{s.action || s.kind} · phase {s.phase}</span></span>
             </div>
           ))}
           {(d.next || []).length === 0 && <p className="spin">Rien en attente.</p>}
@@ -263,10 +288,10 @@ function Permis({ d }: { d?: any }) {
       </div>
       {d.groups?.map((g: any, i: number) => (
         <div className="card" key={i} style={{ marginBottom: 14 }}>
-          <h3>{g.actor} · {g.category}</h3>
+          <h3>{fr(g.actor)} · {fr(g.category)}</h3>
           {g.items.map((it: any, j: number) => (
             <div className="claim" key={j}><Trust state={it.status} />
-              <div><div className="ttl">{it.title}</div>{it.missing_message && (it.status === "missing" || it.status === "assumption") && <small>{it.missing_message}</small>}</div></div>
+              <div><div className="ttl">{fr(it.title)}</div>{it.missing_message && (it.status === "missing" || it.status === "assumption") && <small>{it.missing_message}</small>}</div></div>
           ))}
         </div>
       ))}
@@ -285,7 +310,7 @@ function Opposition({ d }: { d?: any }) {
       <div className="card">
         {d.signals?.map((s: any, i: number) => (
           <div className="claim" key={i}><span className={`lvl ${cls(s.level)}`}>{s.level}</span>
-            <div><div className="ttl">{s.ground} <small style={{ display: "inline" }}>· {s.category}</small></div>
+            <div><div className="ttl">{fr(s.ground)} <small style={{ display: "inline" }}>· {fr(s.category)}</small></div>
               <div className="val" style={{ fontFamily: "var(--font-ui)", fontWeight: 400 }}>{s.basis}</div></div></div>
         ))}
       </div>
@@ -298,7 +323,7 @@ function Conformite({ d }: { d?: any }) {
   if (!d) return <p className="spin">Chargement…</p>;
   const gate = (g: any, i: number) => (
     <div className="claim" key={i}><Trust state={g.status === "satisfied" ? "satisfied" : g.status === "unknown" ? "unknown" : "action_required"} />
-      <div><div className="ttl">{g.title} <small style={{ display: "inline" }}>({g.domain})</small></div>{g.next_action && <small>{g.next_action}</small>}</div></div>
+      <div><div className="ttl">{fr(g.title)} <small style={{ display: "inline" }}>({fr(g.domain)})</small></div>{g.next_action && <small>{g.next_action}</small>}</div></div>
   );
   return (
     <>
