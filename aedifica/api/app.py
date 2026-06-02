@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from ..db import Base, make_engine, make_session_factory, models as m, repository
 from ..ingestion import service as ingestion
-from . import auth
+from . import actions, auth
 from .config import get_settings
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -42,6 +42,20 @@ class ProjectIn(BaseModel):
 class IntakeIn(BaseModel):
     query: str
     live: bool = True
+
+
+class DryRunIn(BaseModel):
+    adapter_id: str = "archicad_json"
+    operations: list = []
+
+
+class ApprovalIn(BaseModel):
+    scope: str
+    basis: str = "architect approval"
+
+
+class ExecuteIn(BaseModel):
+    transaction: dict
 
 
 class CommuneIn(BaseModel):
@@ -179,6 +193,50 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         from . import reports
 
         return {"compliance": reports.compliance_view()}
+
+    # ---- action loop (E28+E27 in the runtime) ---------------------------- #
+    @app.get("/api/projects/{project_id}/ledger")
+    def project_ledger(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.read")
+        return {"ledger": actions.ledger(session, _project(session, user, project_id))}
+
+    @app.get("/api/adapters/{adapter_id}/capabilities")
+    def adapter_capabilities(adapter_id: str, user: m.User = Depends(current_user)):
+        require(user, "project.read")
+        try:
+            return {"adapter_id": adapter_id, "capabilities": actions.capabilities(adapter_id)}
+        except Exception:
+            raise _err(404, "ADAPTER_NOT_FOUND", adapter_id)
+
+    @app.post("/api/projects/{project_id}/adapter/dry-run")
+    def adapter_dry_run(project_id: str, body: DryRunIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        project = _project(session, user, project_id)
+        try:
+            result = actions.dry_run(session, project, user, body.adapter_id, body.operations)
+        except Exception as exc:
+            raise _err(404, "ADAPTER_NOT_FOUND", str(exc))
+        session.commit()
+        return result
+
+    @app.post("/api/projects/{project_id}/approvals", status_code=201)
+    def create_approval(project_id: str, body: ApprovalIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        project = _project(session, user, project_id)
+        try:
+            result = actions.create_approval(session, project, user, body.scope, body.basis)
+        except Exception as exc:
+            raise _err(400, "INVALID_SCOPE", str(exc))
+        session.commit()
+        return {"approval": result}
+
+    @app.post("/api/projects/{project_id}/adapter/execute")
+    def adapter_execute(project_id: str, body: ExecuteIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "adapter.execute")
+        project = _project(session, user, project_id)
+        result = actions.execute(session, project, user, body.transaction)
+        session.commit()
+        return result
 
     @app.post("/api/projects/{project_id}/brief")
     def generate_brief(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
