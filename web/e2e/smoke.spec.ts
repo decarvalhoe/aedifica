@@ -24,7 +24,7 @@ test("auth → project → action loop", async ({ page }) => {
   await expect(page.getByText(/Aperçu prêt/)).toBeVisible();
 
   await page.getByRole("button", { name: "Valider l'exécution" }).click();
-  await expect(page.getByText(/Exécution validée/)).toBeVisible();
+  await expect(page.getByText(/Exécution validée/).first()).toBeVisible();
 
   await page.getByRole("button", { name: "Appliquer à la maquette" }).click();
   await expect(page.getByText(/Modification appliquée à la maquette et inscrite/)).toBeVisible();
