@@ -113,6 +113,7 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [flashKey, setFlashKey] = useState<string | null>(null);
+  const [users, setUsers] = useState<any[] | null>(null);
 
   useEffect(() => {
     const t = typeof window !== "undefined" ? localStorage.getItem("aedifica_token") : null;
@@ -120,7 +121,7 @@ export default function App() {
   }, []);
 
   async function verify(t: string) {
-    try { await loadProjects(t); setToken(t); }
+    try { await loadProjects(t); await loadUsers(t); setToken(t); }
     catch { localStorage.removeItem("aedifica_token"); }
     finally { setReady(true); }
   }
@@ -129,6 +130,19 @@ export default function App() {
     const sums = await Promise.all(ids.map((id) => api<any>(`/projects/${id}`, { token: t }).then((r) => r.project as Project)));
     setProjects(sums);
     return sums;
+  }
+  async function loadUsers(t: string) {
+    try { setUsers((await api<any>("/orgs/users", { token: t })).users); }
+    catch { setUsers(null); } // caller is not an owner — team panel hidden
+  }
+  async function addUser(email: string, name: string, role: string): Promise<string> {
+    const r = await api<any>("/orgs/users", { method: "POST", token: token!, body: { email, name, role } });
+    await loadUsers(token!);
+    return r.token;
+  }
+  async function setUserRole(id: number, role: string) {
+    await api(`/orgs/users/${id}`, { method: "PATCH", token: token!, body: { role } });
+    await loadUsers(token!);
   }
 
   async function seedReference(t: string) {
@@ -145,13 +159,13 @@ export default function App() {
       const t = (await api<any>("/orgs", { method: "POST", body: { org_name: orgName, user_email: email } })).token as string;
       localStorage.setItem("aedifica_token", t);
       await seedReference(t);
-      await loadProjects(t);
+      await loadProjects(t); await loadUsers(t);
       setFlashKey(t); setToken(t);
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   }
   async function signIn(key: string) {
     setBusy(true); setErr("");
-    try { await loadProjects(key); localStorage.setItem("aedifica_token", key); setToken(key); }
+    try { await loadProjects(key); await loadUsers(key); localStorage.setItem("aedifica_token", key); setToken(key); }
     catch { setErr("Clé d'accès invalide."); } finally { setBusy(false); }
   }
   function signOut() {
@@ -209,8 +223,9 @@ export default function App() {
   if (!ready) return <div className="empty"><div className="spin">Chargement…</div></div>;
   if (!token) return <Auth busy={busy} err={err} onRegister={register} onSignIn={signIn} />;
   if (!active) return (
-    <ProjectsScreen projects={projects} busy={busy} err={err} flashKey={flashKey}
-      onOpen={openProject} onCreate={createProject} onSignOut={signOut} dismissFlash={() => setFlashKey(null)} />
+    <ProjectsScreen projects={projects} busy={busy} err={err} flashKey={flashKey} users={users}
+      onOpen={openProject} onCreate={createProject} onSignOut={signOut} dismissFlash={() => setFlashKey(null)}
+      onAddUser={addUser} onSetRole={setUserRole} />
   );
 
   const cur = NAV.find((n) => n.id === view)!;
@@ -306,9 +321,10 @@ function Auth({ busy, err, onRegister, onSignIn }: { busy: boolean; err: string;
 }
 
 /* ---- Projects hub ---------------------------------------------------- */
-function ProjectsScreen({ projects, busy, err, flashKey, onOpen, onCreate, onSignOut, dismissFlash }: {
-  projects: Project[] | null; busy: boolean; err: string; flashKey: string | null;
+function ProjectsScreen({ projects, busy, err, flashKey, users, onOpen, onCreate, onSignOut, dismissFlash, onAddUser, onSetRole }: {
+  projects: Project[] | null; busy: boolean; err: string; flashKey: string | null; users: any[] | null;
   onOpen: (p: Project) => void; onCreate: (n: string, c: string) => void; onSignOut: () => void; dismissFlash: () => void;
+  onAddUser: (e: string, n: string, r: string) => Promise<string>; onSetRole: (id: number, r: string) => Promise<void>;
 }) {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState(""); const [commune, setCommune] = useState("Lausanne");
@@ -363,8 +379,53 @@ function ProjectsScreen({ projects, busy, err, flashKey, onOpen, onCreate, onSig
             </button>
           )}
         </div>
+
+        {users && <Team users={users} onAdd={onAddUser} onSetRole={onSetRole} />}
+
         {err && <p className="note" style={{ color: "var(--ts-conflict)" }}>{err}</p>}
       </div>
+    </div>
+  );
+}
+
+const ROLE_FR: Record<string, string> = { owner: "Propriétaire", member: "Membre", viewer: "Lecteur" };
+function Team({ users, onAdd, onSetRole }: { users: any[]; onAdd: (e: string, n: string, r: string) => Promise<string>; onSetRole: (id: number, r: string) => Promise<void>; }) {
+  const [inv, setInv] = useState(false);
+  const [email, setEmail] = useState(""); const [name, setName] = useState(""); const [role, setRole] = useState("member");
+  const [busy, setBusy] = useState(false); const [newKey, setNewKey] = useState<string | null>(null); const [err, setErr] = useState("");
+  const add = async () => {
+    setBusy(true); setErr("");
+    try { const k = await onAdd(email, name || email, role); setNewKey(k); setEmail(""); setName(""); setInv(false); }
+    catch (e: any) { setErr(e.message?.includes("exists") ? "Cet e-mail est déjà membre." : e.message); } finally { setBusy(false); }
+  };
+  return (
+    <div className="card" style={{ marginTop: 24 }}>
+      <h3>Équipe ({users.length})</h3>
+      {users.map((u) => (
+        <div className="claim" key={u.id} style={{ alignItems: "center" }}>
+          <div style={{ flex: 1 }}><div className="ttl">{u.name}{u.is_you && <small style={{ display: "inline" }}> · vous</small>}</div><small>{u.email}</small></div>
+          <select className="field" style={{ padding: "6px 8px" }} value={u.role} disabled={u.is_you} onChange={(e) => onSetRole(u.id, e.target.value)}>
+            {Object.entries(ROLE_FR).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+        </div>
+      ))}
+      {newKey && <div className="flash" style={{ marginTop: 12 }}><b>Membre ajouté.</b> Clé d&apos;accès à lui transmettre :<code>{newKey}</code><button className="linkbtn" style={{ paddingLeft: 0 }} onClick={() => setNewKey(null)}>OK</button></div>}
+      {inv ? (
+        <div className="fields" style={{ marginTop: 12 }}>
+          <input className="field" placeholder="E-mail du collaborateur" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input className="field" placeholder="Nom (optionnel)" value={name} onChange={(e) => setName(e.target.value)} />
+          <select className="field" value={role} onChange={(e) => setRole(e.target.value)}>
+            {Object.entries(ROLE_FR).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+          <div className="row" style={{ gap: 10 }}>
+            <button className="ds-btn" disabled={busy || !email} onClick={add}>{busy ? "Ajout…" : "Inviter"}</button>
+            <button className="ds-btn ghost" onClick={() => setInv(false)}>Annuler</button>
+          </div>
+          {err && <p className="note" style={{ color: "var(--ts-conflict)" }}>{err}</p>}
+        </div>
+      ) : (
+        <button className="linkbtn" style={{ paddingLeft: 0, marginTop: 8 }} onClick={() => setInv(true)}>+ Inviter un collaborateur</button>
+      )}
     </div>
   );
 }

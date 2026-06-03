@@ -30,6 +30,25 @@ def test_tenant_isolation(client):
     assert client.get("/api/projects/P-B", headers=h1).status_code == 404
 
 
+def test_team_management(client, owner):
+    h = owner["headers"]
+    # owner sees themselves
+    users = client.get("/api/orgs/users", headers=h).json()["users"]
+    assert len(users) == 1 and users[0]["role"] == "owner" and users[0]["is_you"]
+    # add a member -> gets a token
+    add = client.post("/api/orgs/users", json={"email": "m@a.ch", "name": "Membre", "role": "member"}, headers=h).json()
+    mid, mtoken = add["user"]["id"], add["token"]
+    hm = {"Authorization": f"Bearer {mtoken}"}
+    # the member cannot manage the team
+    assert client.get("/api/orgs/users", headers=hm).status_code == 403
+    # promote then demote
+    assert client.patch(f"/api/orgs/users/{mid}", json={"role": "owner"}, headers=h).json()["user"]["role"] == "owner"
+    assert client.patch(f"/api/orgs/users/{mid}", json={"role": "viewer"}, headers=h).status_code == 200
+    # cannot demote the last owner
+    me = next(u for u in client.get("/api/orgs/users", headers=h).json()["users"] if u["is_you"])
+    assert client.patch(f"/api/orgs/users/{me['id']}", json={"role": "member"}, headers=h).status_code == 400
+
+
 def test_viewer_cannot_write(client, engine):
     with make_session_factory(engine)() as s:
         org = m.Org(name="Viewer Org")

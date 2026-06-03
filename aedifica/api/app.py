@@ -30,6 +30,16 @@ class OrgIn(BaseModel):
     user_name: str = "Owner"
 
 
+class UserIn(BaseModel):
+    email: str
+    name: str = "Membre"
+    role: str = "member"
+
+
+class RoleIn(BaseModel):
+    role: str
+
+
 class ProjectIn(BaseModel):
     project_id: str
     name: str
@@ -140,6 +150,42 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         session.add(m.User(org_id=org.id, email=body.user_email, name=body.user_name, role="owner", api_token=token))
         session.commit()
         return {"org_id": org.id, "user_email": body.user_email, "role": "owner", "token": token}
+
+    # ---- org & team management (owner only) ------------------------------ #
+    @app.get("/api/orgs/users")
+    def list_users(user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "org.manage")
+        rows = session.query(m.User).filter_by(org_id=user.org_id).order_by(m.User.id).all()
+        return {"users": [{"id": u.id, "email": u.email, "name": u.name, "role": u.role, "is_you": u.id == user.id} for u in rows]}
+
+    @app.post("/api/orgs/users", status_code=201)
+    def add_user(body: UserIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "org.manage")
+        if body.role not in auth.ROLES:
+            raise _err(400, "BAD_ROLE", f"role must be one of {auth.ROLES}")
+        if session.query(m.User).filter_by(org_id=user.org_id, email=body.email).first():
+            raise _err(409, "USER_EXISTS", body.email)
+        token = auth.new_token()
+        u = m.User(org_id=user.org_id, email=body.email, name=body.name, role=body.role, api_token=token)
+        session.add(u)
+        session.commit()
+        return {"user": {"id": u.id, "email": u.email, "name": u.name, "role": u.role}, "token": token}
+
+    @app.patch("/api/orgs/users/{user_id}")
+    def set_role(user_id: int, body: RoleIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "org.manage")
+        if body.role not in auth.ROLES:
+            raise _err(400, "BAD_ROLE", f"role must be one of {auth.ROLES}")
+        target = session.query(m.User).filter_by(org_id=user.org_id, id=user_id).first()
+        if target is None:
+            raise _err(404, "USER_NOT_FOUND", str(user_id))
+        if target.role == "owner" and body.role != "owner":
+            owners = session.query(m.User).filter_by(org_id=user.org_id, role="owner").count()
+            if owners <= 1:
+                raise _err(400, "LAST_OWNER", "cannot demote the last owner of the organisation")
+        target.role = body.role
+        session.commit()
+        return {"user": {"id": target.id, "email": target.email, "role": target.role}}
 
     # ---- projects (org-scoped) ------------------------------------------- #
     @app.get("/api/projects")

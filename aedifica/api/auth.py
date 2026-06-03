@@ -9,10 +9,12 @@ from __future__ import annotations
 import secrets
 
 ROLE_CAPABILITIES = {
-    "owner": {"project.read", "project.write", "commune.write", "adapter.execute"},
+    "owner": {"project.read", "project.write", "commune.write", "adapter.execute", "org.manage"},
     "member": {"project.read", "project.write", "commune.write"},
     "viewer": {"project.read"},
 }
+
+ROLES = ("owner", "member", "viewer")
 
 
 def new_token() -> str:
