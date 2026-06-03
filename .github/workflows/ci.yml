@@ -128,3 +128,50 @@ jobs:
 
       - name: Parity — offline engine stays green
         run: python pilot/selfcheck.py
+
+  e2e:
+    name: Web E2E smoke (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install product dependencies
+        run: pip install -e ".[product]"
+
+      - name: Start API
+        env:
+          AEDIFICA_DATABASE_URL: sqlite:///e2e.db
+          AEDIFICA_CREATE_ALL: "1"
+        run: |
+          python -m uvicorn aedifica.api.app:app --host 127.0.0.1 --port 8090 &
+          for i in $(seq 1 40); do curl -sf http://127.0.0.1:8090/api/health >/dev/null && break; sleep 1; done
+
+      - name: Build and start web
+        working-directory: web
+        env:
+          AEDIFICA_API: http://127.0.0.1:8090
+        run: |
+          npm install
+          npm run build
+          npx next start -p 3100 &
+          for i in $(seq 1 40); do curl -sf http://127.0.0.1:3100/api/health >/dev/null && break; sleep 1; done
+
+      - name: Playwright smoke (auth -> project -> action loop)
+        working-directory: web
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3100
+          CI: "true"
+        run: |
+          npx playwright install --with-deps chromium
+          npm run e2e

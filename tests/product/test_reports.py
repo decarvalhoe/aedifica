@@ -18,6 +18,10 @@ def test_empty_project_reports(client, owner):
     assert opp["data_basis"] == "empty" and opp["overall"] is None and opp["signals"] == []
     comp = client.get("/api/projects/Q/compliance", headers=h).json()["compliance"]
     assert comp["data_basis"] == "empty"
+    cost = client.get("/api/projects/Q/cost", headers=h).json()["cost"]
+    assert cost["data_basis"] == "empty" and cost["cockpit"] is None
+    site = client.get("/api/projects/Q/site", headers=h).json()["site"]
+    assert site["data_basis"] == "empty" and site["handover"] == []
 
 
 def test_permit_report(client, owner):
@@ -54,6 +58,18 @@ def test_site_report(client, owner):
     site = client.get("/api/projects/P/site", headers=owner["headers"]).json()["site"]
     assert site["handover"] and site["defects"]
     assert site["summary"]["handover_blocked"] >= 1
+
+
+def test_permit_submission(client, owner):
+    h = owner["headers"]
+    client.post("/api/projects", json={"project_id": "S", "name": "S", "commune": "Lausanne"}, headers=h)
+    before = client.get("/api/projects/S/permit", headers=h).json()["permit"]
+    assert before["data_basis"] == "empty"
+    item = next(i for g in before["groups"] for i in g["items"] if i["status"] == "missing")
+    after = client.post("/api/projects/S/permit/dossier", json={"item_id": item["item_id"], "present": True}, headers=h).json()["permit"]
+    assert after["data_basis"] == "project"
+    now = next(i for g in after["groups"] for i in g["items"] if i["item_id"] == item["item_id"])
+    assert now["status"] == "present"
 
 
 def test_reports_require_auth(client, owner):

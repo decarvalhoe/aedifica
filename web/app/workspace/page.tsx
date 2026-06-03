@@ -29,8 +29,8 @@ const NAV: { id: View; lb: string; ds: string; ico: string; st: Status }[] = [
   { id: "permis", lb: "Dossier de permis", ds: "Complétude pièce par pièce", ico: "doc", st: "live" },
   { id: "opposition", lb: "Risque d'opposition", ds: "Motifs probables, sur les faits", ico: "shield", st: "live" },
   { id: "conformite", lb: "Conformité", ds: "Obligations à lever avant dépôt", ico: "check", st: "live" },
-  { id: "couts", lb: "Coûts & appels d'offres", ds: "Honoraires, rentabilité, soumissions", ico: "coin", st: "preview" },
-  { id: "chantier", lb: "Chantier & remise", ds: "Réserves et check-list de remise", ico: "cone", st: "preview" },
+  { id: "couts", lb: "Coûts & appels d'offres", ds: "Honoraires, rentabilité, soumissions", ico: "coin", st: "live" },
+  { id: "chantier", lb: "Chantier & remise", ds: "Réserves et check-list de remise", ico: "cone", st: "live" },
 ];
 const STATUS: Record<Status, [string, string]> = {
   live: ["live", "Opérationnel"], preview: ["preview", "Données de référence"], soon: ["soon", "À venir"],
@@ -211,6 +211,11 @@ export default function App() {
     await api("/communes", { method: "POST", token: token!, body: { commune: active.jurisdiction.commune, canton: active.jurisdiction.canton } });
     await loadAll(active, token!);
   }
+  async function submitPermit(itemId: string, present: boolean) {
+    if (!active) return;
+    const r = await api<any>(`/projects/${active.project_id}/permit/dossier`, { method: "POST", token: token!, body: { item_id: itemId, present } });
+    setD((x) => ({ ...x, permit: r.permit }));
+  }
   async function refreshLedger() {
     if (!active) return;
     const [ledger, unknowns] = await Promise.all([
@@ -273,7 +278,7 @@ export default function App() {
           )}
           {view === "dashboard" && <Dashboard d={d} go={setView} />}
           {view === "terrain" && <Terrain claims={d.claims} mode={d.intakeMode} reason={d.intakeReason} support={d.support} commune={j.commune} onLookup={lookup} onRequest={requestCommune} />}
-          {view === "permis" && <Permis d={d.permit} />}
+          {view === "permis" && <Permis d={d.permit} onSubmit={submitPermit} />}
           {view === "opposition" && <Opposition d={d.opposition} />}
           {view === "conformite" && <Conformite d={d.compliance} />}
           {view === "copilote" && <Copilote token={token} pid={active.project_id} ledger={d.ledger} onChange={refreshLedger} />}
@@ -435,9 +440,11 @@ function Couts({ d }: { d?: any }) {
   if (!d) return <p className="spin">Chargement…</p>;
   const c = d.cockpit;
   const chf = (n: number) => "CHF " + Number(n).toLocaleString("fr-CH");
+  const head = <div className="vhead"><h2>Coûts &amp; appels d&apos;offres</h2><p>Estimation d&apos;honoraires, rentabilité du mandat et hypothèses portées en comparatif de soumissions. L&apos;outil n&apos;embarque aucun coefficient SIA payant — il enregistre les hypothèses de l&apos;atelier.</p></div>;
+  if (!c) return (<>{head}<div className="placeholder"><h4>Aucune estimation pour ce projet</h4><p>L&apos;estimation d&apos;honoraires et les hypothèses de soumission n&apos;ont pas encore été saisies. Le projet de référence « Place de la Palud » montre le rendu attendu.</p></div></>);
   return (
     <>
-      <div className="vhead"><h2>Coûts &amp; appels d&apos;offres</h2><p>Estimation d&apos;honoraires, rentabilité du mandat et hypothèses portées en comparatif de soumissions. L&apos;outil n&apos;embarque aucun coefficient SIA payant — il enregistre les hypothèses de l&apos;atelier.</p></div>
+      {head}
       <div className="kpis">
         <div className="kpi"><div className="lab">Honoraires estimés</div><div className="num" style={{ fontSize: 23 }}>{chf(c.estimated_fee_chf)}</div><div className="sub">{c.estimated_hours} h · {c.hourly_rate_chf} CHF/h</div></div>
         <div className="kpi"><div className="lab">Marge cible</div><div className="num">{c.target_margin_percent}%</div><div className="sub">objectif atelier</div></div>
@@ -466,9 +473,11 @@ function Chantier({ d }: { d?: any }) {
   const map = (s: string) => (s === "closed" ? "satisfied" : s === "blocked" ? "conflict" : s === "open" ? "unknown" : "assumption");
   const lbl: Record<string, string> = { open: "ouvert", closed: "clos", blocked: "bloqué" };
   const sev = (s: string) => (s === "high" ? "eleve" : s === "medium" ? "modere" : "faible");
+  const head = <div className="vhead"><h2>Chantier &amp; remise</h2><p>Suivi d&apos;exécution : réserves / défauts et check-list de remise, avec responsable et échéance — pour clôturer proprement.</p></div>;
+  if (d.data_basis === "empty") return (<>{head}<div className="placeholder"><h4>Aucun suivi de chantier pour ce projet</h4><p>Les réserves et la check-list de remise apparaîtront ici en phase exécution. Le projet de référence « Place de la Palud » montre le rendu attendu.</p></div></>);
   return (
     <>
-      <div className="vhead"><h2>Chantier &amp; remise</h2><p>Suivi d&apos;exécution : réserves / défauts et check-list de remise, avec responsable et échéance — pour clôturer proprement.</p></div>
+      {head}
       <div className="banner" style={{ borderLeftColor: d.summary.handover_blocked ? "var(--ts-conflict)" : "var(--ts-sourced)" }}><b>{d.summary.handover_blocked}</b> point(s) de remise bloqué(s) · <b>{d.summary.defects_open}</b> défaut(s) ouvert(s).</div>
       <div className="grid2">
         <div className="card"><h3>Check-list de remise</h3>
@@ -600,11 +609,13 @@ function Terrain({ claims, mode, reason, support, commune, onLookup, onRequest }
 }
 
 /* ---- Permis ---------------------------------------------------------- */
-function Permis({ d }: { d?: any }) {
+function Permis({ d, onSubmit }: { d?: any; onSubmit: (itemId: string, present: boolean) => Promise<void> }) {
+  const [busy, setBusy] = useState("");
   if (!d) return <p className="spin">Chargement…</p>;
+  const toggle = async (id: string, present: boolean) => { setBusy(id); try { await onSubmit(id, present); } catch { /* surfaced upstream */ } finally { setBusy(""); } };
   return (
     <>
-      <div className="vhead"><h2>Dossier de permis</h2><p>L&apos;état de complétude de votre demande, pièce par pièce et par intervenant — pour ne plus déposer un dossier incomplet.</p></div>
+      <div className="vhead"><h2>Dossier de permis</h2><p>L&apos;état de complétude de votre demande, pièce par pièce et par intervenant. Marquez chaque pièce comme fournie au fur et à mesure — pour ne plus déposer un dossier incomplet.</p></div>
       <div className="banner" style={{ borderLeftColor: d.ready_for_review ? "var(--ts-sourced)" : "var(--ts-assume)" }}>
         {d.ready_for_review ? <b>Dossier prêt à déposer.</b> : <><b>Pas encore prêt — {d.summary.required_blockers} pièce(s) requise(s) manquante(s).</b> Détail ci-dessous.</>}
         {d.data_basis === "empty" && <span> Aucune pièce déposée pour ce projet — le dossier démarre vide.</span>}
@@ -612,10 +623,17 @@ function Permis({ d }: { d?: any }) {
       {d.groups?.map((g: any, i: number) => (
         <div className="card" key={i} style={{ marginBottom: 14 }}>
           <h3>{fr(g.actor)} · {fr(g.category)}</h3>
-          {g.items.map((it: any, j: number) => (
-            <div className="claim" key={j}><Trust state={it.status} />
-              <div><div className="ttl">{fr(it.title)}</div>{it.missing_message && (it.status === "missing" || it.status === "assumption") && <small>{it.missing_message}</small>}</div></div>
-          ))}
+          {g.items.map((it: any, j: number) => {
+            const present = it.status === "present";
+            return (
+              <div className="claim" key={j} style={{ alignItems: "center" }}><Trust state={it.status} />
+                <div style={{ flex: 1 }}><div className="ttl">{fr(it.title)}</div>{it.missing_message && (it.status === "missing" || it.status === "assumption") && <small>{it.missing_message}</small>}</div>
+                <button className="ds-btn ghost" style={{ padding: "6px 12px" }} disabled={busy === it.item_id} onClick={() => toggle(it.item_id, !present)}>
+                  {busy === it.item_id ? "…" : present ? "Retirer" : "Fournir"}
+                </button>
+              </div>
+            );
+          })}
         </div>
       ))}
     </>

@@ -48,13 +48,36 @@ def permit_view(project) -> dict:
                 "actor": g["actor"],
                 "category": g["category"],
                 "items": [
-                    {"title": i["title"], "status": i["status"], "missing_message": i.get("missing_message")}
+                    {"item_id": i["item_id"], "title": i["title"], "status": i["status"], "missing_message": i.get("missing_message")}
                     for i in g["items"]
                 ],
             }
             for g in r["groups"]
         ],
     }
+
+
+def submit_permit_piece(project, item_id: str, present: bool) -> None:
+    """Mark a permit checklist item as submitted (present) or withdrawn, in the
+    project's own dossier. Real per-project submission — no global fixture."""
+    checklist = _load("permit", "vd_camac_checklist.json")
+    item = next((it for it in checklist["items"] if it["item_id"] == item_id), None)
+    if item is None:
+        raise ValueError(f"unknown checklist item {item_id}")
+    key = (item.get("accepted_evidence") or [item_id])[0]
+    dossier = dict(project.permit_dossier or _empty_dossier(project))
+    records = [r for r in dossier.get("evidence_records", []) if r.get("key") != key]
+    if present:
+        records.append({
+            "evidence_id": f"EVID-{key.upper()}",
+            "key": key,
+            "kind": "app_submission",
+            "title": item["title"],
+            "status": "present",
+            "source_refs": [{"source_id": "APP-SUBMISSION", "locator": "Déposé dans l'application", "valid_as_of": "2026-06-03", "confidence": "declared"}],
+        })
+    dossier["evidence_records"] = records
+    project.permit_dossier = dossier  # reassign so SQLAlchemy flags the JSON column dirty
 
 
 def opposition_view(project) -> dict:
@@ -108,26 +131,29 @@ def compliance_view(project) -> dict:
     }
 
 
-def cost_view() -> dict:
+def cost_view(project) -> dict:
     import validate_cost  # noqa: E402
 
-    fee = _load("cost", "sia102_fee_sample.json")
-    cockpit = validate_cost.profitability_cockpit(fee)
-    tender = _load("cost", "tender_assumptions_log.json")
-    bridge = _load("cost", "quantity_taxonomy_bridge.json")
+    ci = project.cost_inputs
+    if not ci:
+        return {"data_basis": "empty", "cockpit": None, "tender_assumptions": [], "quantity_rows": []}
     return {
-        "cockpit": cockpit,
-        "tender_assumptions": tender.get("entries", []),
-        "quantity_rows": bridge.get("quantity_rows", []),
+        "data_basis": "project",
+        "cockpit": validate_cost.profitability_cockpit(ci["fee"]),
+        "tender_assumptions": ci.get("tender", []),
+        "quantity_rows": ci.get("bridge", []),
     }
 
 
-def site_view() -> dict:
-    handover = _load("site", "handover_checklist.json")
-    defects = _load("site", "defect_register_fixture.json")
-    items = handover.get("items", [])
-    dlist = defects.get("defects", [])
+def site_view(project) -> dict:
+    si = project.site_inputs
+    if not si:
+        return {"data_basis": "empty", "handover": [], "defects": [],
+                "summary": {"handover_blocked": 0, "handover_open": 0, "handover_closed": 0, "defects_open": 0}}
+    items = si.get("handover", [])
+    dlist = si.get("defects", [])
     return {
+        "data_basis": "project",
         "handover": items,
         "defects": dlist,
         "summary": {
@@ -140,10 +166,19 @@ def site_view() -> dict:
 
 
 def seed_reference_reports(project) -> None:
-    """Seed the demo/reference project with the demo permit dossier + compliance inputs.
+    """Seed the demo/reference project with the demo dossier, inputs, cost & site.
 
     Real projects start empty (nothing submitted); only the explicit reference
     project carries this demo submission so the surfaces have something to show.
     """
     project.permit_dossier = _load("permit", "demo_missing_dossier.json")
     project.compliance_inputs = _load("compliance", "demo_missing_inputs.json")["inputs"]
+    project.cost_inputs = {
+        "fee": _load("cost", "sia102_fee_sample.json"),
+        "tender": _load("cost", "tender_assumptions_log.json").get("entries", []),
+        "bridge": _load("cost", "quantity_taxonomy_bridge.json").get("quantity_rows", []),
+    }
+    project.site_inputs = {
+        "handover": _load("site", "handover_checklist.json").get("items", []),
+        "defects": _load("site", "defect_register_fixture.json").get("defects", []),
+    }

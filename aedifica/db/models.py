@@ -71,6 +71,8 @@ class Project(Base):
     permit_dossier: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     compliance_inputs: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     brief_risks: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    cost_inputs: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # AED-218
+    site_inputs: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # AED-219
     created_at: Mapped[_dt.datetime] = _TS()
 
     org: Mapped[Org] = relationship(back_populates="projects")

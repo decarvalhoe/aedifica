@@ -40,6 +40,11 @@ class RoleIn(BaseModel):
     role: str
 
 
+class SubmitPieceIn(BaseModel):
+    item_id: str
+    present: bool = True
+
+
 class ProjectIn(BaseModel):
     project_id: str
     name: str
@@ -229,6 +234,19 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
 
         return {"permit": reports.permit_view(project)}
 
+    @app.post("/api/projects/{project_id}/permit/dossier")
+    def submit_permit(project_id: str, body: SubmitPieceIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        project = _project(session, user, project_id)
+        from . import reports
+
+        try:
+            reports.submit_permit_piece(project, body.item_id, body.present)
+        except ValueError as exc:
+            raise _err(404, "UNKNOWN_ITEM", str(exc))
+        session.commit()
+        return {"permit": reports.permit_view(project)}
+
     @app.get("/api/projects/{project_id}/opposition")
     def project_opposition(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.read")
@@ -248,18 +266,18 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     @app.get("/api/projects/{project_id}/cost")
     def project_cost(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.read")
-        _project(session, user, project_id)
+        project = _project(session, user, project_id)
         from . import reports
 
-        return {"cost": reports.cost_view()}
+        return {"cost": reports.cost_view(project)}
 
     @app.get("/api/projects/{project_id}/site")
     def project_site(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.read")
-        _project(session, user, project_id)
+        project = _project(session, user, project_id)
         from . import reports
 
-        return {"site": reports.site_view()}
+        return {"site": reports.site_view(project)}
 
     # ---- action loop (E28+E27 in the runtime) ---------------------------- #
     @app.get("/api/projects/{project_id}/ledger")
