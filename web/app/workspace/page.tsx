@@ -3,8 +3,20 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { api } from "@/lib/api";
 
-const DEMO_ID = "DEMO-LAUSANNE-PALUD";
-const META = { name: "Place de la Palud", commune: "Lausanne", phase: "Faisabilité · SIA 0–31" };
+const REF_ID = "DEMO-LAUSANNE-PALUD";
+const REF = { name: "Place de la Palud", commune: "Lausanne" };
+
+const PHASE: Record<string, string> = {
+  "0": "Faisabilité · SIA 0–31", "32": "Projet · SIA 32", "33": "Permis · SIA 33",
+  "41": "Appel d'offres · SIA 41", "51": "Exécution · SIA 51",
+};
+const phaseLabel = (c?: string) => (c && PHASE[c]) || (c ? `SIA ${c}` : "—");
+
+type Project = {
+  project_id: string; name: string; phase_code: string;
+  jurisdiction: { commune: string; canton: string; country: string };
+  claims: number; ledger_entries: number; reports: number;
+};
 
 type View = "dashboard" | "terrain" | "permis" | "opposition" | "conformite" | "copilote" | "memoire" | "couts" | "chantier";
 type Status = "live" | "preview" | "soon";
@@ -86,25 +98,84 @@ function Icon({ n }: { n: string }) {
     clock: <><circle cx="8" cy="8" r="6.2" /><path d="M8 4.5V8l2.5 1.6" /></>,
     coin: <><circle cx="8" cy="8" r="6.2" /><path d="M8 4.3v7.4M6.2 6.3h3M6.2 8.3h3" /></>,
     cone: <><path d="M8 2.2 12 13H4Z" /><path d="M6 8.5h4M3 13h10" /></>,
+    plus: <><path d="M8 3v10M3 8h10" /></>,
   };
   return <svg className="ico" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round">{p[n]}</svg>;
 }
 
 export default function App() {
-  const [token, setToken] = useState("");
-  const [opened, setOpened] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
+  const [projects, setProjects] = useState<Project[] | null>(null);
+  const [active, setActive] = useState<Project | null>(null);
   const [view, setView] = useState<View>("dashboard");
   const [d, setD] = useState<Record<string, any>>({});
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [flashKey, setFlashKey] = useState<string | null>(null);
 
   useEffect(() => {
-    const t = typeof window !== "undefined" ? localStorage.getItem("aedifica_token") || "" : "";
-    if (t) setToken(t);
+    const t = typeof window !== "undefined" ? localStorage.getItem("aedifica_token") : null;
+    if (t) verify(t); else setReady(true);
   }, []);
 
-  async function loadAll(tk: string) {
-    const g = (p: string) => api<any>(`/projects/${DEMO_ID}${p}`, { token: tk });
+  async function verify(t: string) {
+    try { await loadProjects(t); setToken(t); }
+    catch { localStorage.removeItem("aedifica_token"); }
+    finally { setReady(true); }
+  }
+  async function loadProjects(t: string): Promise<Project[]> {
+    const ids = (await api<any>("/projects", { token: t })).projects as string[];
+    const sums = await Promise.all(ids.map((id) => api<any>(`/projects/${id}`, { token: t }).then((r) => r.project as Project)));
+    setProjects(sums);
+    return sums;
+  }
+
+  async function seedReference(t: string) {
+    try { await api("/projects", { method: "POST", token: t, body: { project_id: REF_ID, name: REF.name, commune: REF.commune } }); } catch { /* exists */ }
+    try {
+      const c = ((await api<any>(`/projects/${REF_ID}/claims`, { token: t })).claims) || [];
+      if (!c.length) await api(`/projects/${REF_ID}/intake`, { method: "POST", token: t, body: { query: `${REF.name}, ${REF.commune}`, live: false } });
+    } catch { /* ignore */ }
+  }
+
+  async function register(orgName: string, email: string) {
+    setBusy(true); setErr("");
+    try {
+      const t = (await api<any>("/orgs", { method: "POST", body: { org_name: orgName, user_email: email } })).token as string;
+      localStorage.setItem("aedifica_token", t);
+      await seedReference(t);
+      await loadProjects(t);
+      setFlashKey(t); setToken(t);
+    } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+  }
+  async function signIn(key: string) {
+    setBusy(true); setErr("");
+    try { await loadProjects(key); localStorage.setItem("aedifica_token", key); setToken(key); }
+    catch { setErr("Clé d'accès invalide."); } finally { setBusy(false); }
+  }
+  function signOut() {
+    localStorage.removeItem("aedifica_token");
+    setToken(null); setProjects(null); setActive(null); setD({}); setFlashKey(null);
+  }
+
+  async function createProject(name: string, commune: string) {
+    const id = (name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40)) || `PROJ-${(projects?.length ?? 0) + 1}`;
+    setBusy(true); setErr("");
+    try {
+      await api("/projects", { method: "POST", token: token!, body: { project_id: id, name, commune } });
+      const sums = await loadProjects(token!);
+      const p = sums.find((s) => s.project_id === id);
+      if (p) await openProject(p);
+    } catch (e: any) { setErr(e.message?.includes("exists") ? "Un projet porte déjà ce nom." : e.message); } finally { setBusy(false); }
+  }
+  async function openProject(p: Project) {
+    setActive(p); setView("dashboard"); setD({}); setFlashKey(null);
+    try { await loadAll(p.project_id, token!); } catch (e: any) { setErr(e.message); }
+  }
+
+  async function loadAll(pid: string, t: string) {
+    const g = (path: string) => api<any>(`/projects/${pid}${path}`, { token: t });
     const [claims, permit, opposition, compliance, ledger, next, unknowns] = await Promise.all([
       g("/claims"), g("/permit"), g("/opposition"), g("/compliance"), g("/ledger"), g("/next-step"), g("/memory/unknowns"),
     ]);
@@ -113,69 +184,33 @@ export default function App() {
       compliance: compliance.compliance, ledger: ledger.ledger, next: next.steps, unknowns: unknowns.unknowns,
     });
   }
-
-  async function bootstrap(): Promise<string> {
-    const tk = (await api<any>("/orgs", { method: "POST", body: { org_name: "Atelier démo", user_email: "demo@aedifica.ch" } })).token;
-    localStorage.setItem("aedifica_token", tk); setToken(tk);
-    return tk;
-  }
-  async function ensure(tk: string) {
-    try { await api("/projects", { method: "POST", token: tk, body: { project_id: DEMO_ID, name: META.name, commune: META.commune } }); } catch { /* exists */ }
-    // Ingest the brief once only — repeat demo starts must not duplicate claims.
-    let hasClaims = false;
-    try { hasClaims = (((await api<any>(`/projects/${DEMO_ID}/claims`, { token: tk })).claims) || []).length > 0; } catch { /* new project */ }
-    if (!hasClaims) await api(`/projects/${DEMO_ID}/intake`, { method: "POST", token: tk, body: { query: `${META.name}, ${META.commune}`, live: false } });
-    await loadAll(tk);
-  }
-  async function openWorkspace() {
-    setBusy(true); setErr("");
-    try {
-      let tk = token || (await bootstrap());
-      try { await ensure(tk); }
-      catch { tk = await bootstrap(); await ensure(tk); } // stale/invalid token → fresh org, retry once
-      setOpened(true); setView("dashboard");
-    } catch (e: any) { setErr(e.message); }
-    finally { setBusy(false); }
-  }
-
   async function refreshLedger() {
+    if (!active) return;
     const [ledger, unknowns] = await Promise.all([
-      api<any>(`/projects/${DEMO_ID}/ledger`, { token }), api<any>(`/projects/${DEMO_ID}/memory/unknowns`, { token }),
+      api<any>(`/projects/${active.project_id}/ledger`, { token: token! }),
+      api<any>(`/projects/${active.project_id}/memory/unknowns`, { token: token! }),
     ]);
     setD((x) => ({ ...x, ledger: ledger.ledger, unknowns: unknowns.unknowns }));
   }
 
-  if (!opened) {
-    return (
-      <div className="empty">
-        <div className="box">
-          <span className="eyebrow">Æ Aedifica · ArchiOS Suisse</span>
-          <h1>Le copilote de l&apos;architecte suisse</h1>
-          <p>Il maîtrise la réglementation (et avoue ce qu&apos;il ignore), prépare vos dossiers, et agit sur vos maquettes BIM — toujours sous votre contrôle.</p>
-          <button className="proj-row" onClick={openWorkspace} disabled={busy} style={{ width: "100%", cursor: busy ? "default" : "pointer" }}>
-            <Icon n="pin" /><span style={{ flex: 1 }}><span className="nm" style={{ display: "block" }}>{META.name}</span><span className="me">{META.commune} · VD · {META.phase}</span></span>
-            <span className="chip">{busy ? "Ouverture…" : "Ouvrir"}</span>
-          </button>
-          <div className="proj-row soon" style={{ width: "100%" }}>
-            <Icon n="grid" /><span style={{ flex: 1 }}><span className="nm" style={{ display: "block" }}>Nouveau projet</span><span className="me">Création de projet à venir</span></span>
-            <span className="badge soon"><span className="d" />À venir</span>
-          </div>
-          <p className="note">Instance locale. Les valeurs marquées « source officielle » sont réelles ; les surfaces « données de référence » et « à venir » sont signalées comme telles.</p>
-          {err && <p className="note" style={{ color: "var(--ts-conflict)" }}>{err}</p>}
-        </div>
-      </div>
-    );
-  }
+  if (!ready) return <div className="empty"><div className="spin">Chargement…</div></div>;
+  if (!token) return <Auth busy={busy} err={err} onRegister={register} onSignIn={signIn} />;
+  if (!active) return (
+    <ProjectsScreen projects={projects} busy={busy} err={err} flashKey={flashKey}
+      onOpen={openProject} onCreate={createProject} onSignOut={signOut} dismissFlash={() => setFlashKey(null)} />
+  );
 
   const cur = NAV.find((n) => n.id === view)!;
+  const j = active.jurisdiction;
   return (
     <div className="app">
       <aside className="side">
         <div className="brand"><span className="wordmark"><span className="ae">Æ</span>DIFICA</span><span className="ar">ArchiOS</span></div>
+        <button className="back" onClick={() => { setActive(null); setD({}); }}>← Tous les projets</button>
         <div className="pcard">
           <div className="k">Projet ouvert</div>
-          <div className="nm">{META.name}</div>
-          <div className="meta">{META.commune} · VD<br />{META.phase}</div>
+          <div className="nm">{active.name}</div>
+          <div className="meta">{j.commune} · {j.canton}<br />{phaseLabel(active.phase_code)}</div>
         </div>
         <nav className="nav">
           {GROUPS.map((grp) => (
@@ -191,7 +226,7 @@ export default function App() {
             </div>
           ))}
         </nav>
-        <div className="foot"><span className="d" />Instance locale · Aedifica</div>
+        <div className="foot"><span className="d" /><button className="signout" onClick={signOut}>Se déconnecter</button></div>
       </aside>
 
       <main className="main">
@@ -199,7 +234,7 @@ export default function App() {
           <span className="t-nm">{cur.lb}</span>
           <Badge st={cur.st} />
           <span className="sp" />
-          <span className="chip">{META.commune}</span>
+          <span className="chip">{j.commune}</span>
           <span className="chip">L&apos;IA propose — l&apos;architecte décide</span>
         </div>
         <div className="view">
@@ -213,12 +248,110 @@ export default function App() {
           {view === "permis" && <Permis d={d.permit} />}
           {view === "opposition" && <Opposition d={d.opposition} />}
           {view === "conformite" && <Conformite d={d.compliance} />}
-          {view === "copilote" && <Copilote token={token} ledger={d.ledger} onChange={refreshLedger} />}
+          {view === "copilote" && <Copilote token={token} pid={active.project_id} ledger={d.ledger} onChange={refreshLedger} />}
           {view === "memoire" && <Memoire unknowns={d.unknowns} ledger={d.ledger} />}
           {view === "couts" && <Soon title="Coûts & appels d'offres" engine="le moteur de coûts et de soumissions (contrats E29, vérifiés hors-ligne)" what="estimation paramétrique, métrés et comparatif de soumissions" />}
           {view === "chantier" && <Soon title="Chantier & remise" engine="le moteur chantier et handover (contrats E30, vérifiés hors-ligne)" what="suivi d'exécution, levée des réserves et dossier de remise" />}
         </div>
       </main>
+    </div>
+  );
+}
+
+/* ---- Auth (register / sign-in) --------------------------------------- */
+function Auth({ busy, err, onRegister, onSignIn }: { busy: boolean; err: string; onRegister: (o: string, e: string) => void; onSignIn: (k: string) => void; }) {
+  const [mode, setMode] = useState<"register" | "signin">("register");
+  const [org, setOrg] = useState(""); const [email, setEmail] = useState(""); const [key, setKey] = useState("");
+  return (
+    <div className="empty">
+      <div className="box">
+        <span className="eyebrow">Æ Aedifica · ArchiOS Suisse</span>
+        <h1>Le copilote de l&apos;architecte suisse</h1>
+        <p>Il maîtrise la réglementation (et avoue ce qu&apos;il ignore), prépare vos dossiers, et agit sur vos maquettes BIM — toujours sous votre contrôle.</p>
+        <div className="seg">
+          <button className={mode === "register" ? "on" : ""} onClick={() => setMode("register")}>Créer un atelier</button>
+          <button className={mode === "signin" ? "on" : ""} onClick={() => setMode("signin")}>Se connecter</button>
+        </div>
+        {mode === "register" ? (
+          <div className="fields">
+            <input className="field" placeholder="Nom de l'atelier" value={org} onChange={(e) => setOrg(e.target.value)} />
+            <input className="field" placeholder="Votre e-mail" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <button className="ds-btn" disabled={busy || !org || !email} onClick={() => onRegister(org, email)}>{busy ? "Création…" : "Créer l'atelier"}</button>
+            <p className="note">Une clé d&apos;accès vous sera attribuée à la création — conservez-la pour vous reconnecter (pas encore de mot de passe : voir #209).</p>
+          </div>
+        ) : (
+          <div className="fields">
+            <input className="field" placeholder="Clé d'accès" value={key} onChange={(e) => setKey(e.target.value)} />
+            <button className="ds-btn" disabled={busy || !key} onClick={() => onSignIn(key.trim())}>{busy ? "Connexion…" : "Se connecter"}</button>
+            <p className="note">Collez la clé d&apos;accès reçue à la création de votre atelier.</p>
+          </div>
+        )}
+        {err && <p className="note" style={{ color: "var(--ts-conflict)" }}>{err}</p>}
+      </div>
+    </div>
+  );
+}
+
+/* ---- Projects hub ---------------------------------------------------- */
+function ProjectsScreen({ projects, busy, err, flashKey, onOpen, onCreate, onSignOut, dismissFlash }: {
+  projects: Project[] | null; busy: boolean; err: string; flashKey: string | null;
+  onOpen: (p: Project) => void; onCreate: (n: string, c: string) => void; onSignOut: () => void; dismissFlash: () => void;
+}) {
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState(""); const [commune, setCommune] = useState("Lausanne");
+  return (
+    <div className="hub">
+      <div className="hubwrap">
+        <div className="hubhead">
+          <span className="wordmark"><span className="ae">Æ</span>DIFICA</span>
+          <span className="eyebrow">ArchiOS Suisse</span>
+          <span className="sp" />
+          <button className="linkbtn" onClick={onSignOut}>Se déconnecter</button>
+        </div>
+        <h1>Vos projets</h1>
+        <p className="lead">Ouvrez un projet, ou créez-en un nouveau. Chaque projet a sa propre parcelle, sa mémoire et son historique d&apos;actions.</p>
+
+        {flashKey && (
+          <div className="flash">
+            <b>Atelier créé.</b> Voici votre clé d&apos;accès — conservez-la pour vous reconnecter :
+            <code>{flashKey}</code>
+            <button className="linkbtn" style={{ paddingLeft: 0 }} onClick={dismissFlash}>J&apos;ai noté ma clé</button>
+          </div>
+        )}
+
+        <div className="plist">
+          {(projects || []).map((p) => (
+            <button className="proj-row" key={p.project_id} onClick={() => onOpen(p)}>
+              <Icon n="pin" />
+              <span style={{ flex: 1 }}>
+                <span className="nm" style={{ display: "block" }}>{p.name}</span>
+                <span className="me">{p.jurisdiction.commune} · {p.jurisdiction.canton} · {phaseLabel(p.phase_code)} — {p.claims} contraintes · {p.ledger_entries} actions</span>
+              </span>
+              <span className="chip">Ouvrir</span>
+            </button>
+          ))}
+          {projects && projects.length === 0 && <p className="note" style={{ textAlign: "left" }}>Aucun projet pour l&apos;instant — créez-en un ci-dessous.</p>}
+
+          {creating ? (
+            <div className="proj-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 10 }}>
+              <div className="fields" style={{ marginBottom: 0 }}>
+                <input className="field" placeholder="Nom du projet" value={name} onChange={(e) => setName(e.target.value)} />
+                <input className="field" placeholder="Commune (ex. Lausanne)" value={commune} onChange={(e) => setCommune(e.target.value)} />
+              </div>
+              <div className="row" style={{ gap: 10 }}>
+                <button className="ds-btn" disabled={busy || !name || !commune} onClick={() => onCreate(name, commune)}>{busy ? "Création…" : "Créer & ouvrir"}</button>
+                <button className="ds-btn ghost" onClick={() => setCreating(false)}>Annuler</button>
+              </div>
+            </div>
+          ) : (
+            <button className="proj-row soon" style={{ borderStyle: "dashed", opacity: 1, cursor: "pointer" }} onClick={() => setCreating(true)}>
+              <Icon n="plus" /><span style={{ flex: 1 }}><span className="nm" style={{ display: "block" }}>Nouveau projet</span><span className="me">Créer un projet vierge</span></span>
+              <span className="chip">Créer</span>
+            </button>
+          )}
+        </div>
+        {err && <p className="note" style={{ color: "var(--ts-conflict)" }}>{err}</p>}
+      </div>
     </div>
   );
 }
@@ -306,13 +439,20 @@ function Terrain({ claims }: { claims?: any[] }) {
   return (
     <>
       <div className="vhead"><h2>Terrain &amp; zonage</h2><p>Ce que la parcelle autorise — gabarit, distances, indices. Chaque ligne est sourcée sur une base officielle, ou marquée « à vérifier » quand la donnée n&apos;est pas publiée en ligne.</p></div>
-      <div className="card">
-        {claims.map((c) => (
-          <div className="claim" key={c.claim_id}><Trust state={c.state} />
-            <div><div className="ttl">{c.title}</div><div className="val">{c.value == null ? "Non disponible — à confirmer sur le règlement communal" : String(c.value)}</div></div>
-          </div>
-        ))}
-      </div>
+      {claims.length === 0 ? (
+        <div className="placeholder">
+          <h4>Aucune parcelle analysée pour ce projet</h4>
+          <p>La recherche d&apos;adresse <b>live</b> arrive bientôt (#212). En attendant, le projet de référence « Place de la Palud » montre le rendu attendu — chaque contrainte sourcée ou marquée « à vérifier ».</p>
+        </div>
+      ) : (
+        <div className="card">
+          {claims.map((c) => (
+            <div className="claim" key={c.claim_id}><Trust state={c.state} />
+              <div><div className="ttl">{c.title}</div><div className="val">{c.value == null ? "Non disponible — à confirmer sur le règlement communal" : String(c.value)}</div></div>
+            </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }
@@ -376,7 +516,7 @@ function Conformite({ d }: { d?: any }) {
 }
 
 /* ---- Copilote IA (hero) ---------------------------------------------- */
-function Copilote({ token, ledger, onChange }: { token: string; ledger?: any[]; onChange: () => void }) {
+function Copilote({ token, pid, ledger, onChange }: { token: string; pid: string; ledger?: any[]; onChange: () => void }) {
   const [txn, setTxn] = useState<any>(null);
   const [approved, setApproved] = useState(false);
   const [executed, setExecuted] = useState(false);
@@ -386,19 +526,19 @@ function Copilote({ token, ledger, onChange }: { token: string; ledger?: any[]; 
   async function dryRun() {
     setMsg(""); setBlocked(false);
     try {
-      const r = await api<any>(`/projects/${DEMO_ID}/adapter/dry-run`, { method: "POST", token, body: { adapter_id: "archicad_json", operations: [{ op_id: "O1", kind: "set_property", target: "AC-SPACE-101", before: "", after: "bureau", undo: "restore" }] } });
+      const r = await api<any>(`/projects/${pid}/adapter/dry-run`, { method: "POST", token, body: { adapter_id: "archicad_json", operations: [{ op_id: "O1", kind: "set_property", target: "AC-SPACE-101", before: "", after: "bureau", undo: "restore" }] } });
       setTxn(r.transaction); setExecuted(false); setApproved(false);
       setMsg("Aperçu prêt. Rien n'a encore changé dans votre maquette."); onChange();
     } catch (e: any) { setMsg(e.message); }
   }
   async function approve() {
-    try { await api(`/projects/${DEMO_ID}/approvals`, { method: "POST", token, body: { scope: "adapter_execution", basis: "validation architecte" } }); setApproved(true); setBlocked(false); setMsg("Exécution validée par l'architecte."); onChange(); }
+    try { await api(`/projects/${pid}/approvals`, { method: "POST", token, body: { scope: "adapter_execution", basis: "validation architecte" } }); setApproved(true); setBlocked(false); setMsg("Exécution validée par l'architecte."); onChange(); }
     catch (e: any) { setMsg(e.message); }
   }
   async function execute() {
     if (!txn) { setMsg("Demandez d'abord un aperçu."); return; }
     try {
-      const r = await api<any>(`/projects/${DEMO_ID}/adapter/execute`, { method: "POST", token, body: { transaction: txn } });
+      const r = await api<any>(`/projects/${pid}/adapter/execute`, { method: "POST", token, body: { transaction: txn } });
       if (r.executed) { setExecuted(true); setBlocked(false); setMsg("Modification appliquée à la maquette et inscrite à l'historique — réversible."); }
       else { setBlocked(true); setMsg(r.reason || "Bloqué : validation d'exécution requise."); }
       onChange();

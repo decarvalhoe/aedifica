@@ -160,3 +160,28 @@ input.field { font-family:var(--font-mono); font-size:13px; padding:9px 12px; bo
 .proj-row .me { font-family:var(--font-mono); font-size:11px; color:var(--mut); }
 .proj-row.soon { border-style:dashed; border-color:var(--line-2); opacity:.65; }
 .kref { font-family:var(--font-mono); font-size:9px; letter-spacing:.08em; text-transform:uppercase; color:var(--ts-assume); border:1px solid var(--ts-assume); padding:1px 4px; margin-left:6px; }
+
+/* Auth + projects hub (real app: accounts & projects) */
+.seg { display:flex; border:1px solid var(--ink); margin:18px 0; }
+.seg button { flex:1; padding:11px 8px; border:0; border-right:1px solid var(--ink); background:var(--surface-2); font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; cursor:pointer; color:var(--ink); }
+.seg button:last-child { border-right:0; }
+.seg button.on { background:var(--ink); color:var(--surface); }
+.fields { display:flex; flex-direction:column; gap:10px; margin-bottom:12px; text-align:left; }
+.fields input.field { width:100%; }
+.flash { border:1px solid var(--ts-sourced); background:var(--surface-2); padding:14px 16px; margin-bottom:18px; font-size:13px; line-height:1.5; text-align:left; }
+.flash code { font-family:var(--font-mono); font-size:12px; word-break:break-all; display:block; margin:8px 0 4px; color:var(--ink); }
+.hub { min-height:100vh; padding:46px 24px; }
+.hubwrap { width:min(760px, 100%); margin:0 auto; }
+.hubhead { display:flex; align-items:center; gap:14px; padding-bottom:18px; border-bottom:1px solid var(--line); }
+.hubhead .wordmark { font-size:20px; }
+.hubhead .sp { margin-left:auto; }
+.hub h1 { font-family:var(--font-display); font-weight:300; font-size:30px; letter-spacing:-.02em; margin:22px 0 6px; }
+.hub .lead { color:var(--mut); font-size:14px; margin:0 0 22px; line-height:1.55; }
+.plist { display:flex; flex-direction:column; gap:10px; }
+.plist .proj-row { margin-top:0; cursor:pointer; }
+.linkbtn { background:none; border:0; font-family:var(--font-mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--mut); cursor:pointer; padding:6px 8px; }
+.linkbtn:hover { color:var(--ink); }
+.side .back { display:flex; align-items:center; gap:8px; width:100%; background:none; border:0; border-bottom:1px solid var(--line); padding:11px 20px; font-family:var(--font-mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--mut); cursor:pointer; }
+.side .back:hover { color:var(--ink); background:var(--surface-2); }
+.side .foot .signout { background:none; border:0; font:inherit; color:inherit; cursor:pointer; letter-spacing:.06em; text-transform:uppercase; font-family:var(--font-mono); font-size:10px; padding:0; }
+.side .foot .signout:hover { color:var(--ink); }
