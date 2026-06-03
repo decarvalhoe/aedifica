@@ -67,6 +67,10 @@ class Project(Base):
     canton: Mapped[str] = mapped_column(String(8), default="VD")
     commune: Mapped[str] = mapped_column(String(120))
     knowledge_regime: Mapped[str] = mapped_column(String(40), default="context_first")
+    # Per-project regulatory inputs (AED-211): None = nothing submitted/analysed yet.
+    permit_dossier: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    compliance_inputs: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    brief_risks: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[_dt.datetime] = _TS()
 
     org: Mapped[Org] = relationship(back_populates="projects")

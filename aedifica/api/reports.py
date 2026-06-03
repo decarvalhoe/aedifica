@@ -20,11 +20,21 @@ def _load(*parts) -> dict:
         return json.load(f)
 
 
-def permit_view() -> dict:
+def _empty_dossier(project) -> dict:
+    """A valid-but-empty permit dossier for a project with nothing submitted yet."""
+    return {
+        "dossier_id": f"{project.project_id}-DOSSIER",
+        "checklist_id": "PERMIT-VD-CAMAC-BASELINE",
+        "project_context": {"country": project.country, "canton_or_region": project.canton, "commune": project.commune, "phase_code": project.phase_code},
+        "evidence_records": [],
+    }
+
+
+def permit_view(project) -> dict:
     import permit_readiness  # noqa: E402
 
     checklist = _load("permit", "vd_camac_checklist.json")
-    dossier = _load("permit", "demo_missing_dossier.json")
+    dossier = project.permit_dossier or _empty_dossier(project)
     r = permit_readiness.build_readiness(checklist, dossier)
     return {
         "dossier_id": r["dossier_id"],
@@ -32,6 +42,7 @@ def permit_view() -> dict:
         "ready_for_review": r["ready_for_review"],
         "summary": r["summary"],
         "disclaimers": r["disclaimers"],
+        "data_basis": "project" if project.permit_dossier else "empty",
         "groups": [
             {
                 "actor": g["actor"],
@@ -46,17 +57,22 @@ def permit_view() -> dict:
     }
 
 
-def opposition_view() -> dict:
+def opposition_view(project) -> dict:
     import opposition_radar as radar  # noqa: E402
-    import workspace  # noqa: E402
 
-    brief = workspace.generate_offline_parcel_brief(DEMO_DIR)
-    risks = brief["risks"]
+    risks = project.brief_risks
+    if not risks:
+        return {
+            "overall": None, "score": None, "claims_prediction": False, "data_basis": "empty",
+            "disclaimer": "Aucune analyse de parcelle pour ce projet — lancez une recherche d'adresse dans Terrain & zonage.",
+            "signals": [],
+        }
     model = radar.evidence_model(risks)
     return {
         "overall": risks.get("overall"),
         "score": risks.get("score"),
         "claims_prediction": False,
+        "data_basis": "project",
         "disclaimer": model["disclaimer"],
         "signals": [
             {
@@ -73,11 +89,11 @@ def opposition_view() -> dict:
     }
 
 
-def compliance_view() -> dict:
+def compliance_view(project) -> dict:
     import compliance_report  # noqa: E402
 
     gates = _load("compliance", "ch_phase33_gates.json")
-    inputs = _load("compliance", "demo_missing_inputs.json")["inputs"]
+    inputs = project.compliance_inputs or {}
     r = compliance_report.build_compliance_report(gates, inputs)
 
     def _gate(g):
@@ -86,6 +102,7 @@ def compliance_view() -> dict:
     return {
         "phase_code": r["phase_code"],
         "summary": r["summary"],
+        "data_basis": "project" if project.compliance_inputs else "empty",
         "legal": [_gate(g) for g in r["legal"]],
         "contractual": [_gate(g) for g in r["contractual"]],
     }
@@ -120,3 +137,13 @@ def site_view() -> dict:
             "defects_open": sum(1 for d in dlist if d.get("status") not in ("closed", "resolved")),
         },
     }
+
+
+def seed_reference_reports(project) -> None:
+    """Seed the demo/reference project with the demo permit dossier + compliance inputs.
+
+    Real projects start empty (nothing submitted); only the explicit reference
+    project carries this demo submission so the surfaces have something to show.
+    """
+    project.permit_dossier = _load("permit", "demo_missing_dossier.json")
+    project.compliance_inputs = _load("compliance", "demo_missing_inputs.json")["inputs"]

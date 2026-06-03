@@ -3,7 +3,21 @@ from __future__ import annotations
 
 
 def _project(client, owner):
-    client.post("/api/projects", json={"project_id": "P", "name": "P", "commune": "Lausanne"}, headers=owner["headers"])
+    h = owner["headers"]
+    client.post("/api/projects", json={"project_id": "P", "name": "P", "commune": "Lausanne", "seed_reports": True}, headers=h)
+    client.post("/api/projects/P/intake", json={"query": "Place de la Palud, Lausanne", "live": False}, headers=h)
+
+
+def test_empty_project_reports(client, owner):
+    """A new project starts with genuinely empty regulatory data — not a global fixture."""
+    h = owner["headers"]
+    client.post("/api/projects", json={"project_id": "Q", "name": "Q", "commune": "Genève", "canton": "GE"}, headers=h)
+    permit = client.get("/api/projects/Q/permit", headers=h).json()["permit"]
+    assert permit["data_basis"] == "empty" and not permit["ready_for_review"]
+    opp = client.get("/api/projects/Q/opposition", headers=h).json()["opposition"]
+    assert opp["data_basis"] == "empty" and opp["overall"] is None and opp["signals"] == []
+    comp = client.get("/api/projects/Q/compliance", headers=h).json()["compliance"]
+    assert comp["data_basis"] == "empty"
 
 
 def test_permit_report(client, owner):
