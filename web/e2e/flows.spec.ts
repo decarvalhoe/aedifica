@@ -26,7 +26,7 @@ test("create project → empty Terrain (honest, not a fixture)", async ({ page }
 test("permit: submitting a piece flips it to present", async ({ page }) => {
   await register(page, "Permit Atelier", "permit@test.ch");
   await createProject(page, "Permit Proj", "Lausanne");
-  await page.getByRole("button", { name: /Dossier de permis/ }).click();
+  await page.locator(".side").getByRole("button", { name: /Dossier de permis/ }).click();
   // empty project: nothing provided yet
   await expect(page.getByRole("button", { name: "Retirer" })).toHaveCount(0);
   await page.getByRole("button", { name: "Fournir" }).first().click();
@@ -39,6 +39,6 @@ test("team: an owner can invite a member", async ({ page }) => {
   await page.getByRole("button", { name: /Inviter un collaborateur/ }).click();
   await page.getByPlaceholder("E-mail du collaborateur").fill("member@test.ch");
   await page.getByRole("button", { name: "Inviter" }).click();
-  await expect(page.getByText("member@test.ch")).toBeVisible();
+  await expect(page.getByText("member@test.ch").first()).toBeVisible();
   await expect(page.getByText(/Membre ajouté/)).toBeVisible();
 });
