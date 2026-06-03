@@ -1,0 +1,9 @@
+# dependencies / build
+node_modules/
+.next/
+out/
+
+# Playwright E2E artifacts
+/test-results/
+/playwright-report/
+/playwright/.cache/
