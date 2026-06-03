@@ -18,6 +18,10 @@ def test_empty_project_reports(client, owner):
     assert opp["data_basis"] == "empty" and opp["overall"] is None and opp["signals"] == []
     comp = client.get("/api/projects/Q/compliance", headers=h).json()["compliance"]
     assert comp["data_basis"] == "empty"
+    cost = client.get("/api/projects/Q/cost", headers=h).json()["cost"]
+    assert cost["data_basis"] == "empty" and cost["cockpit"] is None
+    site = client.get("/api/projects/Q/site", headers=h).json()["site"]
+    assert site["data_basis"] == "empty" and site["handover"] == []
 
 
 def test_permit_report(client, owner):

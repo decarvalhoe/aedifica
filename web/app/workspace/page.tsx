@@ -29,8 +29,8 @@ const NAV: { id: View; lb: string; ds: string; ico: string; st: Status }[] = [
   { id: "permis", lb: "Dossier de permis", ds: "Complétude pièce par pièce", ico: "doc", st: "live" },
   { id: "opposition", lb: "Risque d'opposition", ds: "Motifs probables, sur les faits", ico: "shield", st: "live" },
   { id: "conformite", lb: "Conformité", ds: "Obligations à lever avant dépôt", ico: "check", st: "live" },
-  { id: "couts", lb: "Coûts & appels d'offres", ds: "Honoraires, rentabilité, soumissions", ico: "coin", st: "preview" },
-  { id: "chantier", lb: "Chantier & remise", ds: "Réserves et check-list de remise", ico: "cone", st: "preview" },
+  { id: "couts", lb: "Coûts & appels d'offres", ds: "Honoraires, rentabilité, soumissions", ico: "coin", st: "live" },
+  { id: "chantier", lb: "Chantier & remise", ds: "Réserves et check-list de remise", ico: "cone", st: "live" },
 ];
 const STATUS: Record<Status, [string, string]> = {
   live: ["live", "Opérationnel"], preview: ["preview", "Données de référence"], soon: ["soon", "À venir"],
@@ -435,9 +435,11 @@ function Couts({ d }: { d?: any }) {
   if (!d) return <p className="spin">Chargement…</p>;
   const c = d.cockpit;
   const chf = (n: number) => "CHF " + Number(n).toLocaleString("fr-CH");
+  const head = <div className="vhead"><h2>Coûts &amp; appels d&apos;offres</h2><p>Estimation d&apos;honoraires, rentabilité du mandat et hypothèses portées en comparatif de soumissions. L&apos;outil n&apos;embarque aucun coefficient SIA payant — il enregistre les hypothèses de l&apos;atelier.</p></div>;
+  if (!c) return (<>{head}<div className="placeholder"><h4>Aucune estimation pour ce projet</h4><p>L&apos;estimation d&apos;honoraires et les hypothèses de soumission n&apos;ont pas encore été saisies. Le projet de référence « Place de la Palud » montre le rendu attendu.</p></div></>);
   return (
     <>
-      <div className="vhead"><h2>Coûts &amp; appels d&apos;offres</h2><p>Estimation d&apos;honoraires, rentabilité du mandat et hypothèses portées en comparatif de soumissions. L&apos;outil n&apos;embarque aucun coefficient SIA payant — il enregistre les hypothèses de l&apos;atelier.</p></div>
+      {head}
       <div className="kpis">
         <div className="kpi"><div className="lab">Honoraires estimés</div><div className="num" style={{ fontSize: 23 }}>{chf(c.estimated_fee_chf)}</div><div className="sub">{c.estimated_hours} h · {c.hourly_rate_chf} CHF/h</div></div>
         <div className="kpi"><div className="lab">Marge cible</div><div className="num">{c.target_margin_percent}%</div><div className="sub">objectif atelier</div></div>
@@ -466,9 +468,11 @@ function Chantier({ d }: { d?: any }) {
   const map = (s: string) => (s === "closed" ? "satisfied" : s === "blocked" ? "conflict" : s === "open" ? "unknown" : "assumption");
   const lbl: Record<string, string> = { open: "ouvert", closed: "clos", blocked: "bloqué" };
   const sev = (s: string) => (s === "high" ? "eleve" : s === "medium" ? "modere" : "faible");
+  const head = <div className="vhead"><h2>Chantier &amp; remise</h2><p>Suivi d&apos;exécution : réserves / défauts et check-list de remise, avec responsable et échéance — pour clôturer proprement.</p></div>;
+  if (d.data_basis === "empty") return (<>{head}<div className="placeholder"><h4>Aucun suivi de chantier pour ce projet</h4><p>Les réserves et la check-list de remise apparaîtront ici en phase exécution. Le projet de référence « Place de la Palud » montre le rendu attendu.</p></div></>);
   return (
     <>
-      <div className="vhead"><h2>Chantier &amp; remise</h2><p>Suivi d&apos;exécution : réserves / défauts et check-list de remise, avec responsable et échéance — pour clôturer proprement.</p></div>
+      {head}
       <div className="banner" style={{ borderLeftColor: d.summary.handover_blocked ? "var(--ts-conflict)" : "var(--ts-sourced)" }}><b>{d.summary.handover_blocked}</b> point(s) de remise bloqué(s) · <b>{d.summary.defects_open}</b> défaut(s) ouvert(s).</div>
       <div className="grid2">
         <div className="card"><h3>Check-list de remise</h3>
