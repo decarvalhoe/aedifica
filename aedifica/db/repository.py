@@ -102,6 +102,7 @@ def save_brief(session, project: m.Project, brief: dict) -> dict:
                 active_pack_ids=[layer.get("layer_id") for layer in route.get("active_layers", [])],
             )
         )
+    project.brief_risks = brief.get("risks")  # per-project opposition input (AED-211)
     session.flush()
     return {
         "claims": len(brief.get("claims", [])),

@@ -47,6 +47,7 @@ class ProjectIn(BaseModel):
     country: str = "CH"
     canton: str = "VD"
     phase_code: str = "0"
+    seed_reports: bool = False
 
 
 class IntakeIn(BaseModel):
@@ -203,6 +204,10 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
             session, user.org_id, body.project_id, body.name,
             commune=body.commune, country=body.country, canton=body.canton, phase_code=body.phase_code,
         )
+        if body.seed_reports:
+            from . import reports
+
+            reports.seed_reference_reports(project)
         session.commit()
         return {"created": repository.project_summary(session, project)}
 
@@ -219,26 +224,26 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     @app.get("/api/projects/{project_id}/permit")
     def project_permit(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.read")
-        _project(session, user, project_id)
+        project = _project(session, user, project_id)
         from . import reports
 
-        return {"permit": reports.permit_view()}
+        return {"permit": reports.permit_view(project)}
 
     @app.get("/api/projects/{project_id}/opposition")
     def project_opposition(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.read")
-        _project(session, user, project_id)
+        project = _project(session, user, project_id)
         from . import reports
 
-        return {"opposition": reports.opposition_view()}
+        return {"opposition": reports.opposition_view(project)}
 
     @app.get("/api/projects/{project_id}/compliance")
     def project_compliance(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.read")
-        _project(session, user, project_id)
+        project = _project(session, user, project_id)
         from . import reports
 
-        return {"compliance": reports.compliance_view()}
+        return {"compliance": reports.compliance_view(project)}
 
     @app.get("/api/projects/{project_id}/cost")
     def project_cost(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):

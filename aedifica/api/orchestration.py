@@ -64,13 +64,13 @@ def next_step(session, project, phase: str | None = None) -> dict:
     for c in unknowns(session, project):
         steps.append({"kind": "resolve_unknown", "phase": project.phase_code, "state": "unknown", "title": c["title"], "action": c["next_action"], "source_refs": c["source_refs"]})
 
-    permit = reports.permit_view()
+    permit = reports.permit_view(project)
     for group in permit["groups"]:
         for item in group["items"]:
             if item["status"] == "missing":
                 steps.append({"kind": "permit_blocker", "phase": "33", "state": "missing", "title": item["title"], "action": item.get("missing_message")})
 
-    compliance = reports.compliance_view()
+    compliance = reports.compliance_view(project)
     for gate in compliance["legal"]:
         if gate["status"] in {"unknown", "action_required"}:
             steps.append({"kind": "compliance", "phase": "33", "state": "unknown", "title": gate["title"], "action": gate.get("next_action")})

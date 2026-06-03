@@ -26,9 +26,9 @@ const NAV: { id: View; lb: string; ds: string; ico: string; st: Status }[] = [
   { id: "terrain", lb: "Terrain & zonage", ds: "Ce que la parcelle autorise", ico: "pin", st: "live" },
   { id: "copilote", lb: "Copilote IA · maquette", ds: "Agit sur la maquette, sous contrôle", ico: "spark", st: "live" },
   { id: "memoire", lb: "Mémoire du projet", ds: "Su, décidé, modifié — interrogeable", ico: "clock", st: "live" },
-  { id: "permis", lb: "Dossier de permis", ds: "Complétude pièce par pièce", ico: "doc", st: "preview" },
-  { id: "opposition", lb: "Risque d'opposition", ds: "Motifs probables, sur les faits", ico: "shield", st: "preview" },
-  { id: "conformite", lb: "Conformité", ds: "Obligations à lever avant dépôt", ico: "check", st: "preview" },
+  { id: "permis", lb: "Dossier de permis", ds: "Complétude pièce par pièce", ico: "doc", st: "live" },
+  { id: "opposition", lb: "Risque d'opposition", ds: "Motifs probables, sur les faits", ico: "shield", st: "live" },
+  { id: "conformite", lb: "Conformité", ds: "Obligations à lever avant dépôt", ico: "check", st: "live" },
   { id: "couts", lb: "Coûts & appels d'offres", ds: "Honoraires, rentabilité, soumissions", ico: "coin", st: "preview" },
   { id: "chantier", lb: "Chantier & remise", ds: "Réserves et check-list de remise", ico: "cone", st: "preview" },
 ];
@@ -146,7 +146,7 @@ export default function App() {
   }
 
   async function seedReference(t: string) {
-    try { await api("/projects", { method: "POST", token: t, body: { project_id: REF_ID, name: REF.name, commune: REF.commune } }); } catch { /* exists */ }
+    try { await api("/projects", { method: "POST", token: t, body: { project_id: REF_ID, name: REF.name, commune: REF.commune, seed_reports: true } }); } catch { /* exists */ }
     try {
       const c = ((await api<any>(`/projects/${REF_ID}/claims`, { token: t })).claims) || [];
       if (!c.length) await api(`/projects/${REF_ID}/intake`, { method: "POST", token: t, body: { query: `${REF.name}, ${REF.commune}`, live: false } });
@@ -508,12 +508,12 @@ function Dashboard({ d, go }: { d: any; go: (v: View) => void }) {
           <div className="sub"><span className="dot" style={{ background: "var(--ts-assume)" }} />{verify} à vérifier</div>
         </button>
         <button className="kpi" onClick={() => go("permis")}>
-          <div className="lab">Dossier de permis <span className="kref">réf.</span></div>
+          <div className="lab">Dossier de permis</div>
           <div className="num">{blockers === 0 ? "Prêt" : blockers}</div>
           <div className="sub">{blockers === 0 ? "aucun blocage" : "pièces requises manquantes"}</div>
         </button>
         <button className="kpi" onClick={() => go("opposition")}>
-          <div className="lab">Risque d&apos;opposition <span className="kref">réf.</span></div>
+          <div className="lab">Risque d&apos;opposition</div>
           <div className="num" style={{ textTransform: "capitalize" }}>{opp}</div>
           <div className="sub">score {d.opposition?.score ?? "—"}</div>
         </button>
@@ -607,6 +607,7 @@ function Permis({ d }: { d?: any }) {
       <div className="vhead"><h2>Dossier de permis</h2><p>L&apos;état de complétude de votre demande, pièce par pièce et par intervenant — pour ne plus déposer un dossier incomplet.</p></div>
       <div className="banner" style={{ borderLeftColor: d.ready_for_review ? "var(--ts-sourced)" : "var(--ts-assume)" }}>
         {d.ready_for_review ? <b>Dossier prêt à déposer.</b> : <><b>Pas encore prêt — {d.summary.required_blockers} pièce(s) requise(s) manquante(s).</b> Détail ci-dessous.</>}
+        {d.data_basis === "empty" && <span> Aucune pièce déposée pour ce projet — le dossier démarre vide.</span>}
       </div>
       {d.groups?.map((g: any, i: number) => (
         <div className="card" key={i} style={{ marginBottom: 14 }}>
@@ -628,14 +629,20 @@ function Opposition({ d }: { d?: any }) {
   return (
     <>
       <div className="vhead"><h2>Risque d&apos;opposition</h2><p>Les motifs d&apos;opposition les plus probables, évalués sur les faits du dossier — pour les désamorcer avant l&apos;enquête publique.</p></div>
-      <div className="banner">Niveau global : <b style={{ textTransform: "capitalize" }}>{d.overall}</b> (score {d.score}). {d.disclaimer}</div>
-      <div className="card">
-        {d.signals?.map((s: any, i: number) => (
-          <div className="claim" key={i}><span className={`lvl ${cls(s.level)}`}>{s.level}</span>
-            <div><div className="ttl">{fr(s.ground)} <small style={{ display: "inline" }}>· {fr(s.category)}</small></div>
-              <div className="val" style={{ fontFamily: "var(--font-ui)", fontWeight: 400 }}>{s.basis}</div></div></div>
-        ))}
-      </div>
+      {d.overall ? (
+        <>
+          <div className="banner">Niveau global : <b style={{ textTransform: "capitalize" }}>{d.overall}</b> (score {d.score}). {d.disclaimer}</div>
+          <div className="card">
+            {d.signals?.map((s: any, i: number) => (
+              <div className="claim" key={i}><span className={`lvl ${cls(s.level)}`}>{s.level}</span>
+                <div><div className="ttl">{fr(s.ground)} <small style={{ display: "inline" }}>· {fr(s.category)}</small></div>
+                  <div className="val" style={{ fontFamily: "var(--font-ui)", fontWeight: 400 }}>{s.basis}</div></div></div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="placeholder"><h4>Aucune analyse d&apos;opposition</h4><p>{d.disclaimer}</p></div>
+      )}
     </>
   );
 }
