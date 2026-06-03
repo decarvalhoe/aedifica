@@ -28,6 +28,20 @@ def test_compliance_report(client, owner):
     assert any(g["domain"] == "bim" for g in comp["contractual"])
 
 
+def test_cost_report(client, owner):
+    _project(client, owner)
+    cost = client.get("/api/projects/P/cost", headers=owner["headers"]).json()["cost"]
+    assert cost["cockpit"]["estimated_fee_chf"] > 0 and cost["cockpit"]["margin_risk"] in {"low", "medium", "high"}
+    assert cost["tender_assumptions"] and cost["quantity_rows"]
+
+
+def test_site_report(client, owner):
+    _project(client, owner)
+    site = client.get("/api/projects/P/site", headers=owner["headers"]).json()["site"]
+    assert site["handover"] and site["defects"]
+    assert site["summary"]["handover_blocked"] >= 1
+
+
 def test_reports_require_auth(client, owner):
     _project(client, owner)
     assert client.get("/api/projects/P/permit").status_code == 401

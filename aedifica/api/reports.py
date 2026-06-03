@@ -89,3 +89,34 @@ def compliance_view() -> dict:
         "legal": [_gate(g) for g in r["legal"]],
         "contractual": [_gate(g) for g in r["contractual"]],
     }
+
+
+def cost_view() -> dict:
+    import validate_cost  # noqa: E402
+
+    fee = _load("cost", "sia102_fee_sample.json")
+    cockpit = validate_cost.profitability_cockpit(fee)
+    tender = _load("cost", "tender_assumptions_log.json")
+    bridge = _load("cost", "quantity_taxonomy_bridge.json")
+    return {
+        "cockpit": cockpit,
+        "tender_assumptions": tender.get("entries", []),
+        "quantity_rows": bridge.get("quantity_rows", []),
+    }
+
+
+def site_view() -> dict:
+    handover = _load("site", "handover_checklist.json")
+    defects = _load("site", "defect_register_fixture.json")
+    items = handover.get("items", [])
+    dlist = defects.get("defects", [])
+    return {
+        "handover": items,
+        "defects": dlist,
+        "summary": {
+            "handover_blocked": sum(1 for i in items if i.get("status") == "blocked"),
+            "handover_open": sum(1 for i in items if i.get("status") == "open"),
+            "handover_closed": sum(1 for i in items if i.get("status") == "closed"),
+            "defects_open": sum(1 for d in dlist if d.get("status") not in ("closed", "resolved")),
+        },
+    }

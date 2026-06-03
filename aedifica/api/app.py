@@ -194,6 +194,22 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
 
         return {"compliance": reports.compliance_view()}
 
+    @app.get("/api/projects/{project_id}/cost")
+    def project_cost(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.read")
+        _project(session, user, project_id)
+        from . import reports
+
+        return {"cost": reports.cost_view()}
+
+    @app.get("/api/projects/{project_id}/site")
+    def project_site(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.read")
+        _project(session, user, project_id)
+        from . import reports
+
+        return {"site": reports.site_view()}
+
     # ---- action loop (E28+E27 in the runtime) ---------------------------- #
     @app.get("/api/projects/{project_id}/ledger")
     def project_ledger(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):

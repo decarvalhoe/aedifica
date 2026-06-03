@@ -29,8 +29,8 @@ const NAV: { id: View; lb: string; ds: string; ico: string; st: Status }[] = [
   { id: "permis", lb: "Dossier de permis", ds: "Complétude pièce par pièce", ico: "doc", st: "preview" },
   { id: "opposition", lb: "Risque d'opposition", ds: "Motifs probables, sur les faits", ico: "shield", st: "preview" },
   { id: "conformite", lb: "Conformité", ds: "Obligations à lever avant dépôt", ico: "check", st: "preview" },
-  { id: "couts", lb: "Coûts & appels d'offres", ds: "Estimation et soumissions", ico: "coin", st: "soon" },
-  { id: "chantier", lb: "Chantier & remise", ds: "Suivi d'exécution et handover", ico: "cone", st: "soon" },
+  { id: "couts", lb: "Coûts & appels d'offres", ds: "Honoraires, rentabilité, soumissions", ico: "coin", st: "preview" },
+  { id: "chantier", lb: "Chantier & remise", ds: "Réserves et check-list de remise", ico: "cone", st: "preview" },
 ];
 const STATUS: Record<Status, [string, string]> = {
   live: ["live", "Opérationnel"], preview: ["preview", "Données de référence"], soon: ["soon", "À venir"],
@@ -171,18 +171,31 @@ export default function App() {
   }
   async function openProject(p: Project) {
     setActive(p); setView("dashboard"); setD({}); setFlashKey(null);
-    try { await loadAll(p.project_id, token!); } catch (e: any) { setErr(e.message); }
+    try { await loadAll(p, token!); } catch (e: any) { setErr(e.message); }
   }
 
-  async function loadAll(pid: string, t: string) {
+  async function loadAll(p: Project, t: string) {
+    const pid = p.project_id;
     const g = (path: string) => api<any>(`/projects/${pid}${path}`, { token: t });
-    const [claims, permit, opposition, compliance, ledger, next, unknowns] = await Promise.all([
-      g("/claims"), g("/permit"), g("/opposition"), g("/compliance"), g("/ledger"), g("/next-step"), g("/memory/unknowns"),
+    const sup = api<any>(`/communes/${p.jurisdiction.commune}/${p.jurisdiction.canton}/support`, { token: t }).then((r) => r.support).catch(() => null);
+    const [claims, permit, opposition, compliance, cost, site, ledger, next, unknowns, support] = await Promise.all([
+      g("/claims"), g("/permit"), g("/opposition"), g("/compliance"), g("/cost"), g("/site"), g("/ledger"), g("/next-step"), g("/memory/unknowns"), sup,
     ]);
     setD({
-      claims: claims.claims, permit: permit.permit, opposition: opposition.opposition,
-      compliance: compliance.compliance, ledger: ledger.ledger, next: next.steps, unknowns: unknowns.unknowns,
+      claims: claims.claims, permit: permit.permit, opposition: opposition.opposition, compliance: compliance.compliance,
+      cost: cost.cost, site: site.site, ledger: ledger.ledger, next: next.steps, unknowns: unknowns.unknowns, support,
     });
+  }
+  async function lookup(query: string) {
+    if (!active) return;
+    const r = await api<any>(`/projects/${active.project_id}/intake`, { method: "POST", token: token!, body: { query, live: true } });
+    await loadAll(active, token!);
+    setD((x) => ({ ...x, intakeMode: r.mode, intakeReason: r.reason }));
+  }
+  async function requestCommune() {
+    if (!active) return;
+    await api("/communes", { method: "POST", token: token!, body: { commune: active.jurisdiction.commune, canton: active.jurisdiction.canton } });
+    await loadAll(active, token!);
   }
   async function refreshLedger() {
     if (!active) return;
@@ -213,7 +226,7 @@ export default function App() {
           <div className="meta">{j.commune} · {j.canton}<br />{phaseLabel(active.phase_code)}</div>
         </div>
         <nav className="nav">
-          {GROUPS.map((grp) => (
+          {GROUPS.filter((grp) => NAV.some((n) => n.st === grp.st)).map((grp) => (
             <div key={grp.st}>
               <div className="grp">{grp.title}</div>
               {NAV.filter((n) => n.st === grp.st).map((n) => (
@@ -244,14 +257,14 @@ export default function App() {
             </div>
           )}
           {view === "dashboard" && <Dashboard d={d} go={setView} />}
-          {view === "terrain" && <Terrain claims={d.claims} />}
+          {view === "terrain" && <Terrain claims={d.claims} mode={d.intakeMode} reason={d.intakeReason} support={d.support} commune={j.commune} onLookup={lookup} onRequest={requestCommune} />}
           {view === "permis" && <Permis d={d.permit} />}
           {view === "opposition" && <Opposition d={d.opposition} />}
           {view === "conformite" && <Conformite d={d.compliance} />}
           {view === "copilote" && <Copilote token={token} pid={active.project_id} ledger={d.ledger} onChange={refreshLedger} />}
           {view === "memoire" && <Memoire unknowns={d.unknowns} ledger={d.ledger} />}
-          {view === "couts" && <Soon title="Coûts & appels d'offres" engine="le moteur de coûts et de soumissions (contrats E29, vérifiés hors-ligne)" what="estimation paramétrique, métrés et comparatif de soumissions" />}
-          {view === "chantier" && <Soon title="Chantier & remise" engine="le moteur chantier et handover (contrats E30, vérifiés hors-ligne)" what="suivi d'exécution, levée des réserves et dossier de remise" />}
+          {view === "couts" && <Couts d={d.cost} />}
+          {view === "chantier" && <Chantier d={d.site} />}
         </div>
       </main>
     </div>
@@ -356,15 +369,57 @@ function ProjectsScreen({ projects, busy, err, flashKey, onOpen, onCreate, onSig
   );
 }
 
-/* ---- À venir (honest placeholder) ------------------------------------ */
-function Soon({ title, engine, what }: { title: string; engine: string; what: string }) {
+/* ---- Coûts & appels d'offres ----------------------------------------- */
+function Couts({ d }: { d?: any }) {
+  if (!d) return <p className="spin">Chargement…</p>;
+  const c = d.cockpit;
+  const chf = (n: number) => "CHF " + Number(n).toLocaleString("fr-CH");
   return (
     <>
-      <div className="vhead"><div className="row-head"><h2>{title}</h2><Badge st="soon" /></div>
-        <p>Surface en préparation : {what} arrivent dans une prochaine vague produit.</p></div>
-      <div className="placeholder">
-        <h4>À venir dans le produit</h4>
-        <p>L&apos;ossature existe déjà côté moteur — {engine}. Il reste à la brancher sur une surface dédiée. Rien n&apos;est simulé ici : on préfère l&apos;annoncer plutôt que d&apos;afficher du faux.</p>
+      <div className="vhead"><h2>Coûts &amp; appels d&apos;offres</h2><p>Estimation d&apos;honoraires, rentabilité du mandat et hypothèses portées en comparatif de soumissions. L&apos;outil n&apos;embarque aucun coefficient SIA payant — il enregistre les hypothèses de l&apos;atelier.</p></div>
+      <div className="kpis">
+        <div className="kpi"><div className="lab">Honoraires estimés</div><div className="num" style={{ fontSize: 23 }}>{chf(c.estimated_fee_chf)}</div><div className="sub">{c.estimated_hours} h · {c.hourly_rate_chf} CHF/h</div></div>
+        <div className="kpi"><div className="lab">Marge cible</div><div className="num">{c.target_margin_percent}%</div><div className="sub">objectif atelier</div></div>
+        <div className="kpi"><div className="lab">Risque de marge</div><div className="num" style={{ textTransform: "capitalize" }}>{c.margin_risk}</div><div className="sub">{c.absorbed_hours} h absorbées · {chf(c.absorbed_cost_chf)}</div></div>
+        <div className="kpi"><div className="lab">Prestations spéciales</div><div className="num">{c.special_prestations.length}</div><div className="sub">à chiffrer ou exclure</div></div>
+      </div>
+      <div className="grid2">
+        <div className="card"><h3>Prestations absorbées (non chiffrées)</h3>
+          {c.absorbed_tasks.map((t: any, i: number) => (
+            <div className="claim" key={i}><Trust state="assumption" label="absorbé" /><div><div className="ttl">{t.title}</div><small>{t.estimated_hours} h · {t.action}</small></div></div>
+          ))}
+        </div>
+        <div className="card"><h3>Hypothèses portées en soumission</h3>
+          {d.tender_assumptions.map((a: any, i: number) => (
+            <div className="claim" key={i}><Trust state="computed" label={a.kind} /><div><div className="ttl">{a.title}</div><small>colonne : {a.offer_comparison_column}</small></div></div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ---- Chantier & remise ----------------------------------------------- */
+function Chantier({ d }: { d?: any }) {
+  if (!d) return <p className="spin">Chargement…</p>;
+  const map = (s: string) => (s === "closed" ? "satisfied" : s === "blocked" ? "conflict" : s === "open" ? "unknown" : "assumption");
+  const lbl: Record<string, string> = { open: "ouvert", closed: "clos", blocked: "bloqué" };
+  const sev = (s: string) => (s === "high" ? "eleve" : s === "medium" ? "modere" : "faible");
+  return (
+    <>
+      <div className="vhead"><h2>Chantier &amp; remise</h2><p>Suivi d&apos;exécution : réserves / défauts et check-list de remise, avec responsable et échéance — pour clôturer proprement.</p></div>
+      <div className="banner" style={{ borderLeftColor: d.summary.handover_blocked ? "var(--ts-conflict)" : "var(--ts-sourced)" }}><b>{d.summary.handover_blocked}</b> point(s) de remise bloqué(s) · <b>{d.summary.defects_open}</b> défaut(s) ouvert(s).</div>
+      <div className="grid2">
+        <div className="card"><h3>Check-list de remise</h3>
+          {d.handover.map((i: any, k: number) => (
+            <div className="claim" key={k}><Trust state={map(i.status)} label={lbl[i.status] || i.status} /><div><div className="ttl">{i.title}</div><small>{i.responsible_party} · échéance {i.due_at}</small></div></div>
+          ))}
+        </div>
+        <div className="card"><h3>Réserves &amp; défauts</h3>
+          {d.defects.map((x: any, k: number) => (
+            <div className="claim" key={k}><span className={`lvl ${sev(x.severity)}`}>{x.severity}</span><div><div className="ttl">{x.title}</div><small>{x.responsible_party} · {x.status} · échéance {x.target_resolution}</small></div></div>
+          ))}
+        </div>
       </div>
     </>
   );
@@ -434,15 +489,41 @@ function Dashboard({ d, go }: { d: any; go: (v: View) => void }) {
 }
 
 /* ---- Terrain --------------------------------------------------------- */
-function Terrain({ claims }: { claims?: any[] }) {
+function Terrain({ claims, mode, reason, support, commune, onLookup, onRequest }: {
+  claims?: any[]; mode?: string; reason?: string; support?: any; commune?: string;
+  onLookup: (q: string) => Promise<void>; onRequest: () => Promise<void>;
+}) {
+  const [q, setQ] = useState("");
+  const [busy, setBusy] = useState("");
   if (!claims) return <p className="spin">Chargement…</p>;
+  const lookup = async () => { if (!q.trim()) return; setBusy("lookup"); try { await onLookup(q.trim()); } catch { /* surfaced upstream */ } finally { setBusy(""); } };
+  const req = async () => { setBusy("commune"); try { await onRequest(); } catch { /* */ } finally { setBusy(""); } };
+  const usable = support ? support.usable : true;
   return (
     <>
       <div className="vhead"><h2>Terrain &amp; zonage</h2><p>Ce que la parcelle autorise — gabarit, distances, indices. Chaque ligne est sourcée sur une base officielle, ou marquée « à vérifier » quand la donnée n&apos;est pas publiée en ligne.</p></div>
+
+      {support && !usable && (
+        <div className="banner" style={{ borderLeftColor: "var(--ts-assume)" }}>
+          Commune <b>{commune}</b> pas encore prise en charge — l&apos;enveloppe constructible ne peut pas être fiabilisée.{" "}
+          <button className="ds-btn ghost" style={{ padding: "6px 12px", marginLeft: 6 }} onClick={req} disabled={busy === "commune"}>{busy === "commune" ? "Demande…" : "Demander l'ingestion"}</button>
+          {support.status && <small style={{ display: "block", marginTop: 6 }}>statut du pack : {support.status}</small>}
+        </div>
+      )}
+
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div className="row" style={{ gap: 10 }}>
+          <input className="field" style={{ flex: 1 }} placeholder="Adresse ou parcelle — ex. Place de la Palud, Lausanne" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && lookup()} />
+          <button className="ds-btn" onClick={lookup} disabled={busy === "lookup"}>{busy === "lookup" ? "Recherche…" : "Rechercher (live)"}</button>
+        </div>
+        {mode === "offline" && <p className="note">Recherche live indisponible — données de référence affichées. {reason}</p>}
+        {mode === "live" && <p className="note" style={{ color: "var(--ts-sourced)" }}>Parcelle résolue en direct (OEREB).</p>}
+      </div>
+
       {claims.length === 0 ? (
         <div className="placeholder">
           <h4>Aucune parcelle analysée pour ce projet</h4>
-          <p>La recherche d&apos;adresse <b>live</b> arrive bientôt (#212). En attendant, le projet de référence « Place de la Palud » montre le rendu attendu — chaque contrainte sourcée ou marquée « à vérifier ».</p>
+          <p>Lancez une recherche d&apos;adresse ci-dessus pour résoudre la parcelle. Le projet de référence « Place de la Palud » montre le rendu attendu — chaque contrainte sourcée ou marquée « à vérifier ».</p>
         </div>
       ) : (
         <div className="card">
