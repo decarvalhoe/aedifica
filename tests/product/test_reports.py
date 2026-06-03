@@ -60,6 +60,18 @@ def test_site_report(client, owner):
     assert site["summary"]["handover_blocked"] >= 1
 
 
+def test_permit_submission(client, owner):
+    h = owner["headers"]
+    client.post("/api/projects", json={"project_id": "S", "name": "S", "commune": "Lausanne"}, headers=h)
+    before = client.get("/api/projects/S/permit", headers=h).json()["permit"]
+    assert before["data_basis"] == "empty"
+    item = next(i for g in before["groups"] for i in g["items"] if i["status"] == "missing")
+    after = client.post("/api/projects/S/permit/dossier", json={"item_id": item["item_id"], "present": True}, headers=h).json()["permit"]
+    assert after["data_basis"] == "project"
+    now = next(i for g in after["groups"] for i in g["items"] if i["item_id"] == item["item_id"])
+    assert now["status"] == "present"
+
+
 def test_reports_require_auth(client, owner):
     _project(client, owner)
     assert client.get("/api/projects/P/permit").status_code == 401

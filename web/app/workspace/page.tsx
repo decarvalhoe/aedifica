@@ -211,6 +211,11 @@ export default function App() {
     await api("/communes", { method: "POST", token: token!, body: { commune: active.jurisdiction.commune, canton: active.jurisdiction.canton } });
     await loadAll(active, token!);
   }
+  async function submitPermit(itemId: string, present: boolean) {
+    if (!active) return;
+    const r = await api<any>(`/projects/${active.project_id}/permit/dossier`, { method: "POST", token: token!, body: { item_id: itemId, present } });
+    setD((x) => ({ ...x, permit: r.permit }));
+  }
   async function refreshLedger() {
     if (!active) return;
     const [ledger, unknowns] = await Promise.all([
@@ -273,7 +278,7 @@ export default function App() {
           )}
           {view === "dashboard" && <Dashboard d={d} go={setView} />}
           {view === "terrain" && <Terrain claims={d.claims} mode={d.intakeMode} reason={d.intakeReason} support={d.support} commune={j.commune} onLookup={lookup} onRequest={requestCommune} />}
-          {view === "permis" && <Permis d={d.permit} />}
+          {view === "permis" && <Permis d={d.permit} onSubmit={submitPermit} />}
           {view === "opposition" && <Opposition d={d.opposition} />}
           {view === "conformite" && <Conformite d={d.compliance} />}
           {view === "copilote" && <Copilote token={token} pid={active.project_id} ledger={d.ledger} onChange={refreshLedger} />}
@@ -604,11 +609,13 @@ function Terrain({ claims, mode, reason, support, commune, onLookup, onRequest }
 }
 
 /* ---- Permis ---------------------------------------------------------- */
-function Permis({ d }: { d?: any }) {
+function Permis({ d, onSubmit }: { d?: any; onSubmit: (itemId: string, present: boolean) => Promise<void> }) {
+  const [busy, setBusy] = useState("");
   if (!d) return <p className="spin">Chargement…</p>;
+  const toggle = async (id: string, present: boolean) => { setBusy(id); try { await onSubmit(id, present); } catch { /* surfaced upstream */ } finally { setBusy(""); } };
   return (
     <>
-      <div className="vhead"><h2>Dossier de permis</h2><p>L&apos;état de complétude de votre demande, pièce par pièce et par intervenant — pour ne plus déposer un dossier incomplet.</p></div>
+      <div className="vhead"><h2>Dossier de permis</h2><p>L&apos;état de complétude de votre demande, pièce par pièce et par intervenant. Marquez chaque pièce comme fournie au fur et à mesure — pour ne plus déposer un dossier incomplet.</p></div>
       <div className="banner" style={{ borderLeftColor: d.ready_for_review ? "var(--ts-sourced)" : "var(--ts-assume)" }}>
         {d.ready_for_review ? <b>Dossier prêt à déposer.</b> : <><b>Pas encore prêt — {d.summary.required_blockers} pièce(s) requise(s) manquante(s).</b> Détail ci-dessous.</>}
         {d.data_basis === "empty" && <span> Aucune pièce déposée pour ce projet — le dossier démarre vide.</span>}
@@ -616,10 +623,17 @@ function Permis({ d }: { d?: any }) {
       {d.groups?.map((g: any, i: number) => (
         <div className="card" key={i} style={{ marginBottom: 14 }}>
           <h3>{fr(g.actor)} · {fr(g.category)}</h3>
-          {g.items.map((it: any, j: number) => (
-            <div className="claim" key={j}><Trust state={it.status} />
-              <div><div className="ttl">{fr(it.title)}</div>{it.missing_message && (it.status === "missing" || it.status === "assumption") && <small>{it.missing_message}</small>}</div></div>
-          ))}
+          {g.items.map((it: any, j: number) => {
+            const present = it.status === "present";
+            return (
+              <div className="claim" key={j} style={{ alignItems: "center" }}><Trust state={it.status} />
+                <div style={{ flex: 1 }}><div className="ttl">{fr(it.title)}</div>{it.missing_message && (it.status === "missing" || it.status === "assumption") && <small>{it.missing_message}</small>}</div>
+                <button className="ds-btn ghost" style={{ padding: "6px 12px" }} disabled={busy === it.item_id} onClick={() => toggle(it.item_id, !present)}>
+                  {busy === it.item_id ? "…" : present ? "Retirer" : "Fournir"}
+                </button>
+              </div>
+            );
+          })}
         </div>
       ))}
     </>

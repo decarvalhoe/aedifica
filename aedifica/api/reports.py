@@ -48,13 +48,36 @@ def permit_view(project) -> dict:
                 "actor": g["actor"],
                 "category": g["category"],
                 "items": [
-                    {"title": i["title"], "status": i["status"], "missing_message": i.get("missing_message")}
+                    {"item_id": i["item_id"], "title": i["title"], "status": i["status"], "missing_message": i.get("missing_message")}
                     for i in g["items"]
                 ],
             }
             for g in r["groups"]
         ],
     }
+
+
+def submit_permit_piece(project, item_id: str, present: bool) -> None:
+    """Mark a permit checklist item as submitted (present) or withdrawn, in the
+    project's own dossier. Real per-project submission — no global fixture."""
+    checklist = _load("permit", "vd_camac_checklist.json")
+    item = next((it for it in checklist["items"] if it["item_id"] == item_id), None)
+    if item is None:
+        raise ValueError(f"unknown checklist item {item_id}")
+    key = (item.get("accepted_evidence") or [item_id])[0]
+    dossier = dict(project.permit_dossier or _empty_dossier(project))
+    records = [r for r in dossier.get("evidence_records", []) if r.get("key") != key]
+    if present:
+        records.append({
+            "evidence_id": f"EVID-{key.upper()}",
+            "key": key,
+            "kind": "app_submission",
+            "title": item["title"],
+            "status": "present",
+            "source_refs": [{"source_id": "APP-SUBMISSION", "locator": "Déposé dans l'application", "valid_as_of": "2026-06-03", "confidence": "declared"}],
+        })
+    dossier["evidence_records"] = records
+    project.permit_dossier = dossier  # reassign so SQLAlchemy flags the JSON column dirty
 
 
 def opposition_view(project) -> dict:
