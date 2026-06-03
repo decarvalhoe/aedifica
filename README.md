@@ -45,6 +45,31 @@ One strong validation track is **Swiss Auto-BIM for small and mid-sized offices*
 - Universal architecture API/MCP for agentic workflows.
 - End-to-end assistance: intake, constraints, design reasoning, BIM enrichment, model checks, exports, permit dossiers, tendering, execution, handover, and construction management.
 
+## Product — multi-project web app
+
+On top of the stdlib engine, Aedifica now runs as a **deployed multi-tenant web app** (FastAPI + Next.js, Datum design system):
+
+- **Accounts & team** — create an atelier, sign in with an access key, invite members with roles (owner / member / viewer).
+- **Projects** — create / open / switch projects; each carries its own parcel, memory, ledger and regulatory inputs.
+- **Per-project SIA surfaces** (all run on the project's own data; new projects start honestly empty): Terrain & zonage (live address lookup, sourced / à-vérifier), Dossier de permis (submit pieces), Risque d'opposition, Conformité, Coûts & appels d'offres, Chantier & remise.
+- **Copilote IA · maquette** — the agent→Archicad action loop: inspect → dry-run diff → scoped approval → execute → ledger. Mutation is never possible without an `adapter_execution` approval. (The Archicad adapter runs in replay; a live connection is the partner-pilot step.)
+- **Mémoire du projet** — residual unknowns + the decision / action journal.
+- **Maturity model surfaced in the UI** — every surface declares whether it is operational, reference-only, or à-venir. No fabricated data: a surface ships on real data or says it is not there yet.
+
+### Run the product locally
+
+```bash
+# API (FastAPI) — SQLite dev DB
+pip install -e ".[product]"
+AEDIFICA_CREATE_ALL=1 python -m uvicorn aedifica.api.app:app --port 8090
+
+# Web (Next.js) — proxies /api to the API at request time
+cd web && npm install && npm run build
+AEDIFICA_API=http://127.0.0.1:8090 npm start   # then open http://localhost:3000/workspace
+```
+
+Production: `docker compose up` (Postgres + API + web); Alembic migrations apply on boot and images publish to GHCR. CI runs the offline engine (261 checks), the product test suite, an Alembic upgrade, and a Playwright E2E smoke (auth → project → action loop).
+
 ## Repository Map
 
 - **[`docs/overview.md`](docs/overview.md): up-to-date global plan — start here.**
@@ -95,19 +120,14 @@ One strong validation track is **Swiss Auto-BIM for small and mid-sized offices*
 
 ## Current Status
 
-Concept + strategy + a **working pilot**. A strategy deep-dive ([`docs/strategy/`](docs/strategy/)) reframed the
-product around **registry-anchored regulatory/project intelligence** (neutral engine + Swiss jurisdiction packs),
-and a runnable pilot ([`pilot/`](pilot/)) demonstrates **MVP1** (parcel -> sourced constraints + buildable envelope)
-and an **MVP2 opposition-risk radar** on real Vaud parcels (Lausanne + Pully) via free public Swiss APIs.
+Concept + strategy + a **working pilot** + a **deployed multi-project product**.
 
-The roadmap is now rebaselined around **R1A Agent-To-Software Demo**: before productizing the workspace, Aedifica
-must show the spectacular loop `agent CLI -> API/adapter -> model/drawing intent -> dry-run diff -> approval
-boundary -> ledger`. The offline pilot already includes an Archicad-shaped bridge fixture, selected-element
-inspection, missing metadata audit, generated design-intent items and before/after diff output.
+- **Engine** (`pilot/` + `aedifica/`): 261 offline checks; full SIA-phase contracts — parcel → sourced constraints + buildable envelope, opposition radar, permit readiness, phase-33 compliance, durable project memory + ledger + scoped approvals, adapter capability / transaction / export contracts + an Archicad replay harness, cost / tender, site / handover. Stdlib-only and language-neutral.
+- **Product** (`aedifica/` + `web/`): a multi-project, multi-account web app — accounts/team with roles, per-project regulatory / cost / site surfaces (operational on the project's own data; empty by default), permit-piece submission, the agent→Archicad action loop, live parcel lookup, and on-demand commune ingestion. SQLAlchemy + Alembic, FastAPI, Next.js (Datum), Postgres / SQLite, Docker / GHCR, and CI with a Playwright E2E smoke.
 
-See **[`docs/overview.md`](docs/overview.md)** for the up-to-date global plan. The pilot now has an offline
-CI path, a versioned jurisdiction-pack contract, a validated Swiss phase matrix, a prioritized source registry,
-workspace/memory/ledger contracts, and the first agent-to-software demo contract. The first GitHub issue waves
-are closed or being re-opened against the R1A/R1B sequence. The project is still not production-ready: it needs
-a live Archicad JSON bridge, stable package/API boundaries, persistence, UI, and partner-office validation
-against real material.
+What remains is **partner- and owner-gated**, and is deliberately not faked:
+
+- a **live Archicad connection** + a **partner-office pilot** against a real model (#190, #105, #115, #171);
+- **Swiss jurisdiction breadth** (new communes / cantons), which requires **real regulatory source data** — fabricating zone values would betray the « sourcé ou inconnu » principle.
+
+See **[`docs/overview.md`](docs/overview.md)** for the global plan. Waves W1–W6 (persistence, API, web, multi-tenant auth, the runtime action loop + memory + per-phase next-step, on-demand communes, and per-project depth) are merged to `main`.
