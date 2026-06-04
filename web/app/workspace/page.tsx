@@ -124,16 +124,22 @@ export default function App() {
     try { await api("/projects", { method: "POST", token: t, body: { project_id: REF_ID, name: REF.name, commune: REF.commune, seed_reports: true } }); } catch { /* exists */ }
     try { const c = ((await api<any>(`/projects/${REF_ID}/claims`, { token: t })).claims) || []; if (!c.length) await api(`/projects/${REF_ID}/intake`, { method: "POST", token: t, body: { query: `${REF.name}, ${REF.commune}`, live: false } }); } catch { /* */ }
   }
-  async function register(orgName: string, email: string) {
+  async function register(orgName: string, email: string, password: string) {
     setBusy(true); setErr("");
-    try { const t = (await api<any>("/orgs", { method: "POST", body: { org_name: orgName, user_email: email } })).token as string;
-      localStorage.setItem("aedifica_token", t); await seedReference(t); await loadProjects(t); await loadUsers(t); setFlashKey(t); setToken(t);
+    try { const t = (await api<any>("/orgs", { method: "POST", body: { org_name: orgName, user_email: email, password } })).token as string;
+      localStorage.setItem("aedifica_token", t); await seedReference(t); await loadProjects(t); await loadUsers(t); setToken(t);
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   }
-  async function signIn(key: string) {
+  async function login(email: string, password: string) {
+    setBusy(true); setErr("");
+    try { const t = (await api<any>("/auth/login", { method: "POST", body: { email, password } })).token as string;
+      localStorage.setItem("aedifica_token", t); await loadProjects(t); await loadUsers(t); setToken(t);
+    } catch (e: any) { setErr(e.message?.includes("incorrect") ? "E-mail ou mot de passe incorrect." : (e.message || "Connexion impossible.")); } finally { setBusy(false); }
+  }
+  async function joinWithKey(key: string) {
     setBusy(true); setErr("");
     try { await loadProjects(key); await loadUsers(key); localStorage.setItem("aedifica_token", key); setToken(key); }
-    catch { setErr("Clé d'accès invalide."); } finally { setBusy(false); }
+    catch { setErr("Clé d'invitation invalide."); } finally { setBusy(false); }
   }
   function signOut() { localStorage.removeItem("aedifica_token"); setToken(null); setProjects(null); setActive(null); setD({}); setFlashKey(null); setUsers(null); }
 
@@ -170,7 +176,7 @@ export default function App() {
   }
 
   if (!ready) return <div className="center"><span className="spin">Chargement…</span></div>;
-  if (!token) return <Login busy={busy} err={err} onRegister={register} onSignIn={signIn} />;
+  if (!token) return <Login busy={busy} err={err} onRegister={register} onLogin={login} onJoin={joinWithKey} />;
   if (!active) return <Home projects={projects} users={users} flashKey={flashKey} busy={busy} err={err} onOpen={openProject} onCreate={createProject} onSignOut={signOut} onSearch={homeSearch} dismissFlash={() => setFlashKey(null)} />;
 
   const cur = NAV.find((n) => n.id === view)!;
@@ -232,33 +238,51 @@ export default function App() {
 }
 
 /* ===================== LOGIN ===================== */
-function Login({ busy, err, onRegister, onSignIn }: { busy: boolean; err: string; onRegister: (o: string, e: string) => void; onSignIn: (k: string) => void }) {
-  const [mode, setMode] = useState<"register" | "signin">("register");
-  const [org, setOrg] = useState(""); const [email, setEmail] = useState(""); const [key, setKey] = useState("");
+function Login({ busy, err, onRegister, onLogin, onJoin }: { busy: boolean; err: string; onRegister: (o: string, e: string, p: string) => void; onLogin: (e: string, p: string) => void; onJoin: (k: string) => void }) {
+  const [mode, setMode] = useState<"login" | "register" | "join">("login");
+  const [org, setOrg] = useState(""); const [email, setEmail] = useState(""); const [pw, setPw] = useState(""); const [key, setKey] = useState("");
+  const titles: Record<string, string> = { login: "Connexion", register: "Créer un atelier", join: "Rejoindre un atelier" };
+  const canReg = !!org && !!email && pw.length >= 6;
   return (
     <div className="center">
       <div className="login__box">
         <span className="wordmark"><span className="ae">Æ</span>DIFICA</span>
         <span className="eyebrow">ArchiOS Suisse · l&apos;assistant de l&apos;architecte</span>
-        <h2>{mode === "register" ? "Créer un atelier" : "Connexion"}</h2>
-        <div className="seg">
-          <button className={mode === "register" ? "on" : ""} onClick={() => setMode("register")}>Créer un atelier</button>
-          <button className={mode === "signin" ? "on" : ""} onClick={() => setMode("signin")}>Se connecter</button>
-        </div>
-        {mode === "register" ? (
+        <h2>{titles[mode]}</h2>
+        {mode !== "join" && (
+          <div className="seg">
+            <button className={mode === "login" ? "on" : ""} onClick={() => setMode("login")}>Se connecter</button>
+            <button className={mode === "register" ? "on" : ""} onClick={() => setMode("register")}>Créer un atelier</button>
+          </div>
+        )}
+        {mode === "register" && (
           <>
             <label className="lbl">Nom de l&apos;atelier</label>
             <input className="fld" value={org} onChange={(e) => setOrg(e.target.value)} placeholder="Atelier Martin" />
             <label className="lbl">E-mail</label>
-            <input className="fld" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@atelier.ch" />
-            <button className="ds-btn full" disabled={busy || !org || !email} onClick={() => onRegister(org, email)}>{busy ? "Création…" : "Créer l'atelier"}</button>
-            <p className="note" style={{ marginTop: 12 }}>Une clé d&apos;accès vous sera attribuée. Le mot de passe arrive bientôt.</p>
+            <input className="fld" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@atelier.ch" />
+            <label className="lbl">Mot de passe</label>
+            <input className="fld" type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => e.key === "Enter" && canReg && onRegister(org, email, pw)} placeholder="6 caractères minimum" />
+            <button className="ds-btn full" disabled={busy || !canReg} onClick={() => onRegister(org, email, pw)}>{busy ? "Création…" : "Créer l'atelier"}</button>
+            <p className="note" style={{ marginTop: 12 }}>Un atelier de démonstration (Place de la Palud) sera ajouté pour explorer.</p>
           </>
-        ) : (
+        )}
+        {mode === "login" && (
           <>
-            <label className="lbl">Clé d&apos;accès</label>
-            <input className="fld" value={key} onChange={(e) => setKey(e.target.value)} placeholder="collez votre clé" />
-            <button className="ds-btn full" disabled={busy || !key} onClick={() => onSignIn(key.trim())}>{busy ? "Connexion…" : "Se connecter"}</button>
+            <label className="lbl">E-mail</label>
+            <input className="fld" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@atelier.ch" />
+            <label className="lbl">Mot de passe</label>
+            <input className="fld" type="password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => e.key === "Enter" && email && pw && onLogin(email, pw)} placeholder="votre mot de passe" />
+            <button className="ds-btn full" disabled={busy || !email || !pw} onClick={() => onLogin(email, pw)}>{busy ? "Connexion…" : "Se connecter"}</button>
+            <p className="login__alt"><a onClick={() => setMode("join")}>Rejoindre avec une clé d&apos;invitation</a></p>
+          </>
+        )}
+        {mode === "join" && (
+          <>
+            <label className="lbl">Clé d&apos;invitation</label>
+            <input className="fld" value={key} onChange={(e) => setKey(e.target.value)} onKeyDown={(e) => e.key === "Enter" && key && onJoin(key.trim())} placeholder="collez la clé reçue" />
+            <button className="ds-btn full" disabled={busy || !key} onClick={() => onJoin(key.trim())}>{busy ? "Connexion…" : "Rejoindre"}</button>
+            <p className="login__alt"><a onClick={() => setMode("login")}>← Retour à la connexion</a></p>
           </>
         )}
         {err && <p className="note err" style={{ marginTop: 12 }}>{err}</p>}

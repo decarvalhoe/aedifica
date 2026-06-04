@@ -12,6 +12,52 @@ def test_capability_model():
     assert not auth.has_capability("member", "adapter.execute")
 
 
+def test_password_hash_roundtrip():
+    h = auth.hash_password("motdepasse1")
+    assert h.startswith("pbkdf2_sha256$") and h != "motdepasse1"
+    assert auth.verify_password("motdepasse1", h)
+    assert not auth.verify_password("mauvais", h)
+    assert not auth.verify_password("anything", None)  # no hash set
+    assert not auth.verify_password("x", "garbage")  # malformed stored value
+
+
+def test_register_with_password_then_login(client):
+    reg = client.post(
+        "/api/orgs",
+        json={"org_name": "Atelier", "user_email": "owner@a.ch", "password": "motdepasse1"},
+    ).json()
+    # login returns the same session token, never the password
+    lg = client.post("/api/auth/login", json={"email": "owner@a.ch", "password": "motdepasse1"})
+    assert lg.status_code == 200
+    body = lg.json()
+    assert body["token"] == reg["token"] and body["role"] == "owner"
+    # the token actually authorizes
+    assert client.get("/api/projects", headers={"Authorization": f"Bearer {body['token']}"}).status_code == 200
+
+
+def test_login_wrong_password_is_401(client):
+    client.post("/api/orgs", json={"org_name": "Atelier", "user_email": "owner@a.ch", "password": "motdepasse1"})
+    r = client.post("/api/auth/login", json={"email": "owner@a.ch", "password": "WRONG"})
+    assert r.status_code == 401 and r.json()["detail"]["code"] == "BAD_CREDENTIALS"
+
+
+def test_login_without_password_set_is_401(client):
+    # back-compat: an atelier created without a password still works via token,
+    # but email+password login must not succeed for it.
+    client.post("/api/orgs", json={"org_name": "Legacy", "user_email": "legacy@a.ch"})
+    assert client.post("/api/auth/login", json={"email": "legacy@a.ch", "password": "x"}).status_code == 401
+
+
+def test_invited_member_can_login_with_password(client, owner):
+    client.post(
+        "/api/orgs/users",
+        json={"email": "claire@a.ch", "name": "Claire", "role": "member", "password": "clairepass1"},
+        headers=owner["headers"],
+    )
+    lg = client.post("/api/auth/login", json={"email": "claire@a.ch", "password": "clairepass1"})
+    assert lg.status_code == 200 and lg.json()["role"] == "member"
+
+
 def test_missing_or_bad_token_is_401(client):
     assert client.get("/api/projects").status_code == 401
     assert client.get("/api/projects", headers={"Authorization": "Bearer nope"}).status_code == 401

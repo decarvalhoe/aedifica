@@ -51,6 +51,7 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(200))
     role: Mapped[str] = mapped_column(String(40), default="member")
     api_token: Mapped[str | None] = mapped_column(String(96), unique=True, nullable=True)
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[_dt.datetime] = _TS()
     org: Mapped[Org] = relationship(back_populates="users")
 
