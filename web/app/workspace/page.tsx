@@ -314,6 +314,12 @@ function Home({ projects, users, flashKey, busy, err, onOpen, onCreate, onSignOu
         </div>
         <p className="home__hint">→ contraintes sourcées en quelques secondes, sans maquette. Enregistré comme projet.</p>
 
+        <div className="home__how">
+          <div className="how"><div className="n">01 · Intake → faisabilité</div><div className="t">Cherchez une parcelle</div><p>Adresse ou EGRID → contraintes et enveloppe constructible, sourcées ou marquées « à vérifier ».</p></div>
+          <div className="how"><div className="n">02 · Projet → permis</div><div className="t">Avancez par phase SIA</div><p>Chaque phase a son prochain pas. L&apos;IA prépare une action dans vos outils ; vous la validez.</p></div>
+          <div className="how"><div className="n">03 · Chantier → remise</div><div className="t">Pilotez jusqu&apos;à la livraison</div><p>Dossier, opposition, conformité, coûts, chantier — tracés, réversibles, prêts à présenter.</p></div>
+        </div>
+
         {flashKey && <div className="flash"><b>Atelier créé.</b> Conservez votre clé d&apos;accès pour vous reconnecter :<code>{flashKey}</code><button className="signout" style={{ padding: 0 }} onClick={dismissFlash}>J&apos;ai noté ma clé</button></div>}
 
         <div className="home__sec">
