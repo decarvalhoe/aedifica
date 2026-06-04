@@ -40,3 +40,29 @@ def test_execution_gated_by_scoped_approval(client, owner):
     led = client.get("/api/projects/P/ledger", headers=h).json()["ledger"]
     assert any(e["event_type"] == "adapter_execution" and e["mutating"] for e in led)
     assert any(e["event_type"] == "approval" and e["approval_scope"] == "adapter_execution" for e in led)
+
+
+def test_dry_run_live_endpoint_inspects_read_only(client, owner, monkeypatch):
+    """With an endpoint, the dry-run preview comes from the live bridge — still no mutation."""
+    from aedifica.api import actions
+    monkeypatch.setattr(actions._mbd, "live_product_info",
+                        lambda ep, timeout=2.0: {"running": True, "product_info": {"name": "Archicad", "version": "REPLAY"}})
+    monkeypatch.setattr(actions._mbd, "live_selected_elements",
+                        lambda ep, timeout=2.0: {"source_model_version": "LIVE-1", "selected_elements": [{"element_id": "AC-1"}]})
+    _project(client, owner)
+    r = client.post("/api/projects/P/adapter/dry-run",
+                    json={"adapter_id": "archicad_json", "operations": OP, "adapter_endpoint": "http://127.0.0.1:8077"},
+                    headers=owner["headers"]).json()
+    assert r["mode"] == "live" and r["mutated"] is False
+    assert r["preview"]["product"]["version"] == "REPLAY" and r["preview"]["model_version"] == "LIVE-1"
+
+
+def test_dry_run_live_unreachable_falls_back(client, owner, monkeypatch):
+    from aedifica.api import actions
+    monkeypatch.setattr(actions._mbd, "live_product_info",
+                        lambda ep, timeout=2.0: {"running": False, "error": "connection refused"})
+    _project(client, owner)
+    r = client.post("/api/projects/P/adapter/dry-run",
+                    json={"adapter_id": "archicad_json", "operations": OP, "adapter_endpoint": "http://127.0.0.1:1"},
+                    headers=owner["headers"]).json()
+    assert r["mode"] == "fixture_fallback" and r["mutated"] is False

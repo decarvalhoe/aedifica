@@ -689,13 +689,19 @@ function Copilote({ token, pid, ledger, onChange }: { token: string; pid: string
   const [executed, setExecuted] = useState(false);
   const [msg, setMsg] = useState("");
   const [blocked, setBlocked] = useState(false);
+  const [endpoint, setEndpoint] = useState("");
+  const [mode, setMode] = useState("");
+  const [product, setProduct] = useState<any>(null);
 
   async function dryRun() {
     setMsg(""); setBlocked(false);
     try {
-      const r = await api<any>(`/projects/${pid}/adapter/dry-run`, { method: "POST", token, body: { adapter_id: "archicad_json", operations: [{ op_id: "O1", kind: "set_property", target: "AC-SPACE-101", before: "", after: "bureau", undo: "restore" }] } });
-      setTxn(r.transaction); setExecuted(false); setApproved(false);
-      setMsg("Aperçu prêt. Rien n'a encore changé dans votre maquette."); onChange();
+      const r = await api<any>(`/projects/${pid}/adapter/dry-run`, { method: "POST", token, body: { adapter_id: "archicad_json", operations: [{ op_id: "O1", kind: "set_property", target: "AC-SPACE-101", before: "", after: "bureau", undo: "restore" }], adapter_endpoint: endpoint.trim() || undefined } });
+      setTxn(r.transaction); setExecuted(false); setApproved(false); setMode(r.mode); setProduct(r.preview?.product);
+      setMsg(r.mode === "live" ? `Aperçu live depuis Archicad ${r.preview?.product?.version || ""} — lecture seule, rien n'a changé.`
+        : r.mode === "fixture_fallback" ? "Endpoint injoignable — aperçu sur le modèle replay. Rien n'a changé."
+        : "Aperçu prêt (replay). Rien n'a encore changé dans votre maquette.");
+      onChange();
     } catch (e: any) { setMsg(e.message); }
   }
   async function approve() {
@@ -717,7 +723,14 @@ function Copilote({ token, pid, ledger, onChange }: { token: string; pid: string
     <>
       <div className="vhead"><h2>Copilote IA · maquette Archicad</h2><p>L&apos;IA prépare une modification de votre maquette, vous la prévisualisez, vous la validez, elle l&apos;applique — et tout reste tracé et réversible. <b>Rien ne change sans votre accord.</b></p></div>
 
-      <div className="banner">Boucle d&apos;action <b>réelle</b> : aperçu → validation → exécution → journal. L&apos;adaptateur Archicad fonctionne en mode <b>replay</b> (modèle rejoué) ; la connexion à une instance Archicad <b>live</b> est la prochaine étape. Exemple : <b>« classer l&apos;espace AC-SPACE-101 en bureau »</b>.</div>
+      <div className="banner">Boucle d&apos;action <b>réelle</b> : aperçu → validation → exécution → journal. Branchez l&apos;endpoint <b>Archicad JSON</b> ci-dessous pour inspecter la maquette <b>live</b> (lecture seule) ; sans endpoint, le modèle <b>replay</b> sert de doublure. Exemple : <b>« classer l&apos;espace AC-SPACE-101 en bureau »</b>.</div>
+
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div className="row" style={{ gap: 10, alignItems: "center" }}>
+          <input className="field" style={{ flex: 1 }} placeholder="Endpoint Archicad JSON — ex. http://127.0.0.1:19723 (vide = replay)" value={endpoint} onChange={(e) => setEndpoint(e.target.value)} />
+          {mode && <span className={`badge ${mode === "live" ? "live" : "preview"}`}><span className="d" />{mode === "live" ? `Live · ${product?.version || "Archicad"}` : mode === "fixture_fallback" ? "Replay (endpoint injoignable)" : "Replay"}</span>}
+        </div>
+      </div>
 
       <div className="stepper">
         <div className={`step ${s3 ? "done" : s1 && !s3 ? "act" : ""}`}><div className="idx">Étape 1</div><div className="nm">Aperçu (simulation)</div></div>
@@ -736,7 +749,7 @@ function Copilote({ token, pid, ledger, onChange }: { token: string; pid: string
         <div className="card" style={{ marginBottom: 14 }}>
           <h3>Aperçu de la transaction</h3>
           <div className="claim"><Trust state={executed ? "conflict" : "computed"} label={executed ? "Appliquée" : "Simulation"} />
-            <div><div className="ttl">{txn.operation_count} opération · espace AC-SPACE-101 → « bureau »</div><div className="val">statut : {executed ? "appliqué à la maquette" : "aperçu — aucune mutation"}</div></div></div>
+            <div><div className="ttl">{txn.operation_count} opération · espace AC-SPACE-101 → « bureau »</div><div className="val">statut : {executed ? "appliqué à la maquette" : "aperçu — aucune mutation"} · source : {mode === "live" ? "Archicad live" : "replay"}</div></div></div>
         </div>
       )}
 

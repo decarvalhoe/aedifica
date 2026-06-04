@@ -30,16 +30,33 @@ def capabilities(adapter_id: str) -> dict:
     return _cap.load_manifest(adapter_id).get("capabilities", {})
 
 
-def dry_run(session, project, user, adapter_id: str, operations: list) -> dict:
-    """Build a dry-run transaction + before/after preview; persist a ledger row. No mutation."""
+def dry_run(session, project, user, adapter_id: str, operations: list, endpoint: str | None = None) -> dict:
+    """Build a dry-run transaction + before/after preview; persist a ledger row. No mutation.
+
+    When ``endpoint`` is given, the preview inspects the **live** Archicad bridge
+    (read-only: product info + selected elements), falling back to fixtures when
+    the bridge is unreachable. Mutation never happens here.
+    """
     manifest = _cap.load_manifest(adapter_id)  # raises AdapterCapabilityError on unknown adapter
     txn_id = f"TXN-{project.project_id}-{session.query(m.LedgerEntry).filter_by(project_id=project.id).count() + 1}"
     transaction = _txn.build_transaction(adapter_id, operations, txn_id, "dry_run")
 
-    # Best-effort before/after preview from the fixture model bridge.
-    selection = _mbd.inspect_selected_elements()
+    # Read-only inspection: live endpoint if provided + reachable, else fixtures.
+    mode, product = "fixture", None
+    if endpoint:
+        info = _mbd.live_product_info(endpoint)
+        if info.get("running"):
+            mode, product = "live", info.get("product_info")
+            selection = _mbd.live_selected_elements(endpoint)
+        else:
+            mode = "fixture_fallback"
+            selection = _mbd.inspect_selected_elements()
+    else:
+        selection = _mbd.inspect_selected_elements()
     audit = _mbd.missing_metadata_audit(selection)
     preview = {
+        "mode": mode,
+        "product": product,
         "model_version": selection.get("source_model_version"),
         "selected_count": len(selection.get("selected_elements", [])),
         "missing_metadata": audit.get("missing_count"),
@@ -51,7 +68,7 @@ def dry_run(session, project, user, adapter_id: str, operations: list) -> dict:
         {
             "ledger_id": _next_ledger_id(session, project),
             "event_type": "adapter_dry_run",
-            "summary": f"Dry-run {txn_id} on {adapter_id} ({len(operations)} op)",
+            "summary": f"Dry-run {txn_id} on {adapter_id} ({len(operations)} op){' · live' if mode == 'live' else ''}",
             "actor": _actor(user),
             "phase": {"phase_code": project.phase_code},
             "mutating": False,
@@ -63,6 +80,7 @@ def dry_run(session, project, user, adapter_id: str, operations: list) -> dict:
         "transaction": transaction,
         "blocked": _txn.is_blocked(transaction),
         "preview": preview,
+        "mode": mode,
         "ledger_id": entry.ledger_id,
         "mutated": False,
     }
