@@ -113,6 +113,8 @@ Production: `docker compose up` (Postgres + API + web); Alembic migrations apply
 - `docs/mvp-roadmap.md`: staged MVP plan.
 - **`docs/planning/`: software-development plan, release roadmap, epics/backlog, and delivery checklists.**
 - `docs/validation/partner-agent-demo-protocol.md`: protocol for testing the R1A demo with the partner architect.
+- **`docs/validation/partner-pilot-kit.md`: prepared playbook for the live Archicad partner session — pre-flight, read-only run-of-show, privacy, capture log.**
+- `docs/operations/deploy-runbook.md`: production deploy runbook (Postgres + API + web, migrations, health, GHCR).
 - `docs/review/foundations-audit.md`: living corrections tracker.
 - `docs/pitch/aedifica-one-pager.html`: visual one-pager (FR).
 - `docs/backlog/initial-issues.md`: first issue wave, now closed and superseded by the planning backlog.

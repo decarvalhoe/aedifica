@@ -2,7 +2,8 @@
 
 > **Point d'entrée.** Présentation structurée et à jour de l'ensemble du projet : vision, approche,
 > architecture, feuille de route, et **ce qui est déjà fonctionnel**. Les documents détaillés sont liés
-> en fin de page. État : concept + stratégie + **pilote fonctionnel** (mai 2026).
+> en fin de page. État : concept + stratégie + **pilote fonctionnel** + **produit web multi-projets déployé**
+> (vagues W1–W7 mergées sur `main`, juin 2026).
 
 ---
 
@@ -89,13 +90,13 @@ Cette fragmentation est **le fossé concurrentiel** : aucun outil étranger ne l
 
 | Jalon | Cœur | Statut |
 |---|---|---|
-| **MVP0 Foundation** | moteur + schéma NOMOS + packs + contrat de preuve | 🟡 en cours (corpus pilote semé) |
-| **R1A Agent → API → logiciel d'architecture** | CLI agentique, bridge Archicad-shaped, intention de dessin/modèle, dry-run diff, approval/ledger | ✅ **contrat offline fonctionnel**, live Archicad à connecter |
-| **R1B Workspace projet** | parcelle → contraintes + enveloppe sourcées, rapport, mémoire projet | ✅ **prototype fonctionnel**, productisation à durcir |
-| **R2 Permis & Opposition** | radar d'opposition + complétude dossier (phase 33) | 🟡 radar + pré-check dossier/compliance prototypes |
-| **R3 Mémoire & Ledger** | décisions, preuves, approvals, handoffs | 🟡 fixtures/validators en place |
-| **R4 Adapters live** | Archicad JSON réel d'abord, puis IFC/Speckle/Revit/Rhino/SketchUp/AutoCAD/BricsCAD/Vectorworks | 🔜 |
-| **R5/R6 Économie + chantier** | honoraires, coûts, soumissions, PV, défauts, handover | 🟡 contrats pilotes |
+| **MVP0 Foundation** | moteur + schéma NOMOS + packs + contrat de preuve | ✅ moteur stdlib, **261 checks** |
+| **R1A Agent → API → logiciel** | boucle agentique, bridge Archicad, intention, dry-run diff, approval/ledger | ✅ **dans le produit** ; connexion Archicad **live** (lecture seule) faite (#190) |
+| **R1B Workspace projet** | parcelle → contraintes + enveloppe sourcées, rapport, mémoire | ✅ **productisé** : app multi-projets / multi-comptes (W5) |
+| **R2 Permis & Opposition** | radar d'opposition + complétude dossier (phase 33) | ✅ **par projet** : dépôt de pièces permis, opposition, conformité (W6) |
+| **R3 Mémoire & Ledger** | décisions, preuves, approvals, handoffs | ✅ runtime : mémoire + ledger + approbations scoped (W4) |
+| **R4 Adapters live** | Archicad JSON réel d'abord, puis IFC/Speckle/Revit/Rhino/… | 🟢 Archicad live **read-only** fait ; mutation live + autres adapters à venir |
+| **R5/R6 Économie + chantier** | honoraires, coûts, soumissions, PV, défauts, handover | ✅ **par projet** : coûts & appels d'offres, chantier & remise (W6) |
 
 La traduction logicielle de cette séquence vit désormais dans
 [`planning/software-roadmap.md`](planning/software-roadmap.md) et
@@ -124,7 +125,7 @@ Code Python (stdlib), ancré sur les **API publiques gratuites** suisses, pouss�
 | `model/design_intent_fixture.json` | intention structurée de dessin/modèle pour le demo agent → API → logiciel | ✅ |
 | `agent_software_demo.py` | CLI dédié R1A : inspection modèle, items générés, dry-run diff, état d'approbation | ✅ |
 | `trust.py` | footer/contrat de rendu non-autoritaire partagé par les sorties pilote | ✅ |
-| `selfcheck.py` | tests hors-ligne | ✅ 48/48 |
+| `selfcheck.py` | tests hors-ligne | ✅ 261/261 |
 
 **Preuve réelle** (parcelle Place de la Palud, Lausanne, nº 10072) : Zone centrale 15 LAT · DS III ·
 alignements · LATC/LAT — en quelques secondes, **sans maquette ni identifiant**. Validé aussi sur Pully.
@@ -143,6 +144,22 @@ Un premier contrat de pack versionné est documenté dans
 [`architecture/jurisdiction-pack-contract.md`](architecture/jurisdiction-pack-contract.md) et validé par CI.
 La matrice de cycle suisse et le registre de sources pilote sont également structurés dans `pilot/research/`
 et validés par CI.
+
+### 8b · Au-delà du pilote — le produit (app web)
+
+Par-dessus le moteur, Aedifica tourne désormais comme **app web multi-tenant déployable** (FastAPI + Next.js,
+design system Datum) — voir [`../README.md`](../README.md) §Product et
+[`architecture/adr-0002-product-architecture.md`](architecture/adr-0002-product-architecture.md) :
+
+- **Comptes & équipe** (org + utilisateurs, rôles owner/member/viewer), **projets** (créer/ouvrir/changer).
+- **Surfaces SIA par projet** (données du projet, vides par défaut, jamais fabriquées) : Terrain & zonage
+  (recherche live), Dossier de permis (**dépôt de pièces**), Opposition, Conformité, Coûts & appels d'offres,
+  Chantier & remise.
+- **Copilote IA · maquette** : boucle `inspecter → dry-run diff → approbation scoped → exécuter → ledger` ;
+  **connexion Archicad live** (lecture seule) branchable par endpoint, repli replay sinon ; aucune mutation
+  sans approbation `adapter_execution`.
+- Persistance SQLAlchemy + Alembic, Postgres/SQLite, Docker/GHCR, CI (moteur 261 + suite produit + Alembic +
+  **smoke E2E Playwright**). Déploiement : [`operations/deploy-runbook.md`](operations/deploy-runbook.md).
 
 ## 9 · Backlog & gouvernance
 
@@ -165,8 +182,13 @@ et validés par CI.
   d'action multi-logiciels** (dry-run → approbation → ledger), **requêtes mémoire**, et un **orchestrateur
   « prochaine étape par phase »** — pas de nouvelles surfaces CRUD. Backlog :
   [`planning/wave-4-action-layer-backlog.md`](planning/wave-4-action-layer-backlog.md).
-- Les seules issues plus anciennes encore ouvertes sont les validations live `#105` et `#115`, bloquées par
-  l'accès à un endpoint Archicad/modèle partenaire.
+- **Vagues W4–W7 mergées** (juin 2026) : boucle d'action + mémoire + orchestration (W4), app
+  multi-projets/comptes (W5), profondeur **par projet** — permis/coûts/chantier + dépôt de pièces, sortie du
+  statique (W6), et durcissement — docs, E2E Playwright, déploiement vérifié (W7). La **connexion Archicad
+  live (lecture seule)** est faite (`#190`) et un **Partner Pilot Kit** prêt à dérouler existe
+  ([`validation/partner-pilot-kit.md`](validation/partner-pilot-kit.md)).
+- Les seules issues encore ouvertes sont **partner-gated** : exécuter la séance sur une vraie maquette
+  (`#105`, `#115`, épic `#171`) — plus de code requis côté socle, il faut un poste Archicad partenaire.
 - Les listes de delivery, Definition of Ready/Done, release gates et checklists démo vivent dans
   [`planning/development-checklists.md`](planning/development-checklists.md).
 - Décisions tracées dans [`strategy/decisions.md`](strategy/decisions.md) ; corrections et dette historique
@@ -184,11 +206,14 @@ prochaine commune à ingérer après Lausanne/Pully.
 
 ## 11 · Prochaines étapes
 
-1. Traiter les P0 R1B `#119` à `#126`, `#130`, `#131` et `#159` pour convertir le pilote en workspace projet.
-2. Connecter le bridge Archicad JSON live dès qu'un poste Archicad partenaire est disponible (`#105`, `#115`).
-3. Construire `R2` sur le workspace : complétude dossier, gates phase 33, radar d'opposition et limites explicites.
-4. Tirer `R3` vers l'avant dès qu'une action implique approbation, preuve ou responsabilité professionnelle.
-5. Garder `R4` multi-logiciels actif : Archicad d'abord, mais IFC/Speckle/export intents et futurs adapters dans le meme cycle d'action.
+1. **Dérouler le Partner Pilot Kit** avec le bureau partenaire : pré-vol + séance **read-only** sur sa vraie
+   maquette Archicad (inspecter → audit → dry-run diff → garde-fou), puis décision (`#105`, `#115`).
+2. Sur « go » : ouvrir la **mutation live** scoped + réversible (au-delà de la lecture seule), puis câbler les
+   autres adapters (IFC/Speckle/Revit/…).
+3. **Largeur juridictionnelle** : ajouter des communes/cantons réels via l'ingestion à la demande — dès qu'on
+   dispose de **vraies sources réglementaires** (pas de fabrication).
+4. **Mise en production** : déployer le stack (Postgres + API + web) selon
+   [`operations/deploy-runbook.md`](operations/deploy-runbook.md) quand l'hébergement est décidé.
 
 ## 12 · Carte des documents (où lire quoi)
 
@@ -231,4 +256,4 @@ prochaine commune à ingérer après Lausanne/Pully.
 | La preuve API (Lausanne) | [`strategy/poc-lausanne-parcel.md`](strategy/poc-lausanne-parcel.md) |
 | Le pilote (code) | [`../pilot/README.md`](../pilot/README.md) |
 
-_Dernière mise à jour : 2026-05-31._
+_Dernière mise à jour : 2026-06-04 (produit W1–W7 mergé ; connexion Archicad live + Partner Pilot Kit)._
