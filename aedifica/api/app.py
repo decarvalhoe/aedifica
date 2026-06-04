@@ -63,6 +63,7 @@ class IntakeIn(BaseModel):
 class DryRunIn(BaseModel):
     adapter_id: str = "archicad_json"
     operations: list = []
+    adapter_endpoint: str | None = None  # live Archicad JSON bridge (read-only inspection)
 
 
 class ApprovalIn(BaseModel):
@@ -298,7 +299,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         require(user, "project.write")
         project = _project(session, user, project_id)
         try:
-            result = actions.dry_run(session, project, user, body.adapter_id, body.operations)
+            result = actions.dry_run(session, project, user, body.adapter_id, body.operations, endpoint=body.adapter_endpoint)
         except Exception as exc:
             raise _err(404, "ADAPTER_NOT_FOUND", str(exc))
         session.commit()
