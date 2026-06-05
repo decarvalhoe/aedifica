@@ -71,6 +71,30 @@ const fr = (s?: string) => (!s ? s || "" : FR[s] ?? FR[s.toLowerCase()] ?? s);
 const LVL: Record<string, string> = { faible: "faible", "modéré": "modere", modere: "modere", moyen: "modere", "élevé": "eleve", eleve: "eleve", low: "faible", medium: "modere", high: "eleve" };
 const lvlClass = (s?: string) => LVL[(s || "").toLowerCase()] || "modere";
 
+// ---- parcel search parsing (home → project) ----
+const COMMUNE_CANTON: Record<string, string> = {
+  lausanne: "VD", pully: "VD", renens: "VD", morges: "VD", nyon: "VD", "yverdon-les-bains": "VD", montreux: "VD", vevey: "VD", "préverenges": "VD",
+  fontainemelon: "NE", "neuchâtel": "NE", neuchatel: "NE", "val-de-ruz": "NE", "la chaux-de-fonds": "NE", "le locle": "NE",
+  "genève": "GE", geneve: "GE", carouge: "GE", lancy: "GE", fribourg: "FR", bulle: "FR", sion: "VS", sierre: "VS", monthey: "VS",
+  bern: "BE", berne: "BE", thun: "BE", "zürich": "ZH", zurich: "ZH", winterthur: "ZH",
+};
+const noAccent = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "");
+function parseParcel(q: string): { commune: string; canton: string; label: string } {
+  const parts = q.split(",").map((s) => s.trim()).filter(Boolean);
+  let commune = parts[0] || q.trim();
+  if (parts.length >= 2) {
+    const last = parts[parts.length - 1];
+    const lastIsParcel = /\d/.test(last) || /bien[-\s]?fonds|parcelle|egrid|n[°o]\b/i.test(last);
+    commune = lastIsParcel ? parts[0] : last;
+  }
+  const canton = COMMUNE_CANTON[commune.toLowerCase()] || "VD";
+  return { commune, canton, label: q.trim() };
+}
+const projIdFrom = (s: string) => noAccent(s).toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48) || "PARCELLE";
+// The pilot has representative data only for the seeded reference parcel; a search
+// matching it opens that populated dossier rather than an empty duplicate.
+const isReferenceParcel = (commune: string, label: string) => commune.toLowerCase() === "lausanne" && /palud/i.test(label);
+
 function Icon({ n }: { n: string }) {
   const p: Record<string, ReactNode> = {
     grid: <><rect x="2" y="2" width="5" height="5" /><rect x="9" y="2" width="5" height="5" /><rect x="2" y="9" width="5" height="5" /><rect x="9" y="9" width="5" height="5" /></>,
@@ -100,6 +124,7 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [flashKey, setFlashKey] = useState<string | null>(null);
+  const [flash, setFlash] = useState<{ kind: "ok" | "warn"; text: string } | null>(null);
   const [users, setUsers] = useState<any[] | null>(null);
 
   useEffect(() => {
@@ -141,7 +166,7 @@ export default function App() {
     try { await loadProjects(key); await loadUsers(key); localStorage.setItem("aedifica_token", key); setToken(key); }
     catch { setErr("Clé d'invitation invalide."); } finally { setBusy(false); }
   }
-  function signOut() { localStorage.removeItem("aedifica_token"); setToken(null); setProjects(null); setActive(null); setD({}); setFlashKey(null); setUsers(null); }
+  function signOut() { localStorage.removeItem("aedifica_token"); setToken(null); setProjects(null); setActive(null); setD({}); setFlashKey(null); setFlash(null); setUsers(null); }
 
   async function createProject(name: string, commune: string) {
     const id = (name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40)) || `PROJ-${(projects?.length ?? 0) + 1}`;
@@ -149,7 +174,7 @@ export default function App() {
     try { await api("/projects", { method: "POST", token: token!, body: { project_id: id, name, commune } }); const sums = await loadProjects(token!); const p = sums.find((s) => s.project_id === id); if (p) await openProject(p); }
     catch (e: any) { setErr(e.message?.includes("exists") ? "Un projet porte déjà ce nom." : e.message); } finally { setBusy(false); }
   }
-  async function openProject(p: Project) { setActive(p); setView("dashboard"); setD({}); setFlashKey(null); try { await loadAll(p, token!); } catch (e: any) { setErr(e.message); } }
+  async function openProject(p: Project) { setActive(p); setView("dashboard"); setD({}); setFlashKey(null); setFlash(null); try { await loadAll(p, token!); } catch (e: any) { setErr(e.message); } }
   async function loadAll(p: Project, t: string) {
     const pid = p.project_id; const g = (path: string) => api<any>(`/projects/${pid}${path}`, { token: t });
     const sup = api<any>(`/communes/${p.jurisdiction.commune}/${p.jurisdiction.canton}/support`, { token: t }).then((r) => r.support).catch(() => null);
@@ -159,19 +184,73 @@ export default function App() {
     setD({ claims: claims.claims, permit: permit.permit, opposition: opposition.opposition, compliance: compliance.compliance, cost: cost.cost, site: site.site, ledger: ledger.ledger, next: next.steps, unknowns: unknowns.unknowns, support });
   }
   async function refreshLedger() { if (!active) return; const [ledger, unknowns] = await Promise.all([api<any>(`/projects/${active.project_id}/ledger`, { token: token! }), api<any>(`/projects/${active.project_id}/memory/unknowns`, { token: token! })]); setD((x) => ({ ...x, ledger: ledger.ledger, unknowns: unknowns.unknowns })); }
-  async function lookup(query: string) { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/intake`, { method: "POST", token: token!, body: { query, live: true } }); await loadAll(active, token!); setD((x) => ({ ...x, intakeMode: r.mode })); }
+  async function lookup(query: string) {
+    if (!active) return;
+    if (d.support && d.support.usable === false) {
+      setFlash({ kind: "warn", text: `Commune ${active.jurisdiction.commune} pas encore prise en charge — aucune donnée inventée. Utilisez « Demander l'ingestion ».` });
+      return;
+    }
+    const r = await api<any>(`/projects/${active.project_id}/intake`, { method: "POST", token: token!, body: { query, live: true } });
+    await loadAll(active, token!);
+    setD((x) => ({ ...x, intakeMode: r.mode }));
+  }
   async function requestCommune() { if (!active) return; await api("/communes", { method: "POST", token: token!, body: { commune: active.jurisdiction.commune, canton: active.jurisdiction.canton } }); await loadAll(active, token!); }
   async function submitPermit(itemId: string, present: boolean) { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/permit/dossier`, { method: "POST", token: token!, body: { item_id: itemId, present } }); setD((x) => ({ ...x, permit: r.permit })); }
   async function addUser(email: string, name: string, role: string): Promise<string> { const r = await api<any>("/orgs/users", { method: "POST", token: token!, body: { email, name, role } }); await loadUsers(token!); return r.token; }
   async function setUserRole(id: number, role: string) { await api(`/orgs/users/${id}`, { method: "PATCH", token: token!, body: { role } }); await loadUsers(token!); }
 
-  // ---- home address search (pre-project hook): opens/creates a project then looks up ----
+  // ---- home parcel search: create (or reuse) a real project for the searched parcel,
+  //      run the intake/search, then land on Terrain with an explicit confirmation. ----
   async function homeSearch(query: string) {
-    setBusy(true); setErr("");
+    const q = query.trim();
+    if (!q) return;
+    setBusy(true); setErr(""); setFlash(null);
     try {
-      let p = (projects || []).find((x) => x.project_id === REF_ID);
-      if (!p) { await seedReference(token!); const sums = await loadProjects(token!); p = sums.find((x) => x.project_id === REF_ID); }
-      if (p) { await openProject(p); setView("terrain"); if (query.trim()) setD((x) => ({ ...x, pendingQuery: query.trim() })); }
+      const { commune, canton, label } = parseParcel(q);
+      // Pilot reference parcel → open the seeded dossier with representative data.
+      if (isReferenceParcel(commune, label)) {
+        await seedReference(token!);
+        const refs = await loadProjects(token!);
+        const ref = refs.find((x) => x.project_id === REF_ID);
+        if (ref) {
+          await openProject(ref);
+          setView("terrain");
+          setD((x) => ({ ...x, pendingQuery: q }));
+          setFlash({ kind: "ok", text: `Dossier de référence « ${ref.name} » ouvert · ${ref.claims ?? 0} contrainte(s) sourcée(s) (parcelle pilote).` });
+          return;
+        }
+      }
+      const id = projIdFrom(label);
+      let sums = projects || [];
+      let p = sums.find((x) => x.project_id === id);
+      const isNew = !p;
+      if (!p) {
+        try { await api("/projects", { method: "POST", token: token!, body: { project_id: id, name: label, commune, canton } }); }
+        catch (e: any) { if (!String(e.message || "").toLowerCase().includes("exist")) throw e; }
+        sums = await loadProjects(token!);
+        p = sums.find((x) => x.project_id === id);
+      }
+      if (!p) throw new Error("Création du dossier impossible.");
+      // Honesty gate: only run the live search when the commune is actually covered.
+      // On an unsupported commune the engine would fall back to *reference fixtures* —
+      // we must NOT present those as constraints for this parcel.
+      const support = await api<any>(`/communes/${commune}/${canton}/support`, { token: token! }).then((r) => r.support).catch(() => null);
+      const covered = !!(support && support.usable);
+      let mode = "", claims = 0;
+      if (covered) {
+        try { mode = (await api<any>(`/projects/${id}/intake`, { method: "POST", token: token!, body: { query: q, live: true } })).mode; } catch { /* keep honest/empty */ }
+        claims = await api<any>(`/projects/${id}/claims`, { token: token! }).then((r) => (r.claims || []).length).catch(() => 0);
+      }
+      await openProject(p);
+      setView("terrain");
+      setD((x) => ({ ...x, pendingQuery: q, intakeMode: mode }));
+      if (covered && claims > 0) {
+        setFlash({ kind: "ok", text: `${isNew ? "Dossier créé" : "Dossier ouvert"} pour « ${label} » · recherche effectuée : ${claims} contrainte(s) sourcée(s).` });
+      } else if (!covered) {
+        setFlash({ kind: "warn", text: `Dossier « ${label} » créé. Commune ${commune}${canton ? " (" + canton + ")" : ""} pas encore prise en charge — aucune donnée inventée. Demandez l'ingestion ci-dessous.` });
+      } else {
+        setFlash({ kind: "warn", text: `Dossier « ${label} » créé · recherche effectuée — aucune contrainte résolue. Relancez une recherche ciblée dans Terrain & zonage.` });
+      }
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   }
 
@@ -193,7 +272,7 @@ export default function App() {
             <div key={grp}>
               <div className="grp">{grp}</div>
               {NAV.filter((n) => n.grp === grp).map((n) => (
-                <button key={n.id} className={`titem ${view === n.id ? "on" : ""}`} onClick={() => setView(n.id)}>
+                <button key={n.id} className={`titem ${view === n.id ? "on" : ""}`} onClick={() => { setView(n.id); setFlash(null); }}>
                   <Icon n={n.ico} /><span className="lb">{n.lb}</span>{n.ph && <span className="ph">{n.ph}</span>}
                 </button>
               ))}
@@ -221,6 +300,7 @@ export default function App() {
           <span className="chip">L&apos;IA propose — l&apos;architecte décide</span>
         </div>
         <div className="ws__view">
+          {flash && <div className={`banner ${flash.kind}`} style={{ display: "flex", alignItems: "center", gap: 12 }}><span style={{ flex: 1 }}>{flash.text}</span><button className="toggle" onClick={() => setFlash(null)}>Compris</button></div>}
           {view === "dashboard" && <Dashboard d={d} project={active} go={setView} />}
           {view === "terrain" && <Terrain claims={d.claims} mode={d.intakeMode} support={d.support} commune={j.commune} initialQuery={d.pendingQuery} onLookup={lookup} onRequest={requestCommune} />}
           {view === "permis" && <Permis d={d.permit} onSubmit={submitPermit} />}
@@ -312,7 +392,7 @@ function Home({ projects, users, flashKey, busy, err, onOpen, onCreate, onSignOu
           <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && onSearch(q)} placeholder="Analyser une parcelle — adresse ou EGRID (ex. Place de la Palud, Lausanne)" />
           <button disabled={busy} onClick={() => onSearch(q)}>{busy ? "…" : "Analyser"}</button>
         </div>
-        <p className="home__hint">→ contraintes sourcées en quelques secondes, sans maquette. Enregistré comme projet.</p>
+        <p className="home__hint">→ un dossier est créé pour la parcelle. Contraintes sourcées si la commune est prise en charge — sinon « demander l&apos;ingestion ». Jamais inventées.</p>
 
         <div className="home__how">
           <div className="how"><div className="n">01 · Intake → faisabilité</div><div className="t">Cherchez une parcelle</div><p>Adresse ou EGRID → contraintes et enveloppe constructible, sourcées ou marquées « à vérifier ».</p></div>

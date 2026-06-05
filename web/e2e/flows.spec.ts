@@ -48,3 +48,14 @@ test("team: an owner can invite a member", async ({ page }) => {
   await expect(page.getByText("member@test.ch").first()).toBeVisible();
   await expect(page.getByText(/Membre ajouté/)).toBeVisible();
 });
+
+test("home search: unsupported commune → honest dossier, no fabricated data", async ({ page }) => {
+  await register(page, "Search Atelier", "search@test.ch");
+  await page.getByPlaceholder(/Analyser une parcelle/).fill("Fontainemelon, bien-fonds 904");
+  await page.getByRole("button", { name: "Analyser" }).click();
+  // a real dossier is created for the searched parcel (not the Lausanne demo)
+  await expect(page.locator(".psw .nm")).toHaveText("Fontainemelon, bien-fonds 904");
+  // honest: commune not covered + no fabricated constraints
+  await expect(page.getByText(/pas encore prise en charge/).first()).toBeVisible();
+  await expect(page.getByText(/Aucune parcelle analysée/)).toBeVisible();
+});
