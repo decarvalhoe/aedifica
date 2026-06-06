@@ -169,17 +169,19 @@ export function GanttView({ tasks, onPatch }: {
           catch { }
         },
       });
-      // W15 — frappe-gantt's SVG covers the whole project span and starts
-      // the visible window near "today". When the only task is 5+ weeks
-      // out, the bar lands off-screen to the right. We re-apply scrollLeft
-      // every 80ms for 2.4s after mount, because frappe-gantt internally
-      // calls `scroll_today()` which can override us if we run too early.
-      // Using an explicit scrollerRef avoids parentElement-chain fragility.
+      // W15 — KEY: frappe-gantt creates its OWN `<div class="gantt-container">`
+      // wrapper with overflow:auto, inserted INSIDE our `ref` div. The outer
+      // `scrollerRef` div is NOT the actual scroller — its scrollWidth ==
+      // clientWidth because the inner gantt-container clips first.
+      // We must target the inner `.gantt-container` to scroll meaningfully.
+      // Verified via debug-gantt-manual-scroll.mjs:
+      //   scroller.className = "gantt-container"  (not scrollerRef!)
+      //   setting its scrollLeft works and persists.
       let attempts = 0;
       const intv = setInterval(() => {
         attempts++;
         if (cancelled || attempts > 30) { clearInterval(intv); return; }
-        const scroller = scrollerRef.current;
+        const scroller = ref.current?.querySelector(".gantt-container") as HTMLDivElement | null;
         const firstBar = svg.querySelector(".bar") as SVGRectElement | null;
         if (!scroller || !firstBar) return;
         if (scroller.scrollWidth <= scroller.clientWidth) {
@@ -190,12 +192,9 @@ export function GanttView({ tasks, onPatch }: {
         const scRect = scroller.getBoundingClientRect();
         const offset = (barRect.left - scRect.left) + scroller.scrollLeft;
         const target = Math.max(0, offset - scroller.clientWidth * 0.25);
-        // Only set if meaningfully different (avoid fighting user scroll
-        // after the first second).
         if (Math.abs(scroller.scrollLeft - target) > 10) {
           scroller.scrollLeft = target;
         } else if (attempts > 8) {
-          // We landed on target ≥ 8 frames in a row — stop polling.
           clearInterval(intv);
         }
       }, 80);
@@ -209,14 +208,13 @@ export function GanttView({ tasks, onPatch }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rowsKey, effectiveMode]);
 
-  // W15 — Belt-and-suspenders one-shot scroll. Runs once on mount with no
-  // deps, far enough after frappe-gantt finishes settling (its internal
-  // `scroll_today()` runs synchronously but the SVG layout takes a tick).
-  // If the polling above already landed scroll, this is a no-op; if the
-  // polling lost a fight with a re-render, this gets us back on target.
+  // W15 — Belt-and-suspenders one-shot scroll on mount. Same target as the
+  // polling interval above: frappe-gantt's `.gantt-container` (NOT our
+  // outer scrollerRef wrapper, which has no overflow because the inner
+  // gantt-container clips at its own width first).
   useEffect(() => {
     const t = setTimeout(() => {
-      const scroller = scrollerRef.current;
+      const scroller = ref.current?.querySelector(".gantt-container") as HTMLDivElement | null;
       if (!scroller) return;
       const bar = scroller.querySelector(".bar") as SVGRectElement | null;
       if (!bar) return;
