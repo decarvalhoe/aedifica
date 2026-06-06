@@ -205,6 +205,10 @@ export default function App() {
   // W13: auto-select the project that was last active in this browser. Falls
   // back to the most recently created (top of the list) if nothing is stored.
   const LAST_PID_KEY = "aedifica_last_pid";
+  // W15.D: mobile sidebar drawer state. CSS handles the slide animation —
+  // we just toggle a class. Closing happens on backdrop click, nav item
+  // selection, or project switch.
+  const [sideOpen, setSideOpen] = useState(false);
 
   useEffect(() => {
     const t = typeof window !== "undefined" ? localStorage.getItem("aedifica_token") : null;
@@ -315,6 +319,7 @@ export default function App() {
     // otherwise land on the Dashboard for the freshly-opened project.
     setView((v) => (PROJECT_AGNOSTIC.includes(v) ? v : "dashboard"));
     setD({}); setFlashKey(null); setFlash(null);
+    setSideOpen(false); // W15.D: collapse the mobile drawer when project flips
     try { localStorage.setItem(LAST_PID_KEY, p.project_id); } catch {}
     try { await loadAll(p, token!); } catch (e: any) { setErr(e.message); }
   }
@@ -439,7 +444,7 @@ export default function App() {
 
   return (
     <div className="ws">
-      <aside className="ws__side">
+      <aside className={`ws__side ${sideOpen ? "open" : ""}`}>
         <div className="ws__brand" style={{ display: "flex", alignItems: "center", padding: "4px 0" }}>
           <Wordmark height={48} />
         </div>
@@ -458,7 +463,7 @@ export default function App() {
                           disabled={disabled}
                           title={disabled ? "Sélectionnez un projet" : undefined}
                           style={disabled ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
-                          onClick={() => { if (!disabled) { setView(n.id); setFlash(null); } }}>
+                          onClick={() => { if (!disabled) { setView(n.id); setFlash(null); setSideOpen(false); } }}>
                     <Icon n={n.ico} /><span className="lb">{n.lb}</span>{n.ph && <span className="ph">{n.ph}</span>}
                   </button>
                 );
@@ -468,6 +473,9 @@ export default function App() {
         </nav>
         <div className="ws__sfoot"><span className="d" /><button className="signout" onClick={signOut}>Se déconnecter</button></div>
       </aside>
+      {/* W15.D — mobile backdrop. CSS shows it only on small screens when
+          .ws__side.open is present (sibling-combinator selector). */}
+      <div className="ws__backdrop" onClick={() => setSideOpen(false)} />
 
       <main className="ws__main">
         {active && (
@@ -496,6 +504,7 @@ export default function App() {
           </div>
         )}
         <div className="ws__top">
+          <button className="ws__nav-toggle" aria-label="Menu" onClick={() => setSideOpen((v) => !v)}>☰ Menu</button>
           <span className="t-nm">{cur.lb}</span>
           {j && <span className="chip">{j.commune}</span>}
           <span className="sp" />
