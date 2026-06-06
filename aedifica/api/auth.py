@@ -17,9 +17,12 @@ ROLE_CAPABILITIES = {
     "owner": {"project.read", "project.write", "commune.write", "adapter.execute", "org.manage"},
     "member": {"project.read", "project.write", "commune.write"},
     "viewer": {"project.read"},
+    # W10: an external user (client / mandataire / entreprise) invited as a scoped guest.
+    # They get NO global read; their access is gated per request to their linked intervenant.
+    "external": {"project.external"},
 }
 
-ROLES = ("owner", "member", "viewer")
+ROLES = ("owner", "member", "viewer", "external")
 
 
 def new_token() -> str:

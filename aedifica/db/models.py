@@ -53,6 +53,10 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(40), default="member")
     api_token: Mapped[str | None] = mapped_column(String(96), unique=True, nullable=True)
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # W10: when role=external, this links the user to a specific intervenant on a project.
+    # All their scoped data access derives from this link (the user only sees their slice).
+    linked_intervenant_id: Mapped[int | None] = mapped_column(ForeignKey("intervenant.id"), nullable=True)
+    invite_token: Mapped[str | None] = mapped_column(String(96), unique=True, nullable=True)
     created_at: Mapped[_dt.datetime] = _TS()
     org: Mapped[Org] = relationship(back_populates="users")
 
@@ -335,6 +339,11 @@ class ChecklistItem(Base):
     phase_code: Mapped[str] = mapped_column(String(8))
     title: Mapped[str] = mapped_column(String(300))
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Responsible actor category (mo | architecte | mandataire | entreprise). Everything
+    # that is not "architecte" is external — drives per-actor checklists + external blockers.
+    actor: Mapped[str] = mapped_column(String(20), default="architecte")
+    # Optional specific person on the project accountable for this step (the annuaire entry).
+    responsible_intervenant_id: Mapped[int | None] = mapped_column(ForeignKey("intervenant.id"), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="todo")  # todo|done|deferred|skipped
     order_index: Mapped[int] = mapped_column(default=0)
     is_retroactive: Mapped[bool] = mapped_column(default=False)

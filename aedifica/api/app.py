@@ -169,10 +169,14 @@ class ChecklistItemIn(BaseModel):
     phase_code: str
     title: str
     description: str | None = None
+    actor: str = "architecte"  # mo | architecte | mandataire | entreprise
+    responsible_intervenant_id: int | None = None
 
 
 class ChecklistPatch(BaseModel):
-    status: str  # todo | done | deferred | skipped
+    status: str | None = None  # todo | done | deferred | skipped
+    actor: str | None = None  # mo | architecte | mandataire | entreprise
+    responsible_intervenant_id: int | None = None
 
 
 class TaskIn(BaseModel):
@@ -213,6 +217,18 @@ class CaptureIn(BaseModel):
     kind: str = "observation"  # friction|observation|photo|decision|regulation
     content: str
     source_ref: str | None = None
+
+
+# ---- W10 multi-actor invite / accept ---------------------------------- #
+class InviteIn(BaseModel):
+    email: str
+    name: str | None = None
+
+
+class AcceptInviteIn(BaseModel):
+    token: str
+    password: str
+    name: str | None = None
 
 
 def _err(status: int, code: str, message: str) -> HTTPException:
@@ -292,8 +308,28 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
                 if not u.api_token:
                     u.api_token = auth.new_token()
                     session.commit()
-                return {"token": u.api_token, "user_email": u.email, "role": u.role, "org_id": u.org_id}
+                return {"token": u.api_token, "user_email": u.email, "role": u.role, "org_id": u.org_id,
+                        "linked_intervenant_id": u.linked_intervenant_id}
         raise _err(401, "BAD_CREDENTIALS", "e-mail ou mot de passe incorrect")
+
+    @app.post("/api/auth/accept-invite")
+    def accept_invite(body: AcceptInviteIn, session: Session = Depends(get_session)):
+        """An external (client / mandataire / entreprise) redeems their invite token to set
+        their password. The User row was created by the architect (POST .../invite); this
+        endpoint just primes the password + name and returns the API token."""
+        u = session.query(m.User).filter_by(invite_token=body.token).first()
+        if not u:
+            raise _err(404, "INVITE_INVALID", "invite token is invalid or already redeemed")
+        u.password_hash = auth.hash_password(body.password)
+        if body.name:
+            u.name = body.name
+        if not u.api_token:
+            u.api_token = auth.new_token()
+        u.invite_token = None  # one-shot
+        session.commit()
+        iv = session.query(m.Intervenant).filter_by(id=u.linked_intervenant_id).first() if u.linked_intervenant_id else None
+        return {"token": u.api_token, "user_email": u.email, "role": u.role,
+                "linked_intervenant": {"id": iv.id, "name": iv.name, "role": iv.role} if iv else None}
 
     # ---- org & team management (owner only) ------------------------------ #
     @app.get("/api/orgs/users")
@@ -434,8 +470,39 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         if not i:
             raise _err(404, "INTERVENANT_NOT_FOUND", str(intervenant_id))
         session.query(m.AccessGrant).filter_by(intervenant_id=intervenant_id).delete()
+        # Detach any external user linked to this intervenant — they lose their scope.
+        session.query(m.User).filter_by(linked_intervenant_id=intervenant_id).update(
+            {"linked_intervenant_id": None})
         session.delete(i); session.commit()
         return {"deleted": intervenant_id}
+
+    # ---- W10: invite an intervenant as a scoped external user --------------- #
+    @app.post("/api/projects/{project_id}/intervenants/{intervenant_id}/invite", status_code=201)
+    def invite_intervenant(project_id: str, intervenant_id: int, body: InviteIn,
+                           user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        """The architect provisions a scoped User row for an intervenant. The intervenant
+        redeems the returned ``invite_token`` via /api/auth/accept-invite to set a password.
+        The new user has role ``external`` and only sees data linked to their intervenant."""
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        iv = session.query(m.Intervenant).filter_by(project_id=p.id, id=intervenant_id).first()
+        if not iv:
+            raise _err(404, "INTERVENANT_NOT_FOUND", str(intervenant_id))
+        # Disallow duplicate emails within the same org (matches existing user constraint).
+        if session.query(m.User).filter_by(org_id=user.org_id, email=body.email).first():
+            raise _err(409, "USER_EXISTS", body.email)
+        invite = auth.new_token()
+        u = m.User(org_id=user.org_id, email=body.email, name=body.name or iv.name,
+                   role="external", linked_intervenant_id=iv.id, invite_token=invite,
+                   api_token=None, password_hash=None)
+        session.add(u); session.commit()
+        # Also mirror the email back to the intervenant if blank (no-op otherwise).
+        if not iv.email:
+            iv.email = body.email
+            session.commit()
+        return {"user": {"id": u.id, "email": u.email, "name": u.name, "role": u.role,
+                          "linked_intervenant_id": iv.id},
+                "invite_token": invite}
 
     @app.get("/api/projects/{project_id}/documents")
     def list_documents(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
@@ -577,23 +644,60 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         session.delete(e); session.commit()
         return {"deleted": entry_id}
 
-    # ---- parametric SIA checklist (#221) ------------------------------------ #
-    def _ci_dict(c: m.ChecklistItem) -> dict:
+    # ---- parametric, per-actor SIA checklist (#221, W10 multi-actor) --------- #
+    from . import sia_checklist as _siacl
+
+    def _ci_dict(c: m.ChecklistItem, names: dict | None = None) -> dict:
+        names = names or {}
         return {"id": c.id, "phase_code": c.phase_code, "title": c.title, "description": c.description,
-                "status": c.status, "order_index": c.order_index, "is_retroactive": c.is_retroactive}
+                "status": c.status, "order_index": c.order_index, "is_retroactive": c.is_retroactive,
+                "actor": c.actor, "actor_label": _siacl.ACTOR_LABEL.get(c.actor, c.actor),
+                "is_external": c.actor in _siacl.EXTERNAL_ACTORS,
+                "responsible_intervenant_id": c.responsible_intervenant_id,
+                "responsible_name": names.get(c.responsible_intervenant_id)}
+
+    def _ci_names(session: Session, project_pk: int) -> dict:
+        return {i.id: i.name for i in session.query(m.Intervenant).filter_by(project_id=project_pk).all()}
+
+    def _phase_rank(code: str) -> int:
+        return _siacl.PHASE_ORDER.index(code) if code in _siacl.PHASE_ORDER else -1
+
+    def _external_blockers(items: list[m.ChecklistItem], project_phase: str) -> list[m.ChecklistItem]:
+        """External-actor (client/mandataire/entreprise) steps still ``todo`` that are due:
+        either back-filled (retroactive) or in a phase already reached by the project."""
+        proj_rank = _phase_rank(project_phase)
+        out = []
+        for c in items:
+            if c.actor not in _siacl.EXTERNAL_ACTORS or c.status != "todo":
+                continue
+            if c.is_retroactive or (proj_rank >= 0 and _phase_rank(c.phase_code) <= proj_rank):
+                out.append(c)
+        return out
 
     @app.get("/api/projects/{project_id}/checklist")
     def list_checklist(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.read")
         p = _project(session, user, project_id)
         items = session.query(m.ChecklistItem).filter_by(project_id=p.id).order_by(m.ChecklistItem.order_index).all()
+        names = _ci_names(session, p.id)
         by_status: dict = {s: 0 for s in ("todo", "done", "deferred", "skipped")}
+        by_actor: dict = {a: {"total": 0, "done": 0, "todo": 0} for a in _siacl.ACTORS}
         for c in items:
             by_status[c.status] = by_status.get(c.status, 0) + 1
-        return {"items": [_ci_dict(c) for c in items],
+            slot = by_actor.setdefault(c.actor, {"total": 0, "done": 0, "todo": 0})
+            slot["total"] += 1
+            if c.status == "done":
+                slot["done"] += 1
+            elif c.status == "todo":
+                slot["todo"] += 1
+        external_todo = sum(1 for c in items if c.actor in _siacl.EXTERNAL_ACTORS and c.status == "todo")
+        return {"items": [_ci_dict(c, names) for c in items],
+                "actors": _siacl.ACTOR_LABEL,
                 "summary": {"total": len(items), "seeded": len(items) > 0,
                             "retroactive": sum(1 for c in items if c.is_retroactive),
-                            "by_status": by_status}}
+                            "by_status": by_status, "by_actor": by_actor,
+                            "external_todo": external_todo,
+                            "external_blockers": len(_external_blockers(items, p.phase_code))}}
 
     @app.post("/api/projects/{project_id}/checklist/seed", status_code=201)
     def seed_checklist(project_id: str, body: ChecklistSeedIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
@@ -601,34 +705,52 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         p = _project(session, user, project_id)
         if session.query(m.ChecklistItem).filter_by(project_id=p.id).count():
             raise _err(409, "ALREADY_SEEDED", "checklist already seeded for this project")
-        from . import sia_checklist
-        for r in sia_checklist.seed_rows(body.entry_phase):
+        for r in _siacl.seed_rows(body.entry_phase):
             session.add(m.ChecklistItem(project_id=p.id, **r))
         session.commit()
         items = session.query(m.ChecklistItem).filter_by(project_id=p.id).order_by(m.ChecklistItem.order_index).all()
-        return {"items": [_ci_dict(c) for c in items], "seeded": len(items)}
+        names = _ci_names(session, p.id)
+        return {"items": [_ci_dict(c, names) for c in items], "seeded": len(items)}
 
     @app.post("/api/projects/{project_id}/checklist", status_code=201)
     def add_checklist_item(project_id: str, body: ChecklistItemIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
+        if body.actor not in _siacl.ACTORS:
+            raise _err(400, "BAD_ACTOR", f"actor must be one of {sorted(_siacl.ACTORS)}")
         p = _project(session, user, project_id)
+        if body.responsible_intervenant_id is not None:
+            iv = session.query(m.Intervenant).filter_by(project_id=p.id, id=body.responsible_intervenant_id).first()
+            if not iv:
+                raise _err(404, "INTERVENANT_NOT_FOUND", str(body.responsible_intervenant_id))
         nxt = (session.query(m.ChecklistItem).filter_by(project_id=p.id).count()) + 100
-        c = m.ChecklistItem(project_id=p.id, phase_code=body.phase_code, title=body.title, description=body.description, order_index=nxt)
+        c = m.ChecklistItem(project_id=p.id, phase_code=body.phase_code, title=body.title,
+                            description=body.description, actor=body.actor,
+                            responsible_intervenant_id=body.responsible_intervenant_id, order_index=nxt)
         session.add(c); session.commit()
-        return {"item": _ci_dict(c)}
+        return {"item": _ci_dict(c, _ci_names(session, p.id))}
 
     @app.patch("/api/projects/{project_id}/checklist/{item_id}")
     def patch_checklist_item(project_id: str, item_id: int, body: ChecklistPatch, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
-        if body.status not in ("todo", "done", "deferred", "skipped"):
+        if body.status is not None and body.status not in ("todo", "done", "deferred", "skipped"):
             raise _err(400, "BAD_STATUS", "status must be todo|done|deferred|skipped")
+        if body.actor is not None and body.actor not in _siacl.ACTORS:
+            raise _err(400, "BAD_ACTOR", f"actor must be one of {sorted(_siacl.ACTORS)}")
         p = _project(session, user, project_id)
         c = session.query(m.ChecklistItem).filter_by(project_id=p.id, id=item_id).first()
         if not c:
             raise _err(404, "ITEM_NOT_FOUND", str(item_id))
-        c.status = body.status
+        if body.responsible_intervenant_id is not None:
+            iv = session.query(m.Intervenant).filter_by(project_id=p.id, id=body.responsible_intervenant_id).first()
+            if not iv:
+                raise _err(404, "INTERVENANT_NOT_FOUND", str(body.responsible_intervenant_id))
+            c.responsible_intervenant_id = body.responsible_intervenant_id
+        if body.status is not None:
+            c.status = body.status
+        if body.actor is not None:
+            c.actor = body.actor
         session.commit()
-        return {"item": _ci_dict(c)}
+        return {"item": _ci_dict(c, _ci_names(session, p.id))}
 
     @app.delete("/api/projects/{project_id}/checklist/{item_id}")
     def del_checklist_item(project_id: str, item_id: int, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
@@ -640,16 +762,67 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         session.delete(c); session.commit()
         return {"deleted": item_id}
 
-    # ---- validation queue / "à valider" (#222) ------------------------------ #
+    # ---- validation queue / "à valider" (#222 + W10 external blockers) ------ #
     @app.get("/api/projects/{project_id}/to-validate")
     def to_validate(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.read")
         p = _project(session, user, project_id)
         pending_docs = session.query(m.Document).filter_by(project_id=p.id, validation_level="pending").all()
-        todo = session.query(m.ChecklistItem).filter_by(project_id=p.id, status="todo").count()
-        retro_todo = session.query(m.ChecklistItem).filter_by(project_id=p.id, status="todo", is_retroactive=True).count()
+        items = session.query(m.ChecklistItem).filter_by(project_id=p.id).all()
+        todo = sum(1 for c in items if c.status == "todo")
+        retro_todo = sum(1 for c in items if c.status == "todo" and c.is_retroactive)
+        names = _ci_names(session, p.id)
+        ext = _external_blockers(items, p.phase_code)
         return {"pending_documents": [{"id": d.id, "official_name": d.official_name} for d in pending_docs],
-                "counts": {"documents": len(pending_docs), "checklist_todo": todo, "checklist_retroactive_todo": retro_todo}}
+                "external_blockers": [_ci_dict(c, names) for c in ext],
+                "counts": {"documents": len(pending_docs), "checklist_todo": todo,
+                           "checklist_retroactive_todo": retro_todo,
+                           "external_blockers": len(ext)}}
+
+    # ---- W10 single point of truth: Coordination ---------------------------- #
+    # Four panes: (1) who-owes-what (by actor) · (2) blockers (external + atelier) ·
+    # (3) documents (latest, pending first) · (4) validation queue (architect).
+    @app.get("/api/projects/{project_id}/coordination")
+    def coordination(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.read")
+        p = _project(session, user, project_id)
+        items = session.query(m.ChecklistItem).filter_by(project_id=p.id).order_by(m.ChecklistItem.order_index).all()
+        names = _ci_names(session, p.id)
+        # (1) who-owes-what: bucket every todo step by actor (and by responsible person if set)
+        owes: dict = {a: [] for a in _siacl.ACTORS}
+        for c in items:
+            if c.status == "todo":
+                owes.setdefault(c.actor, []).append(_ci_dict(c, names))
+        # (2) blockers
+        external = [_ci_dict(c, names) for c in _external_blockers(items, p.phase_code)]
+        # atelier blockers = blocked tasks owned by this project
+        tasks = session.query(m.Task).filter_by(project_id=p.id).all()
+        task_ids = [t.id for t in tasks]
+        blocked_by = _deps_for(session, task_ids)
+        done_ids = {t.id for t in tasks if t.status == "done"}
+        u_names = {u.id: (u.name or u.email) for u in session.query(m.User).all()}
+        atelier = [_task_dict(t, u_names, blocked_by, done_ids)
+                   for t in tasks
+                   if t.status != "done" and (t.status == "blocked"
+                                              or any(b not in done_ids for b in blocked_by.get(t.id, [])))]
+        # (3) documents — latest first, pending first
+        docs = session.query(m.Document).filter_by(project_id=p.id).order_by(m.Document.id.desc()).all()
+        def _doc_dict(d: m.Document) -> dict:
+            return {"id": d.id, "official_name": d.official_name, "category": d.category,
+                    "validation_level": d.validation_level, "confidential": d.confidential}
+        docs_payload = sorted([_doc_dict(d) for d in docs], key=lambda x: 0 if x["validation_level"] == "pending" else 1)
+        # (4) architect queue
+        pending_docs = [d for d in docs if d.validation_level == "pending"]
+        return {
+            "project": {"project_id": p.project_id, "phase_code": p.phase_code},
+            "actors": _siacl.ACTOR_LABEL,
+            "who_owes_what": owes,
+            "blockers": {"external": external, "atelier": atelier,
+                         "counts": {"external": len(external), "atelier": len(atelier)}},
+            "documents": {"items": docs_payload, "pending_count": len(pending_docs)},
+            "to_validate": {"documents": [_doc_dict(d) for d in pending_docs],
+                            "checklist_todo": sum(1 for c in items if c.status == "todo")},
+        }
 
     # ---- tasks & pilotage (#225-#229) --------------------------------------- #
     def _task_dict(t: m.Task, names: dict, blocked_by: dict, done_ids: set) -> dict:
@@ -1029,6 +1202,106 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def commune_support(commune: str, canton: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.read")
         return {"support": ingestion.support_state(session, commune, canton)}
+
+    # ---- W10: scoped views for external users (client / mandataire / entreprise) -- #
+    # These endpoints answer "what is my project · my devoirs · my documents"
+    # from the perspective of the connected external user. No global access.
+    def _external_scope(user_: m.User, session_: Session):
+        """Return (intervenant, project) for a connected external user, or 401/403."""
+        if user_.role != "external" or not user_.linked_intervenant_id:
+            raise _err(403, "NOT_EXTERNAL", "this endpoint is reserved for external users")
+        iv = session_.query(m.Intervenant).filter_by(id=user_.linked_intervenant_id).first()
+        if not iv:
+            raise _err(404, "INTERVENANT_GONE", "your invitation has been revoked")
+        p = session_.query(m.Project).filter_by(id=iv.project_id).first()
+        if not p:
+            raise _err(404, "PROJECT_GONE", "your project no longer exists")
+        return iv, p
+
+    def _intervenant_actor_category(iv: m.Intervenant) -> str:
+        """Map an intervenant.role free-text to one of the four actor categories.
+        Heuristic, but consistent: anything that looks like the owner ↦ mo;
+        engineers/specialists ↦ mandataire; companies ↦ entreprise; rest ↦ mandataire."""
+        r = (iv.role or "").lower()
+        if any(k in r for k in ("maître", "maitre", "ouvrage", "mo", "client", "propri")):
+            return "mo"
+        if any(k in r for k in ("entreprise", "constructeur", "société", "ouvrier", "general")):
+            return "entreprise"
+        return "mandataire"
+
+    @app.get("/api/external/me")
+    def external_me(user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        iv, p = _external_scope(user, session)
+        actor = _intervenant_actor_category(iv)
+        return {"user": {"email": user.email, "name": user.name, "role": user.role},
+                "intervenant": {"id": iv.id, "name": iv.name, "role": iv.role,
+                                "organization": iv.organization, "actor_category": actor},
+                "project": {"project_id": p.project_id, "name": p.name, "phase_code": p.phase_code,
+                            "commune": p.commune},
+                "phase_label": _siacl.PHASE_LABEL.get(p.phase_code, p.phase_code)}
+
+    @app.get("/api/external/me/checklist")
+    def external_my_checklist(user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        """My devoirs: checklist items where actor = my category OR responsible = me."""
+        iv, p = _external_scope(user, session)
+        actor = _intervenant_actor_category(iv)
+        items = session.query(m.ChecklistItem).filter_by(project_id=p.id).order_by(m.ChecklistItem.order_index).all()
+        mine = [c for c in items
+                if c.actor == actor or c.responsible_intervenant_id == iv.id]
+        # Vocabulaire client pour MO (Phase SIA ≠ Phase Client, cf. note 3 d'Etienne).
+        client_phase_label = {
+            "11": "On définit votre projet ensemble",
+            "21": "On vérifie que c'est faisable",
+            "22": "On choisit les spécialistes",
+            "31": "On dessine le concept",
+            "32": "On finalise le projet",
+            "33": "On prépare le permis",
+            "41": "On consulte les entreprises",
+            "51": "On finalise les plans pour le chantier",
+            "52": "Le chantier",
+            "53": "Vos clefs et la garantie",
+            "61": "On reste à vos côtés",
+        }
+        def _row(c: m.ChecklistItem) -> dict:
+            label = (client_phase_label.get(c.phase_code, _siacl.PHASE_LABEL.get(c.phase_code))
+                     if actor == "mo" else _siacl.PHASE_LABEL.get(c.phase_code, c.phase_code))
+            return {"id": c.id, "phase_code": c.phase_code, "phase_label": label,
+                    "title": c.title, "status": c.status, "is_retroactive": c.is_retroactive}
+        done = sum(1 for c in mine if c.status == "done")
+        return {"items": [_row(c) for c in mine],
+                "summary": {"total": len(mine), "done": done, "todo": len(mine) - done,
+                            "actor_category": actor}}
+
+    @app.patch("/api/external/me/checklist/{item_id}")
+    def external_tick_checklist(item_id: int, body: ChecklistPatch,
+                                user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        """An external can mark his own steps done / todo (the 'one click is done' UX)."""
+        iv, p = _external_scope(user, session)
+        actor = _intervenant_actor_category(iv)
+        if body.status not in ("todo", "done"):
+            raise _err(400, "BAD_STATUS", "external may only toggle todo|done")
+        c = session.query(m.ChecklistItem).filter_by(project_id=p.id, id=item_id).first()
+        if not c or (c.actor != actor and c.responsible_intervenant_id != iv.id):
+            raise _err(404, "NOT_YOURS", "this step is not assigned to you")
+        c.status = body.status
+        session.commit()
+        return {"item": {"id": c.id, "status": c.status}}
+
+    @app.get("/api/external/me/documents")
+    def external_my_documents(user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        """Documents I have access to via AccessGrant (group or person)."""
+        iv, p = _external_scope(user, session)
+        my_group_ids = [iv.group_id] if iv.group_id else []
+        grants = session.query(m.AccessGrant).filter(
+            (m.AccessGrant.intervenant_id == iv.id)
+            | (m.AccessGrant.group_id.in_(my_group_ids) if my_group_ids else False)
+        ).all()
+        doc_ids = {g.document_id: g.level for g in grants}
+        docs = session.query(m.Document).filter(m.Document.id.in_(doc_ids.keys())).all() if doc_ids else []
+        out = [{"id": d.id, "official_name": d.official_name, "category": d.category,
+                "validation_level": d.validation_level, "confidential": d.confidential,
+                "access_level": doc_ids.get(d.id, "read")} for d in docs]
+        return {"documents": out, "count": len(out)}
 
     return app
 
