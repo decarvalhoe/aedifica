@@ -102,7 +102,9 @@ export function AttachField({
         {list.length === 0 && !open && <span className="mono" style={{ fontSize: 10, color: "var(--mut)" }}>aucune</span>}
         {list.map((a) => (
           <span key={a.id} className="chip" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-            {a.kind === "link" ? "🔗 " : "📎 "}
+            <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true" style={{ verticalAlign: "middle", marginRight: 4 }}>
+              <use href={`/assets/functional-icons.svg#${a.kind === "link" ? "ic-source" : "ic-export"}`} />
+            </svg>
             {a.kind === "link" && a.url
               ? <a href={a.url} target="_blank" rel="noreferrer" style={{ color: "var(--ink)", textDecoration: "underline" }}>{a.title}</a>
               : a.download_path

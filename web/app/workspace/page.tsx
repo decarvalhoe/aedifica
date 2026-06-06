@@ -818,8 +818,8 @@ function Terrain({ claims, mode, support, commune, onLookup, onRequest, initialQ
   const usable = support ? support.usable : true;
   return (
     <>
-      <div className="vh"><div className="row"><h2>Terrain &amp; zonage</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>Ce que la parcelle autorise — sourcé sur une base officielle, ou marqué « à vérifier ».</p></div>
-      {(regAlerts || []).map((r: any) => <div className="banner bad" key={r.id}>⚠️ <b>Règlement à l&apos;étude</b> — {r.content}{r.source_ref ? ` (${r.source_ref})` : ""}. Les règles (hauteurs, densités) peuvent changer en cours de projet.</div>)}
+      <div className="vh"><div className="row" style={{ gap: 10, alignItems: "center" }}><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" style={{ color: "var(--ink-60)" }}><use href="/assets/functional-icons.svg#ic-datum-north" /></svg><h2 style={{ margin: 0 }}>Terrain &amp; zonage</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>Ce que la parcelle autorise — sourcé sur une base officielle, ou marqué « à vérifier ». Le datum géographique du projet : tout part d&apos;ici.</p></div>
+      {(regAlerts || []).map((r: any) => <div className="banner bad" key={r.id} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style={{ flex: "0 0 16px", marginTop: 2 }}><use href="/assets/functional-icons.svg#ic-warning" /></svg><div><b>Règlement à l&apos;étude</b> — {r.content}{r.source_ref ? ` (${r.source_ref})` : ""}. Les règles (hauteurs, densités) peuvent changer en cours de projet.</div></div>)}
       {support && !usable && <div className="banner warn">Commune <b>{commune}</b> pas encore prise en charge. <button className="toggle" onClick={onRequest}>Demander l&apos;ingestion</button></div>}
       <div className="searchrow"><input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && lookup()} placeholder="Adresse ou parcelle — ex. Place de la Palud, Lausanne" /><button onClick={lookup}>{b ? "…" : "Rechercher (live)"}</button></div>
       {mode === "offline" && <p className="note" style={{ marginBottom: 12 }}>Recherche live indisponible — données de référence affichées.</p>}
@@ -1048,7 +1048,7 @@ function Chantier({ d, tasks, projectId, onOpenAtelierPlanning }: any) {
   if (!d) return <p className="spin">Chargement…</p>;
   const map = (s: string) => (s === "closed" ? "satisfied" : s === "blocked" ? "conflict" : s === "open" ? "unknown" : "assumption");
   const lbl: Record<string, string> = { open: "ouvert", closed: "clos", blocked: "bloqué" };
-  const head = <div className="vh"><h2>Chantier &amp; remise</h2><p>Suivi d&apos;exécution : réserves / défauts et check-list de remise, avec responsable et échéance.</p></div>;
+  const head = <div className="vh"><div className="row" style={{ gap: 10, alignItems: "center" }}><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" style={{ color: "var(--ink-60)" }}><use href="/assets/functional-icons.svg#ic-datum-dimension" /></svg><h2 style={{ margin: 0 }}>Chantier &amp; remise</h2></div><p>Suivi d&apos;exécution : réserves / défauts et check-list de remise, avec responsable et échéance — la phase où l&apos;on mesure ce qui a vraiment été réalisé.</p></div>;
   if (d.data_basis === "empty") return (
     <>{head}
       <div className="placeholder"><h4>Aucun suivi de chantier</h4><p>Les réserves et la remise apparaîtront en phase exécution.</p></div>
@@ -1090,7 +1090,11 @@ function Memoire({ unknowns, ledger, captures, token, pid, onAddCapture, onDelCa
 
       <div className="g2">
         <div className="card">
-          <h3>Inconnues du projet ({unknowns.length})</h3>
+          <div className="row" style={{ gap: 8, alignItems: "center", marginBottom: 8 }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style={{ color: "var(--ts-conflict)" }}><use href="/assets/functional-icons.svg#ic-datum-target" /></svg>
+            <h3 style={{ margin: 0 }}>Inconnues du projet ({unknowns.length})</h3>
+          </div>
+          <small style={{ color: "var(--mut)", display: "block", marginBottom: 8 }}>Les cibles à cadrer avant de pouvoir avancer — chaque ligne porte la prochaine action.</small>
           {unknowns.length === 0 && <p className="spin">Rien d&apos;identifié comme inconnu à ce stade.</p>}
           {unknowns.map((c: any, i: number) => (
             <div className="claim" key={"u" + i}>
@@ -1401,8 +1405,9 @@ function Coordination({ data, onRefresh, go, projectId, onOpenAtelierPlanning }:
   return (
     <>
       <div className="vh">
-        <div className="row">
-          <h2>Coordination</h2><span className="badge live"><span className="d" />Point unique</span>
+        <div className="row" style={{ gap: 10, alignItems: "center" }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" style={{ color: "var(--ink-60)" }}><use href="/assets/functional-icons.svg#ic-datum-target" /></svg>
+          <h2 style={{ margin: 0 }}>Coordination</h2><span className="badge live"><span className="d" />Point unique</span>
           <span className="grow" />
           <button className="toggle" onClick={() => onOpenAtelierPlanning(projectId)} title="Ouvrir le planning Atelier filtré sur ce projet (Kanban + Gantt + collisions multi-projet)">
             Planning Atelier →
