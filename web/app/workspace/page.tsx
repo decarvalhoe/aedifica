@@ -7,6 +7,7 @@ import { GanttView } from "./GanttView";
 import { KanbanView } from "./KanbanView";
 import { PhaseTasks } from "./PhaseTasks";
 import { Foresight } from "./Foresight";
+import { Settings } from "./Settings";
 
 const REF_ID = "DEMO-LAUSANNE-PALUD";
 const REF = { name: "Place de la Palud", commune: "Lausanne" };
@@ -36,9 +37,11 @@ const phaseLabel = (code?: string) => {
 // SIA cost-precision convergence per phase (from the SIA Vaud chart)
 const COST_PRECISION: Record<string, string> = { "31": "± 15 %", "32": "± 10 %", "33": "± 10 %", "41": "ferme", "51": "ferme", "52": "ferme" };
 
-type View = "dashboard" | "taches" | "terrain" | "checklist" | "coordination" | "intervenants" | "documents" | "brs" | "permis" | "opposition" | "conformite" | "copilote" | "memoire" | "couts" | "chantier" | "equipe" | "foresight" | "atelier";
-// W13: views that don't require an active project — they're aggregated or org-level.
-const PROJECT_AGNOSTIC: View[] = ["atelier", "equipe"];
+type View = "dashboard" | "taches" | "terrain" | "checklist" | "coordination" | "intervenants" | "documents" | "brs" | "permis" | "opposition" | "conformite" | "copilote" | "memoire" | "couts" | "chantier" | "equipe" | "foresight" | "atelier" | "settings";
+// W13 + W15.B: views that don't strictly require an active project — they're
+// aggregated or org-level. Settings still uses the active project for the
+// LLM-mode panel but stays accessible without one.
+const PROJECT_AGNOSTIC: View[] = ["atelier", "equipe", "settings"];
 // W11 P0: every NAV icon references the official Datum sprite by symbol id —
 // `web/public/assets/functional-icons.svg#ic-*` — no more inline custom SVG.
 // Closest semantic match per surface, taken from the DS iconography page §05.
@@ -63,6 +66,8 @@ const NAV: { id: View; lb: string; ico: string; ph?: string; grp: string }[] = [
   // n'importe quel projet sans bouger la sélection courante.
   { id: "atelier", lb: "Atelier · multi-projet", ico: "ic-portfolio", grp: "Atelier · global" },
   { id: "equipe", lb: "Équipe", ico: "ic-claims", grp: "Atelier · global" },
+  // W15.B: settings — compte, LLM mode, benchmark, journal de sécurité
+  { id: "settings", lb: "Réglages", ico: "ic-check", grp: "Atelier · global" },
 ];
 const GROUPS = ["Pilotage", "Coordination", "Dossier réglementaire", "Économie & chantier", "Atelier · global"];
 
@@ -514,6 +519,14 @@ export default function App() {
                     : <p className="spin">Chargement de l&apos;atelier…</p>
           )}
           {view === "equipe" && <Team users={users} onAdd={addUser} onSetRole={setUserRole} />}
+          {view === "settings" && token && (
+            <Settings token={token}
+                      projectId={active?.project_id || null}
+                      projectName={active?.name || null}
+                      projectLlmMode={(active as any)?.llm_mode || null}
+                      onTokenRotated={(nt) => { try { localStorage.setItem("aedifica_token", nt); } catch {} setToken(nt); }}
+                      onLlmModeChanged={(mode) => { if (active) setActive({ ...(active as any), llm_mode: mode }); }} />
+          )}
 
           {/* Empty-state when no project exists at all. */}
           {!active && noProjects && !projectAgnostic && (
@@ -1238,7 +1251,7 @@ function Copilote({ token, pid, ledger, onChange }: { token: string; pid: string
             <li><b>Mode <i>live</i></b> : disponible dès qu&apos;une URL est renseignée ci-dessous (ex. <code className="mono">http://localhost:19723/aedifica</code>).</li>
           </ul>
           <p style={{ marginTop: 0 }}>
-            Le bridge n&apos;est pas encore distribué publiquement — c&apos;est un add-on que l&apos;atelier installe sur la machine qui héberge Archicad. Vous pouvez explorer le flux complet sans bridge, sur le modèle replay.
+            Le bridge n&apos;est pas encore distribué publiquement — c&apos;est un add-on que l&apos;atelier installe sur la machine qui héberge Archicad. Vous pouvez explorer le flux complet sans bridge, sur le modèle replay. <a href="https://github.com/decarvalhoe/aedifica/blob/main/docs/integrations/archicad-bridge.md" target="_blank" rel="noreferrer" style={{ textDecoration: "underline", color: "var(--ink)" }}>Voir la documentation technique du bridge →</a>
           </p>
         </div>
       )}

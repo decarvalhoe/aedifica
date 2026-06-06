@@ -177,4 +177,7 @@ def project_summary(session, project: m.Project) -> dict:
         "evidence": session.query(m.Evidence).filter_by(project_id=project.id).count(),
         "reports": session.query(m.Report).filter_by(project_id=project.id).count(),
         "ledger_entries": session.query(m.LedgerEntry).filter_by(project_id=project.id).count(),
+        # W15.B: surface the LLM mode so the Settings UI can show its current
+        # state per project without an extra fetch.
+        "llm_mode": getattr(project, "llm_mode", "off") or "off",
     }

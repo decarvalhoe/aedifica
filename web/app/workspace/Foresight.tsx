@@ -117,6 +117,10 @@ function ThresholdHint({ thresholds: t }: { thresholds: Thresholds }) {
   );
 }
 
+// W15.A — calmer proposal card: lighter spacing, confidence as a discreet
+// inline caption rather than a chip, header on one row, decision buttons
+// only when relevant. The card felt heavy when there were 5+ predictions
+// stacked; this version stays readable past 20.
 function ProposalCard({ p, onDecide }: { p: Proposal; onDecide: (id: number, decision: string, basis?: string) => Promise<void> }) {
   const [basis, setBasis] = useState("");
   const [busy, setBusy] = useState(false);
@@ -125,44 +129,52 @@ function ProposalCard({ p, onDecide }: { p: Proposal; onDecide: (id: number, dec
     setBusy(true);
     try { await onDecide(p.id, decision, basis || undefined); } finally { setBusy(false); }
   };
+  const conf = Math.round(p.confidence * 100);
   return (
-    <div className="claim" style={{ flexDirection: "column", alignItems: "stretch", gap: 8, padding: 14 }}>
-      <div className="row" style={{ gap: 8, alignItems: "baseline" }}>
-        <span className={`ds-ts ${KIND_TS[p.kind] || "is-computed"}`}><span className="dot" />{KIND_LABEL[p.kind] || p.kind}</span>
-        <span className="ttl" style={{ flex: 1 }}>{p.title}</span>
-        <span className={`ds-ts ${confidencePill(p.confidence)}`}><span className="dot" />confiance {Math.round(p.confidence * 100)}%</span>
+    <div style={{
+      borderTop: "1px solid var(--line)", paddingTop: 12, marginTop: 12,
+      opacity: p.decision !== "pending" ? 0.7 : 1,
+    }}>
+      <div className="row" style={{ alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+        <span className={`ds-ts ${KIND_TS[p.kind] || "is-computed"}`} style={{ fontSize: 10 }}>
+          <span className="dot" />{KIND_LABEL[p.kind] || p.kind}
+        </span>
+        <span className="ttl" style={{ flex: "1 1 220px", fontSize: 13 }}>{p.title}</span>
+        {p.confidence > 0 && (
+          <small style={{ color: "var(--mut)" }} title="Confiance dérivée du nombre de comparables, pas une intuition">
+            confiance <b style={{ color: `var(--ts-${conf >= 70 ? "sourced" : conf >= 40 ? "computed" : "assume"})` }}>{conf}%</b>
+          </small>
+        )}
       </div>
-      <small style={{ color: "var(--ink-90)", lineHeight: 1.55 }}>{p.detail}</small>
-      <div>
-        <button className="toggle" style={{ padding: "2px 8px", fontSize: 11 }}
-                onClick={() => setShowBasis(v => !v)}>
-          {showBasis ? "Masquer" : "Pourquoi ?"} ({p.basis.length} source{p.basis.length > 1 ? "s" : ""})
+      <small style={{ color: "var(--ink-90)", lineHeight: 1.5, display: "block", marginTop: 4 }}>{p.detail}</small>
+      <div className="row" style={{ alignItems: "center", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+        <button className="signout" style={{ padding: 0, fontSize: 11 }} onClick={() => setShowBasis(v => !v)}>
+          {showBasis ? "Masquer" : "Pourquoi ?"} <small>({p.basis.length} source{p.basis.length > 1 ? "s" : ""})</small>
         </button>
+        {p.decision === "pending" ? (
+          <span className="row" style={{ gap: 6, marginLeft: "auto", flexWrap: "wrap" }}>
+            <input className="fld" style={{ width: 180, margin: 0, padding: "4px 8px", fontSize: 12 }}
+                   placeholder="Basis (optionnel)" value={basis} onChange={(e) => setBasis(e.target.value)} />
+            <button className="ds-btn" style={{ padding: "4px 10px" }} disabled={busy} onClick={() => decide("accepted")}>{busy ? "…" : "Accepter"}</button>
+            <button className="toggle" style={{ padding: "4px 8px" }} disabled={busy} onClick={() => decide("deferred")}>Différer</button>
+            <button className="signout" style={{ padding: 0 }} disabled={busy} onClick={() => decide("refused")}>Refuser</button>
+          </span>
+        ) : (
+          <small style={{ color: "var(--mut)", marginLeft: "auto" }}>
+            {p.decision === "accepted" ? "Acceptée" : p.decision === "deferred" ? "Différée" : "Refusée"}
+            {p.decided_by ? ` par ${p.decided_by}` : ""}{p.decided_at ? ` le ${p.decided_at.slice(0, 10)}` : ""}
+          </small>
+        )}
       </div>
       {showBasis && (
-        <div style={{ background: "var(--surface-2)", padding: 10, borderRadius: 2, fontSize: 12 }}>
-          <div className="mono" style={{ fontSize: 10, color: "var(--mut)", marginBottom: 6 }}>SOURCES</div>
+        <div style={{ background: "var(--surface-2)", padding: 8, marginTop: 6, fontSize: 11 }}>
+          <div className="mono" style={{ fontSize: 9, color: "var(--mut)", marginBottom: 4, letterSpacing: ".08em" }}>SOURCES NOMMÉES</div>
           {p.basis.map((b, i) => (
             <div key={i} style={{ paddingTop: 2 }}>
               <span className="mono" style={{ fontSize: 10, color: "var(--mut)" }}>{b.source_kind}#{b.source_id}</span>{" "}{b.ref}
             </div>
           ))}
         </div>
-      )}
-      {p.decision === "pending" && (
-        <div className="row" style={{ gap: 6, flexWrap: "wrap", marginTop: 4 }}>
-          <input className="fld" style={{ flex: 1, minWidth: 200, margin: 0, padding: "4px 8px" }}
-                 placeholder="Basis de votre décision (optionnel)" value={basis} onChange={(e) => setBasis(e.target.value)} />
-          <button className="ds-btn" disabled={busy} onClick={() => decide("accepted")}>{busy ? "…" : "Accepter"}</button>
-          <button className="toggle" disabled={busy} onClick={() => decide("deferred")}>Différer</button>
-          <button className="signout" disabled={busy} onClick={() => decide("refused")}>Refuser</button>
-        </div>
-      )}
-      {p.decision !== "pending" && (
-        <small style={{ color: "var(--mut)" }}>
-          {p.decision === "accepted" ? "Acceptée" : p.decision === "deferred" ? "Différée" : "Refusée"}
-          {p.decided_by ? ` par ${p.decided_by}` : ""}{p.decided_at ? ` le ${p.decided_at.slice(0, 10)}` : ""}.
-        </small>
       )}
     </div>
   );
