@@ -1,7 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 150" width="480" height="150" role="img" aria-label="AEDIFICA (inverse)">
-  
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 150" width="480" height="150" role="img" aria-label="ÆDIFICA (inverse)">
   <rect x="0" y="0" width="480" height="150" fill="#16171A"></rect>
-  <text class="mono" x="452" y="36" text-anchor="end" font-size="11" letter-spacing="1.6" fill="#908E85">DATUM +13.50</text>
-  <text class="wm" x="26" y="92" font-size="68" font-weight="300" letter-spacing="2" fill="#F3F1EC"><tspan font-weight="400">Æ</tspan>DIFICA</text>
+  <text x="452" y="36" font-family="'IBM Plex Mono', ui-monospace, monospace" text-anchor="end" font-size="11" letter-spacing="1.6" fill="#908E85">DATUM +13.50</text>
+  <text x="26" y="92" font-family="'Space Grotesk', Helvetica, Arial, sans-serif" font-size="68" font-weight="300" letter-spacing="2" fill="#F3F1EC"><tspan font-weight="400">Æ</tspan>DIFICA</text>
   <path d="M26 112 H300 V106 H454" fill="none" stroke="#C0392B" stroke-width="2"></path>
 </svg>
