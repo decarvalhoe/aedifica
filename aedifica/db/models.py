@@ -10,6 +10,7 @@ import datetime as _dt
 
 from sqlalchemy import (
     DateTime,
+    Float,
     ForeignKey,
     JSON,
     String,
@@ -83,6 +84,13 @@ class Project(Base):
     reports: Mapped[list["Report"]] = relationship(back_populates="project", cascade="all, delete-orphan")
     ledger_entries: Mapped[list["LedgerEntry"]] = relationship(back_populates="project", cascade="all, delete-orphan")
     routes: Mapped[list["RegulatoryRoute"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    intervenant_groups: Mapped[list["IntervenantGroup"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    intervenants: Mapped[list["Intervenant"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    documents: Mapped[list["Document"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    brs_entries: Mapped[list["BrsEntry"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    checklist_items: Mapped[list["ChecklistItem"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    tasks: Mapped[list["Task"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    captures: Mapped[list["CaptureNote"]] = relationship(back_populates="project", cascade="all, delete-orphan")
 
 
 class Source(Base):
@@ -210,6 +218,183 @@ class IngestionJob(Base):
     sources: Mapped[list] = mapped_column(JSON, default=list)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     pack: Mapped[CommunePack] = relationship(back_populates="jobs")
+
+
+# --------------------------------------------------------------------------- #
+# W9 — Operating layer: intervenants, documents & access (the "Project OS").    #
+# Captured from the partner session (docs/strategy/session-2026-06-05-…).        #
+# --------------------------------------------------------------------------- #
+VALIDATION_LEVELS = ("pending", "canonical", "indicative", "refused")
+ACCESS_LEVELS = ("read", "write")
+
+
+class IntervenantGroup(Base):
+    """A group of actors on a project (a company / a discipline), nestable via parent_id."""
+
+    __tablename__ = "intervenant_group"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    parent_id: Mapped[int | None] = mapped_column(ForeignKey("intervenant_group.id"), nullable=True)
+    name: Mapped[str] = mapped_column(String(200))
+    kind: Mapped[str] = mapped_column(String(60), default="group")  # company | discipline | group
+    created_at: Mapped[_dt.datetime] = _TS()
+    project: Mapped["Project"] = relationship(back_populates="intervenant_groups")
+
+
+class Intervenant(Base):
+    """A person on the project, sourced with their contact and responsibility."""
+
+    __tablename__ = "intervenant"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    group_id: Mapped[int | None] = mapped_column(ForeignKey("intervenant_group.id"), nullable=True)
+    name: Mapped[str] = mapped_column(String(200))
+    role: Mapped[str | None] = mapped_column(String(120), nullable=True)  # architecte, ingénieur civil…
+    organization: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(254), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    is_responsible: Mapped[bool] = mapped_column(default=False)  # personne responsable / de référence
+    created_at: Mapped[_dt.datetime] = _TS()
+    project: Mapped["Project"] = relationship(back_populates="intervenants")
+
+
+class Document(Base):
+    """A project document/source under curation, validated by the lead architect."""
+
+    __tablename__ = "document"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    official_name: Mapped[str] = mapped_column(String(300))
+    category: Mapped[str] = mapped_column(String(80), default="general")  # dossier / catégorie
+    validation_level: Mapped[str] = mapped_column(String(20), default="pending")  # pending|canonical|indicative|refused
+    confidential: Mapped[bool] = mapped_column(default=False)  # LPD
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[_dt.datetime] = _TS()
+    validated_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    validated_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    project: Mapped["Project"] = relationship(back_populates="documents")
+    versions: Mapped[list["DocumentVersion"]] = relationship(back_populates="document", cascade="all, delete-orphan")
+    grants: Mapped[list["AccessGrant"]] = relationship(back_populates="document", cascade="all, delete-orphan")
+
+
+class DocumentVersion(Base):
+    __tablename__ = "document_version"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[int] = mapped_column(ForeignKey("document.id"))
+    label: Mapped[str] = mapped_column(String(40))  # v1, v2…
+    file_ref: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    source: Mapped[str] = mapped_column(String(40), default="manual")  # manual | fetched
+    uploaded_at: Mapped[_dt.datetime] = _TS()
+    document: Mapped["Document"] = relationship(back_populates="versions")
+
+
+class AccessGrant(Base):
+    """Who (group or person) may access a document, and at what level."""
+
+    __tablename__ = "access_grant"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[int] = mapped_column(ForeignKey("document.id"))
+    group_id: Mapped[int | None] = mapped_column(ForeignKey("intervenant_group.id"), nullable=True)
+    intervenant_id: Mapped[int | None] = mapped_column(ForeignKey("intervenant.id"), nullable=True)
+    level: Mapped[str] = mapped_column(String(20), default="read")  # read | write
+    document: Mapped["Document"] = relationship(back_populates="grants")
+
+
+BRS_CHANNELS = ("phone", "email", "pv", "meeting", "other")
+
+
+class BrsEntry(Base):
+    """Business Requirements Specifications — a living, sourced, attributed register of
+    the client/owner requirements that change over time. Append-only; each entry traces
+    its channel + emitter + date for the architect's legal protection (traceability)."""
+
+    __tablename__ = "brs_entry"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    content: Mapped[str] = mapped_column(Text)
+    kind: Mapped[str] = mapped_column(String(30), default="requirement")  # requirement|change|decision
+    channel: Mapped[str] = mapped_column(String(20), default="other")  # phone|email|pv|meeting|other
+    emitter_intervenant_id: Mapped[int | None] = mapped_column(ForeignKey("intervenant.id"), nullable=True)
+    emitter_label: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    source_ref: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    supersedes_id: Mapped[int | None] = mapped_column(ForeignKey("brs_entry.id"), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="active")  # active|superseded|locked
+    created_at: Mapped[_dt.datetime] = _TS()
+    project: Mapped["Project"] = relationship(back_populates="brs_entries")
+
+
+class ChecklistItem(Base):
+    """A step of the project's SIA checklist — seeded from a template per phase, then made
+    parametric by the atelier (todo/done/deferred/skipped). Retroactive items back-fill
+    earlier phases when a project is onboarded mid-process."""
+
+    __tablename__ = "checklist_item"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    phase_code: Mapped[str] = mapped_column(String(8))
+    title: Mapped[str] = mapped_column(String(300))
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="todo")  # todo|done|deferred|skipped
+    order_index: Mapped[int] = mapped_column(default=0)
+    is_retroactive: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[_dt.datetime] = _TS()
+    project: Mapped["Project"] = relationship(back_populates="checklist_items")
+
+
+TASK_PRIORITIES = ("p0", "p1", "p2")
+TASK_STATUS = ("todo", "doing", "done", "blocked")
+
+
+class Task(Base):
+    """A project task — priority (P0/P1/P2), optional estimate/actual hours (for learned
+    prediction), assignee (collaborator), deadline, quick-win flag, and dependency edges.
+    The atelier navigates by priority + what blocks, across all projects (not an agenda)."""
+
+    __tablename__ = "task"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    title: Mapped[str] = mapped_column(String(300))
+    priority: Mapped[str] = mapped_column(String(8), default="p2")  # p0|p1|p2
+    status: Mapped[str] = mapped_column(String(12), default="todo")  # todo|doing|done|blocked
+    assignee_user_id: Mapped[int | None] = mapped_column(ForeignKey("user.id"), nullable=True)
+    estimate_hours: Mapped[float | None] = mapped_column(Float, nullable=True)
+    actual_hours: Mapped[float | None] = mapped_column(Float, nullable=True)
+    due_date: Mapped[str | None] = mapped_column(String(20), nullable=True)  # YYYY-MM-DD
+    is_quick_win: Mapped[bool] = mapped_column(default=False)
+    phase_code: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    checklist_item_id: Mapped[int | None] = mapped_column(ForeignKey("checklist_item.id"), nullable=True)
+    created_at: Mapped[_dt.datetime] = _TS()
+    done_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    project: Mapped["Project"] = relationship(back_populates="tasks")
+
+
+class TaskDependency(Base):
+    """``task`` is blocked by ``blocked_by`` (a dependency edge for the task graph)."""
+
+    __tablename__ = "task_dependency"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    task_id: Mapped[int] = mapped_column(ForeignKey("task.id"))
+    blocked_by_id: Mapped[int] = mapped_column(ForeignKey("task.id"))
+
+
+CAPTURE_KINDS = ("friction", "observation", "photo", "decision", "regulation")
+
+
+class CaptureNote(Base):
+    """A captured note — site friction/observation, a photo proof ('preuve à futur'),
+    a verbal decision, or a 'regulation under study' alert. Append-only, author-tagged,
+    timestamped; never fabricated (the architect enters it). Covers #232 and #231."""
+
+    __tablename__ = "capture_note"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    kind: Mapped[str] = mapped_column(String(20), default="observation")  # friction|observation|photo|decision|regulation
+    content: Mapped[str] = mapped_column(Text)
+    author: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    source_ref: Mapped[str | None] = mapped_column(String(500), nullable=True)  # photo URL / attachment / reference
+    created_at: Mapped[_dt.datetime] = _TS()
+    project: Mapped["Project"] = relationship(back_populates="captures")
 
 
 # --------------------------------------------------------------------------- #

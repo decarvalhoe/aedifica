@@ -6,20 +6,32 @@ import { api } from "@/lib/api";
 const REF_ID = "DEMO-LAUSANNE-PALUD";
 const REF = { name: "Place de la Palud", commune: "Lausanne" };
 
-/* ---- SIA phase model (the journey axis) ---- */
+/* ---- SIA phase model (official sub-phases SIA 112/102) ---- */
 const PHASES: [string, string][] = [
-  ["0", "Intake"], ["11", "Faisab."], ["31", "Avant-pr."], ["32", "Projet/BIM"],
-  ["33", "Permis"], ["41", "Appel d'offres"], ["5x", "Exécution"], ["6", "Exploit."],
+  ["11", "Objectifs"], ["21", "Faisab."], ["22", "Mandataires"], ["31", "Avant-pr."],
+  ["32", "Projet"], ["33", "Permis"], ["41", "Appel d'offres"], ["51", "Exécution"],
+  ["52", "Chantier"], ["53", "Service"], ["61", "Exploit."],
 ];
-const phaseIndex = (code?: string) => { const i = PHASES.findIndex((p) => p[0] === code); return i < 0 ? 0 : i; };
-const phaseLabel = (code?: string) => { const p = PHASES.find((x) => x[0] === code); return p ? `Phase ${p[0]} · ${p[1]}` : "Phase 0 · Intake"; };
+// legacy/short codes from older projects → official sub-phase
+const PHASE_ALIAS: Record<string, string> = { "0": "11", "5x": "51", "6": "61" };
+const norm = (c?: string) => (c && PHASE_ALIAS[c]) || c || "11";
+const PHASE_LABEL_FR: Record<string, string> = { "11": "Définition des objectifs", "21": "Études préliminaires", "22": "Choix des mandataires", "31": "Avant-projet", "32": "Projet de l'ouvrage", "33": "Autorisation / permis", "41": "Appel d'offres", "51": "Projet d'exécution", "52": "Exécution / chantier", "53": "Mise en service", "61": "Exploitation" };
+const phaseIndex = (code?: string) => { const i = PHASES.findIndex((p) => p[0] === norm(code)); return i < 0 ? 0 : i; };
+const phaseLabel = (code?: string) => { const c = norm(code); return `Phase ${c} · ${PHASE_LABEL_FR[c] || ""}`.trim(); };
+// SIA cost-precision convergence per phase (from the SIA Vaud chart)
+const COST_PRECISION: Record<string, string> = { "31": "± 15 %", "32": "± 10 %", "33": "± 10 %", "41": "ferme", "51": "ferme", "52": "ferme" };
 
-type View = "dashboard" | "terrain" | "permis" | "opposition" | "conformite" | "copilote" | "memoire" | "couts" | "chantier" | "equipe";
+type View = "dashboard" | "taches" | "terrain" | "checklist" | "intervenants" | "documents" | "brs" | "permis" | "opposition" | "conformite" | "copilote" | "memoire" | "couts" | "chantier" | "equipe";
 const NAV: { id: View; lb: string; ico: string; ph?: string; grp: string }[] = [
   { id: "dashboard", lb: "Tableau de bord", ico: "grid", grp: "Pilotage" },
+  { id: "taches", lb: "Tâches & priorités", ico: "check", grp: "Pilotage" },
+  { id: "checklist", lb: "Checklist SIA", ico: "check", grp: "Pilotage" },
   { id: "terrain", lb: "Terrain & zonage", ico: "pin", ph: "0–11", grp: "Pilotage" },
   { id: "copilote", lb: "Copilote · maquette", ico: "spark", ph: "32", grp: "Pilotage" },
   { id: "memoire", lb: "Mémoire", ico: "clock", ph: "6", grp: "Pilotage" },
+  { id: "intervenants", lb: "Intervenants", ico: "users", ph: "0", grp: "Coordination" },
+  { id: "documents", lb: "Documents & sources", ico: "doc", ph: "0–33", grp: "Coordination" },
+  { id: "brs", lb: "Exigences (BRS)", ico: "shield", grp: "Coordination" },
   { id: "permis", lb: "Dossier de permis", ico: "doc", ph: "33", grp: "Dossier réglementaire" },
   { id: "opposition", lb: "Risque d'opposition", ico: "shield", ph: "33", grp: "Dossier réglementaire" },
   { id: "conformite", lb: "Conformité", ico: "check", ph: "33", grp: "Dossier réglementaire" },
@@ -27,7 +39,7 @@ const NAV: { id: View; lb: string; ico: string; ph?: string; grp: string }[] = [
   { id: "chantier", lb: "Chantier & remise", ico: "cone", ph: "52", grp: "Économie & chantier" },
   { id: "equipe", lb: "Équipe", ico: "users", grp: "Atelier" },
 ];
-const GROUPS = ["Pilotage", "Dossier réglementaire", "Économie & chantier", "Atelier"];
+const GROUPS = ["Pilotage", "Coordination", "Dossier réglementaire", "Économie & chantier", "Atelier"];
 
 const TRUST: Record<string, [string, string]> = {
   sourced: ["is-sourced", "Source officielle"], computed: ["is-computed", "Calculé"],
@@ -126,15 +138,17 @@ export default function App() {
   const [flashKey, setFlashKey] = useState<string | null>(null);
   const [flash, setFlash] = useState<{ kind: "ok" | "warn"; text: string } | null>(null);
   const [users, setUsers] = useState<any[] | null>(null);
+  const [atelier, setAtelier] = useState<any>(null);
 
   useEffect(() => {
     const t = typeof window !== "undefined" ? localStorage.getItem("aedifica_token") : null;
     if (t) verify(t); else setReady(true);
   }, []);
   async function verify(t: string) {
-    try { await loadProjects(t); await loadUsers(t); setToken(t); }
+    try { await loadProjects(t); await loadUsers(t); loadAtelier(t); setToken(t); }
     catch { localStorage.removeItem("aedifica_token"); } finally { setReady(true); }
   }
+  async function loadAtelier(t: string) { try { setAtelier(await api<any>("/atelier/tasks", { token: t })); } catch { setAtelier(null); } }
   async function loadProjects(t: string): Promise<Project[]> {
     const ids = (await api<any>("/projects", { token: t })).projects as string[];
     const sums = await Promise.all(ids.map((id) => api<any>(`/projects/${id}`, { token: t }).then((r) => r.project as Project)));
@@ -152,13 +166,13 @@ export default function App() {
   async function register(orgName: string, email: string, password: string) {
     setBusy(true); setErr("");
     try { const t = (await api<any>("/orgs", { method: "POST", body: { org_name: orgName, user_email: email, password } })).token as string;
-      localStorage.setItem("aedifica_token", t); await seedReference(t); await loadProjects(t); await loadUsers(t); setToken(t);
+      localStorage.setItem("aedifica_token", t); await seedReference(t); await loadProjects(t); await loadUsers(t); loadAtelier(t); setToken(t);
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   }
   async function login(email: string, password: string) {
     setBusy(true); setErr("");
     try { const t = (await api<any>("/auth/login", { method: "POST", body: { email, password } })).token as string;
-      localStorage.setItem("aedifica_token", t); await loadProjects(t); await loadUsers(t); setToken(t);
+      localStorage.setItem("aedifica_token", t); await loadProjects(t); await loadUsers(t); loadAtelier(t); setToken(t);
     } catch (e: any) { setErr(e.message?.includes("incorrect") ? "E-mail ou mot de passe incorrect." : (e.message || "Connexion impossible.")); } finally { setBusy(false); }
   }
   async function joinWithKey(key: string) {
@@ -178,11 +192,46 @@ export default function App() {
   async function loadAll(p: Project, t: string) {
     const pid = p.project_id; const g = (path: string) => api<any>(`/projects/${pid}${path}`, { token: t });
     const sup = api<any>(`/communes/${p.jurisdiction.commune}/${p.jurisdiction.canton}/support`, { token: t }).then((r) => r.support).catch(() => null);
-    const [claims, permit, opposition, compliance, cost, site, ledger, next, unknowns, support] = await Promise.all([
-      g("/claims"), g("/permit"), g("/opposition"), g("/compliance"), g("/cost"), g("/site"), g("/ledger"), g("/next-step"), g("/memory/unknowns"), sup,
+    const [claims, permit, opposition, compliance, cost, site, ledger, next, unknowns, support, interv, docs, checklist, brs, toval, tasks, captures] = await Promise.all([
+      g("/claims"), g("/permit"), g("/opposition"), g("/compliance"), g("/cost"), g("/site"), g("/ledger"), g("/next-step"), g("/memory/unknowns"), sup, g("/intervenants"), g("/documents"), g("/checklist"), g("/brs"), g("/to-validate"), g("/tasks"), g("/captures"),
     ]);
-    setD({ claims: claims.claims, permit: permit.permit, opposition: opposition.opposition, compliance: compliance.compliance, cost: cost.cost, site: site.site, ledger: ledger.ledger, next: next.steps, unknowns: unknowns.unknowns, support });
+    setD({ claims: claims.claims, permit: permit.permit, opposition: opposition.opposition, compliance: compliance.compliance, cost: cost.cost, site: site.site, ledger: ledger.ledger, next: next.steps, unknowns: unknowns.unknowns, support, intervenants: interv, documents: docs.documents, docSummary: docs.summary, checklist, brs, toValidate: toval, tasks, captures });
   }
+  async function refreshCaptures() { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/captures`, { token: token! }); setD((x) => ({ ...x, captures: r })); }
+  async function addCapture(b: any) { await api2("/captures", b); await refreshCaptures(); }
+  async function delCapture(id: number) { await api2(`/captures/${id}`, undefined, "DELETE"); await refreshCaptures(); }
+  async function refreshTasks() { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/tasks`, { token: token! }); setD((x) => ({ ...x, tasks: r })); }
+  async function addTask(b: any) { await api2("/tasks", b); await refreshTasks(); }
+  async function patchTask(id: number, b: any) { await api2(`/tasks/${id}`, b, "PATCH"); await refreshTasks(); }
+  async function delTask(id: number) { await api2(`/tasks/${id}`, undefined, "DELETE"); await refreshTasks(); }
+  async function addDep(id: number, blocked_by_id: number) { await api2(`/tasks/${id}/deps`, { blocked_by_id }); await refreshTasks(); }
+  async function delDep(id: number, bid: number) { await api2(`/tasks/${id}/deps/${bid}`, undefined, "DELETE"); await refreshTasks(); }
+  async function predictTask(id: number) { return api2(`/tasks/${id}/predict`); }
+  async function feeEstimate(b: any) { return api2("/fee-estimate", b); }
+  async function refreshInterv() { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/intervenants`, { token: token! }); setD((x) => ({ ...x, intervenants: r })); }
+  async function refreshDocs() { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/documents`, { token: token! }); setD((x) => ({ ...x, documents: r.documents, docSummary: r.summary })); await refreshToVal(); }
+  async function refreshChecklist() { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/checklist`, { token: token! }); setD((x) => ({ ...x, checklist: r })); await refreshToVal(); }
+  async function refreshBrs() { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/brs`, { token: token! }); setD((x) => ({ ...x, brs: r })); }
+  async function refreshToVal() { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/to-validate`, { token: token! }); setD((x) => ({ ...x, toValidate: r })); }
+  async function api2(path: string, body?: any, method = "POST") { return api<any>(`/projects/${active!.project_id}${path}`, { method, token: token!, body }); }
+  async function seedChecklist(entry_phase: string) { await api2("/checklist/seed", { entry_phase }); await refreshChecklist(); }
+  async function patchChecklist(id: number, status: string) { await api2(`/checklist/${id}`, { status }, "PATCH"); await refreshChecklist(); }
+  async function addChecklistItem(b: any) { await api2("/checklist", b); await refreshChecklist(); }
+  async function delChecklistItem(id: number) { await api2(`/checklist/${id}`, undefined, "DELETE"); await refreshChecklist(); }
+  async function addBrs(b: any) { await api2("/brs", b); await refreshBrs(); }
+  async function patchBrs(id: number, b: any) { await api2(`/brs/${id}`, b, "PATCH"); await refreshBrs(); }
+  async function delBrs(id: number) { await api2(`/brs/${id}`, undefined, "DELETE"); await refreshBrs(); }
+  async function addGrant(docId: number, b: any) { await api2(`/documents/${docId}/grants`, b); await refreshDocs(); }
+  async function revokeGrant(docId: number, gid: number) { await api2(`/documents/${docId}/grants/${gid}`, undefined, "DELETE"); await refreshDocs(); }
+  async function addGroup(name: string, kind: string) { await api2("/intervenant-groups", { name, kind }); await refreshInterv(); }
+  async function delGroup(id: number) { await api2(`/intervenant-groups/${id}`, undefined, "DELETE"); await refreshInterv(); }
+  async function addIntervenant(b: any) { await api2("/intervenants", b); await refreshInterv(); }
+  async function patchIntervenant(id: number, b: any) { await api2(`/intervenants/${id}`, b, "PATCH"); await refreshInterv(); }
+  async function delIntervenant(id: number) { await api2(`/intervenants/${id}`, undefined, "DELETE"); await refreshInterv(); }
+  async function addDocument(b: any) { await api2("/documents", b); await refreshDocs(); }
+  async function validateDocument(id: number, level: string) { await api2(`/documents/${id}/validate`, { level }); await refreshDocs(); }
+  async function patchDocument(id: number, b: any) { await api2(`/documents/${id}`, b, "PATCH"); await refreshDocs(); }
+  async function delDocument(id: number) { await api2(`/documents/${id}`, undefined, "DELETE"); await refreshDocs(); }
   async function refreshLedger() { if (!active) return; const [ledger, unknowns] = await Promise.all([api<any>(`/projects/${active.project_id}/ledger`, { token: token! }), api<any>(`/projects/${active.project_id}/memory/unknowns`, { token: token! })]); setD((x) => ({ ...x, ledger: ledger.ledger, unknowns: unknowns.unknowns })); }
   async function lookup(query: string) {
     if (!active) return;
@@ -256,7 +305,7 @@ export default function App() {
 
   if (!ready) return <div className="center"><span className="spin">Chargement…</span></div>;
   if (!token) return <Login busy={busy} err={err} onRegister={register} onLogin={login} onJoin={joinWithKey} />;
-  if (!active) return <Home projects={projects} users={users} flashKey={flashKey} busy={busy} err={err} onOpen={openProject} onCreate={createProject} onSignOut={signOut} onSearch={homeSearch} dismissFlash={() => setFlashKey(null)} />;
+  if (!active) return <Home projects={projects} users={users} atelier={atelier} flashKey={flashKey} busy={busy} err={err} onOpen={openProject} onCreate={createProject} onSignOut={signOut} onSearch={homeSearch} dismissFlash={() => setFlashKey(null)} />;
 
   const cur = NAV.find((n) => n.id === view)!;
   const j = active.jurisdiction;
@@ -265,7 +314,7 @@ export default function App() {
     <div className="ws">
       <aside className="ws__side">
         <div className="ws__brand"><span className="wordmark"><span className="ae">Æ</span>DIFICA</span></div>
-        <button className="back" onClick={() => { setActive(null); setD({}); }}>← Tous les projets</button>
+        <button className="back" onClick={() => { setActive(null); setD({}); loadAtelier(token!); }}>← Tous les projets</button>
         <div className="psw"><div className="k">Projet</div><div className="nm">{active.name}</div><div className="me">{j.commune} · {j.canton} · {phaseLabel(active.phase_code)}</div></div>
         <nav className="tnav">
           {GROUPS.map((grp) => (
@@ -284,7 +333,10 @@ export default function App() {
 
       <main className="ws__main">
         <div className="phaserail">
-          <div className="cap"><span className="t">Parcours SIA du projet</span><span className="now">● {phaseLabel(active.phase_code)}</span></div>
+          <div className="cap"><span className="t">Parcours SIA du projet</span><span className="now">● {phaseLabel(active.phase_code)}</span>
+            {COST_PRECISION[norm(active.phase_code)] && <span className="chip">Précision coût {COST_PRECISION[norm(active.phase_code)]}</span>}
+            {d.intervenants && (d.intervenants.people || []).length > 0 && <span className="chip">{(d.intervenants.people || []).length} intervenant·e·s</span>}
+          </div>
           <div className="phases">
             {PHASES.map(([code, lb], i) => (
               <button key={code} className={`phase ${i < curIdx ? "done" : ""} ${i === curIdx ? "now" : ""}`} title={`Phase ${code}`}>
@@ -302,13 +354,18 @@ export default function App() {
         <div className="ws__view">
           {flash && <div className={`banner ${flash.kind}`} style={{ display: "flex", alignItems: "center", gap: 12 }}><span style={{ flex: 1 }}>{flash.text}</span><button className="toggle" onClick={() => setFlash(null)}>Compris</button></div>}
           {view === "dashboard" && <Dashboard d={d} project={active} go={setView} />}
-          {view === "terrain" && <Terrain claims={d.claims} mode={d.intakeMode} support={d.support} commune={j.commune} initialQuery={d.pendingQuery} onLookup={lookup} onRequest={requestCommune} />}
+          {view === "taches" && <Taches data={d.tasks} onAdd={addTask} onPatch={patchTask} onDel={delTask} onAddDep={addDep} onDelDep={delDep} onPredict={predictTask} />}
+          {view === "checklist" && <Checklist data={d.checklist} entryPhase={active.phase_code} onSeed={seedChecklist} onPatch={patchChecklist} onAdd={addChecklistItem} onDel={delChecklistItem} />}
+          {view === "terrain" && <Terrain claims={d.claims} mode={d.intakeMode} support={d.support} commune={j.commune} initialQuery={d.pendingQuery} regAlerts={d.captures?.regulation_alerts} onLookup={lookup} onRequest={requestCommune} />}
+          {view === "intervenants" && <Intervenants data={d.intervenants} onAddGroup={addGroup} onDelGroup={delGroup} onAdd={addIntervenant} onPatch={patchIntervenant} onDel={delIntervenant} />}
+          {view === "documents" && <Documents docs={d.documents} summary={d.docSummary} intervenants={d.intervenants} onAdd={addDocument} onValidate={validateDocument} onPatch={patchDocument} onDel={delDocument} onGrant={addGrant} onRevoke={revokeGrant} />}
+          {view === "brs" && <Brs data={d.brs} intervenants={d.intervenants} onAdd={addBrs} onPatch={patchBrs} onDel={delBrs} />}
           {view === "permis" && <Permis d={d.permit} onSubmit={submitPermit} />}
-          {view === "opposition" && <Opposition d={d.opposition} />}
+          {view === "opposition" && <Opposition d={d.opposition} canonicalDocs={(d.documents || []).filter((x: any) => x.validation_level === "canonical").length} />}
           {view === "conformite" && <Conformite d={d.compliance} />}
           {view === "copilote" && <Copilote token={token} pid={active.project_id} ledger={d.ledger} onChange={refreshLedger} />}
-          {view === "memoire" && <Memoire unknowns={d.unknowns} ledger={d.ledger} />}
-          {view === "couts" && <Couts d={d.cost} />}
+          {view === "memoire" && <Memoire unknowns={d.unknowns} ledger={d.ledger} captures={d.captures} onAddCapture={addCapture} onDelCapture={delCapture} />}
+          {view === "couts" && <Couts d={d.cost} onFee={feeEstimate} />}
           {view === "chantier" && <Chantier d={d.site} />}
           {view === "equipe" && <Team users={users} onAdd={addUser} onSetRole={setUserRole} />}
         </div>
@@ -372,7 +429,29 @@ function Login({ busy, err, onRegister, onLogin, onJoin }: { busy: boolean; err:
 }
 
 /* ===================== HOME ===================== */
-function Home({ projects, users, flashKey, busy, err, onOpen, onCreate, onSignOut, onSearch, dismissFlash }: any) {
+/* ===================== ATELIER · PILOTAGE MULTI-PROJET (W9 #225/#227) ===================== */
+function AtelierPilotage({ atelier, onOpen, projects }: any) {
+  const open: any[] = (atelier.tasks || []).filter((t: any) => t.status !== "done");
+  const col = atelier.collision || {}; const load = atelier.load_by_assignee || {};
+  const top = [...open].sort((a, b) => (a.priority > b.priority ? 1 : a.priority < b.priority ? -1 : 0)).slice(0, 6);
+  const openProj = (pid: string) => { const p = (projects || []).find((x: any) => x.project_id === pid); if (p) onOpen(p); };
+  return (
+    <div className="home__sec">
+      <h2>Atelier · pilotage multi-projet ({atelier.projects} projet·s)</h2>
+      {(col.overloaded || []).length > 0 && <div className="banner bad" style={{ marginBottom: 12 }}><b>Collision de charge</b> — {col.overloaded.map((o: any) => `${o.week} : ${o.hours} h (+${o.over})`).join(" · ")} au-delà de {col.weekly_capacity} h/sem.</div>}
+      <div className="g2">
+        <div className="card"><h3>Tâches prioritaires (tous projets)</h3>{top.length === 0 && <p className="spin">Aucune tâche ouverte.</p>}{top.map((t: any) => { const [pc, pl] = PRIO[t.priority] || ["modere", t.priority]; return (
+          <div className="row-line" key={t.id}><span className={`lvl ${pc}`}>{pl}</span><span className="grow"><span className="ttl">{t.title}{t.is_blocked && <small style={{ display: "inline", color: "var(--ts-conflict)" }}> · bloquée</small>}</span><small>{[t.project_name, t.assignee ? "→ " + t.assignee : null, t.estimate_hours ? t.estimate_hours + " h" : null, t.due_date ? "éch. " + t.due_date : null].filter(Boolean).join(" · ")}</small></span><button className="toggle" onClick={() => openProj(t.project_id)}>Ouvrir →</button></div>
+        ); })}</div>
+        <div className="card"><h3>Charge par collaborateur</h3>{Object.keys(load).length === 0 && <p className="spin">—</p>}{Object.entries(load).map(([n, h]: any) => (<div className="row-line" key={n}><span className="grow"><span className="ttl">{n}</span></span><span className={`lvl ${h > 40 ? "eleve" : h > 20 ? "modere" : "faible"}`}>{h} h</span></div>))}
+          {Object.keys(col.by_week || {}).length > 0 && <div style={{ marginTop: 12 }}><div className="mono" style={{ fontSize: 10, margin: "0 0 6px", color: "var(--mut)" }}>CHARGE PAR SEMAINE</div>{Object.entries(col.by_week).map(([w, h]: any) => (<div className="row-line" key={w}><span className="grow"><span className="mono" style={{ fontSize: 12 }}>{w}</span></span><span className={`lvl ${h > col.weekly_capacity ? "eleve" : "faible"}`}>{h} h</span></div>))}</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Home({ projects, users, atelier, flashKey, busy, err, onOpen, onCreate, onSignOut, onSearch, dismissFlash }: any) {
   const [q, setQ] = useState(""); const [creating, setCreating] = useState(false);
   const [name, setName] = useState(""); const [commune, setCommune] = useState("Lausanne");
   return (
@@ -401,6 +480,8 @@ function Home({ projects, users, flashKey, busy, err, onOpen, onCreate, onSignOu
         </div>
 
         {flashKey && <div className="flash"><b>Atelier créé.</b> Conservez votre clé d&apos;accès pour vous reconnecter :<code>{flashKey}</code><button className="signout" style={{ padding: 0 }} onClick={dismissFlash}>J&apos;ai noté ma clé</button></div>}
+
+        {atelier && (atelier.tasks || []).length > 0 && <AtelierPilotage atelier={atelier} onOpen={onOpen} projects={projects} />}
 
         <div className="home__sec">
           <h2>Vos projets ({(projects || []).length})</h2>
@@ -448,6 +529,13 @@ function Dashboard({ d, project, go }: { d: any; project: Project; go: (v: View)
     <>
       <div className="vh"><div className="row"><h2>{phaseLabel(project.phase_code)}</h2><span className="badge live"><span className="d" />Opérationnel</span></div>
         <p>L&apos;état du projet en un coup d&apos;œil : ce qui est fiable, ce qu&apos;il faut traiter ensuite, et les quick-wins de cette phase.</p></div>
+      {d.toValidate && (d.toValidate.counts.documents + d.toValidate.counts.checklist_todo) > 0 && (
+        <div className="banner warn" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <b>À valider</b>
+          {d.toValidate.counts.documents > 0 && <button className="toggle" onClick={() => go("documents")}>{d.toValidate.counts.documents} document(s)</button>}
+          {d.toValidate.counts.checklist_todo > 0 && <button className="toggle" onClick={() => go("checklist")}>{d.toValidate.counts.checklist_todo} step(s) à faire{d.toValidate.counts.checklist_retroactive_todo > 0 ? ` · ${d.toValidate.counts.checklist_retroactive_todo} rétroactif` : ""}</button>}
+        </div>
+      )}
       <div className="next">
         <div className="h"><span className="t">Prochain pas</span></div>
         {(d.next || []).slice(0, 4).map((s: any, i: number) => (
@@ -473,7 +561,7 @@ function Dashboard({ d, project, go }: { d: any; project: Project; go: (v: View)
 }
 
 /* ===================== TERRAIN ===================== */
-function Terrain({ claims, mode, support, commune, onLookup, onRequest, initialQuery }: any) {
+function Terrain({ claims, mode, support, commune, onLookup, onRequest, initialQuery, regAlerts }: any) {
   const [q, setQ] = useState(initialQuery || ""); const [b, setB] = useState("");
   if (!claims) return <p className="spin">Chargement…</p>;
   const lookup = async () => { if (!q.trim()) return; setB("l"); try { await onLookup(q.trim()); } catch { } finally { setB(""); } };
@@ -481,6 +569,7 @@ function Terrain({ claims, mode, support, commune, onLookup, onRequest, initialQ
   return (
     <>
       <div className="vh"><div className="row"><h2>Terrain &amp; zonage</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>Ce que la parcelle autorise — sourcé sur une base officielle, ou marqué « à vérifier ».</p></div>
+      {(regAlerts || []).map((r: any) => <div className="banner bad" key={r.id}>⚠️ <b>Règlement à l&apos;étude</b> — {r.content}{r.source_ref ? ` (${r.source_ref})` : ""}. Les règles (hauteurs, densités) peuvent changer en cours de projet.</div>)}
       {support && !usable && <div className="banner warn">Commune <b>{commune}</b> pas encore prise en charge. <button className="toggle" onClick={onRequest}>Demander l&apos;ingestion</button></div>}
       <div className="searchrow"><input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && lookup()} placeholder="Adresse ou parcelle — ex. Place de la Palud, Lausanne" /><button onClick={lookup}>{b ? "…" : "Rechercher (live)"}</button></div>
       {mode === "offline" && <p className="note" style={{ marginBottom: 12 }}>Recherche live indisponible — données de référence affichées.</p>}
@@ -517,13 +606,14 @@ function Permis({ d, onSubmit }: any) {
 }
 
 /* ===================== OPPOSITION ===================== */
-function Opposition({ d }: any) {
+function Opposition({ d, canonicalDocs }: any) {
   if (!d) return <p className="spin">Chargement…</p>;
   if (!d.overall) return (<><div className="vh"><h2>Risque d&apos;opposition</h2></div><div className="placeholder"><h4>Aucune analyse de parcelle</h4><p>Lancez une recherche d&apos;adresse dans Terrain &amp; zonage.</p></div></>);
   return (
     <>
-      <div className="vh"><h2>Risque d&apos;opposition</h2><p>Les motifs d&apos;opposition les plus probables, évalués sur les faits — pour les désamorcer avant l&apos;enquête.</p></div>
+      <div className="vh"><h2>Risque d&apos;opposition</h2><p>Les motifs d&apos;opposition les plus probables, évalués <b>sur les faits du dossier</b> — pour cibler précisément ce qu&apos;il faut désamorcer avant l&apos;enquête.</p></div>
       <div className="banner warn">Niveau global : <b style={{ textTransform: "capitalize" }}>{d.overall}</b> (score {d.score}). {d.disclaimer}</div>
+      <p className="note" style={{ marginBottom: 12 }}>Base d&apos;analyse : <b>{canonicalDocs ?? 0} document(s) canonique(s)</b> du dossier + données parcelle. <br />Scan des <b>décisions publiques communales + jurisprudence</b> de la zone : à brancher (sources publiques) — aucune donnée inventée.</p>
       <div className="card">{d.signals?.map((s: any, i: number) => (
         <div className="row-line" key={i}><span className={`lvl ${lvlClass(s.level)}`}>{s.level}</span><span className="grow"><span className="ttl">{fr(s.ground)} <small style={{ display: "inline", color: "var(--mut)" }}>· {fr(s.category)}</small></span><small style={{ fontFamily: "var(--font-ui)", color: "var(--ink-90)", fontSize: 13 }}>{s.basis}</small></span></div>
       ))}</div>
@@ -587,13 +677,38 @@ function Copilote({ token, pid, ledger, onChange }: { token: string; pid: string
 }
 
 /* ===================== COUTS ===================== */
-function Couts({ d }: any) {
-  if (!d) return <p className="spin">Chargement…</p>;
-  const c = d.cockpit; const chf = (n: number) => "CHF " + Number(n).toLocaleString("fr-CH");
-  const head = <div className="vh"><h2>Coûts &amp; appels d&apos;offres</h2><p>Honoraires, rentabilité du mandat et hypothèses portées en comparatif. Aucun coefficient SIA payant embarqué.</p></div>;
-  if (!c) return (<>{head}<div className="placeholder"><h4>Aucune estimation</h4><p>L&apos;estimation d&apos;honoraires n&apos;a pas encore été saisie.</p></div></>);
+function Couts({ d, onFee }: any) {
+  const [fi, setFi] = useState<any>({ cfc2: "", project_type: "villa", hourly_rate: "150", hours: "" });
+  const [est, setEst] = useState<any>(null); const [busy, setBusy] = useState(false);
+  const chf = (n: number) => "CHF " + Number(n).toLocaleString("fr-CH");
+  const c = d?.cockpit;
+  const calc = async () => { setBusy(true); try { const r = await onFee({ cfc2: Number(fi.cfc2) || 0, project_type: fi.project_type, hourly_rate: fi.hourly_rate ? Number(fi.hourly_rate) : null, hours: fi.hours ? Number(fi.hours) : null }); setEst(r.estimate); } catch { } finally { setBusy(false); } };
+  const head = <div className="vh"><h2>Coûts &amp; honoraires</h2><p>Estimateur d&apos;honoraires SIA 102 (deux méthodes), rentabilité et hypothèses. Aucun coefficient SIA payant embarqué — la formule publique, vos paramètres.</p></div>;
+  const feeCard = (
+    <div className="card" style={{ marginBottom: 14 }}>
+      <h3>Estimateur d&apos;honoraires (SIA 102)</h3>
+      <div className="g2">
+        <input className="fld" type="number" placeholder="Coût de l'ouvrage CFC2 (CHF)" value={fi.cfc2} onChange={(e) => setFi({ ...fi, cfc2: e.target.value })} />
+        <select className="fld" value={fi.project_type} onChange={(e) => setFi({ ...fi, project_type: e.target.value })}><option value="villa">Villa</option><option value="logement">Logement collectif</option><option value="renovation">Rénovation</option><option value="amenagement">Aménagement</option><option value="autre">Autre</option></select>
+        <input className="fld" type="number" placeholder="Tarif horaire (CHF/h)" value={fi.hourly_rate} onChange={(e) => setFi({ ...fi, hourly_rate: e.target.value })} />
+        <input className="fld" type="number" placeholder="Heures estimées (T)" value={fi.hours} onChange={(e) => setFi({ ...fi, hours: e.target.value })} />
+      </div>
+      <div className="actbar"><span className="mono" style={{ fontSize: 11 }}>% du CFC2 &nbsp;ou&nbsp; H = T × h</span><span style={{ marginLeft: "auto" }} /><button className="ds-btn" disabled={busy} onClick={calc}>{busy ? "…" : "Estimer"}</button></div>
+      {est && (
+        <div style={{ marginTop: 10 }}>
+          <div className="kpis">
+            <div className="kpi"><div className="lab">Méthode % CFC2</div><div className="num" style={{ fontSize: 21 }}>{est.by_cost_method ? chf(est.by_cost_method) : "—"}</div><div className="sub">{Math.round(est.percentage * 100)} % du CFC2</div></div>
+            <div className="kpi"><div className="lab">Méthode H = T × h</div><div className="num" style={{ fontSize: 21 }}>{est.by_time_method ? chf(est.by_time_method) : "—"}</div><div className="sub">{est.hours || "—"} h × {est.hourly_rate || "—"}</div></div>
+            <div className="kpi"><div className="lab">Recommandé</div><div className="num" style={{ fontSize: 21 }}>{est.recommended ? chf(est.recommended) : "—"}</div><div className="sub">à ajuster (curseur)</div></div>
+          </div>
+          {Object.keys(est.by_phase || {}).length > 0 && <div className="card" style={{ marginTop: 10 }}><h3>Répartition par phase SIA</h3>{Object.entries(est.by_phase).map(([ph, v]: any) => (<div className="row-line" key={ph}><span className="grow"><span className="ttl">{SIA_PHASE_FR[ph] || "Phase " + ph}</span></span><span className="mono">{chf(v)}</span></div>))}</div>}
+        </div>
+      )}
+    </div>
+  );
+  if (!c) return (<>{head}{feeCard}<div className="placeholder"><h4>Cockpit détaillé indisponible</h4><p>L&apos;estimation d&apos;honoraires détaillée (cockpit) n&apos;a pas encore été saisie. L&apos;estimateur ci-dessus reste utilisable.</p></div></>);
   return (
-    <>{head}
+    <>{head}{feeCard}
       <div className="kpis">
         <div className="kpi"><div className="lab">Honoraires estimés</div><div className="num" style={{ fontSize: 22 }}>{chf(c.estimated_fee_chf)}</div><div className="sub">{c.estimated_hours} h · {c.hourly_rate_chf} CHF/h</div></div>
         <div className="kpi"><div className="lab">Marge cible</div><div className="num">{c.target_margin_percent}%</div><div className="sub">objectif atelier</div></div>
@@ -627,14 +742,298 @@ function Chantier({ d }: any) {
 }
 
 /* ===================== MEMOIRE ===================== */
-function Memoire({ unknowns, ledger }: any) {
+const CAP_KIND: Record<string, string> = { friction: "Friction", observation: "Observation", photo: "Photo / preuve", decision: "Décision", regulation: "Règlement à l'étude" };
+const CAP_TS: Record<string, string> = { friction: "is-assume", observation: "is-computed", photo: "is-sourced", decision: "is-decision", regulation: "is-conflict" };
+function Memoire({ unknowns, ledger, captures, onAddCapture, onDelCapture }: any) {
+  const [f, setF] = useState<any>({ kind: "friction", content: "", source_ref: "" });
+  const [busy, setBusy] = useState("");
   if (!unknowns) return <p className="spin">Chargement…</p>;
+  const caps: any[] = captures?.captures || [];
+  const add = async () => { if (!f.content.trim()) return; setBusy("add"); try { await onAddCapture({ ...f, source_ref: f.source_ref || null }); setF({ kind: f.kind, content: "", source_ref: "" }); } catch { } finally { setBusy(""); } };
+  const act = async (p: Promise<any>, id: string) => { setBusy(id); try { await p; } catch { } finally { setBusy(""); } };
   return (
     <>
-      <div className="vh"><h2>Mémoire du projet</h2><p>Tout ce que le projet sait, ignore ou a décidé — conservé et interrogeable.</p></div>
+      <div className="vh"><h2>Mémoire du projet</h2><p>Tout ce que le projet sait, ignore ou a décidé — conservé et interrogeable. Captez la friction, les décisions verbales et les preuves au fil de l&apos;eau.</p></div>
+      <div className="card" style={{ marginBottom: 14 }}>
+        <h3>Capture rapide (friction · décision · photo · règlement à l&apos;étude)</h3>
+        <div className="row" style={{ gap: 8, alignItems: "stretch" }}>
+          <select className="fld" style={{ margin: 0, width: "auto" }} value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })}>{Object.entries(CAP_KIND).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+          <input className="fld" style={{ margin: 0, flex: 1, minWidth: 160 }} placeholder="Ce que vous voulez garder en trace…" value={f.content} onChange={(e) => setF({ ...f, content: e.target.value })} onKeyDown={(e) => e.key === "Enter" && add()} />
+          <input className="fld" style={{ margin: 0, width: 150 }} placeholder="Réf / photo (URL)" value={f.source_ref} onChange={(e) => setF({ ...f, source_ref: e.target.value })} />
+          <button className="ds-btn" disabled={busy === "add" || !f.content} onClick={add}>{busy === "add" ? "…" : "Capter"}</button>
+        </div>
+      </div>
       <div className="g2">
-        <div className="card"><h3>Inconnues résiduelles ({unknowns.length})</h3>{unknowns.map((c: any, i: number) => (<div className="claim" key={i}><Trust state={c.state} /><div><div className="ttl">{c.title}</div>{c.next_action && <small>{c.next_action}</small>}</div></div>))}{unknowns.length === 0 && <p className="spin">Aucune inconnue.</p>}</div>
-        <div className="card"><h3>Journal du projet ({(ledger || []).length})</h3>{[...(ledger || [])].reverse().map((e: any, i: number) => (<div className="claim" key={i}><Trust state={e.mutating ? "conflict" : e.event_type === "approval" ? "sourced" : "computed"} label={EVENT[e.event_type] || e.event_type} /><div><div className="ttl">{human(e)}</div></div></div>))}{(ledger || []).length === 0 && <p className="spin">Aucune entrée.</p>}</div>
+        <div className="card"><h3>Captures &amp; preuves ({caps.length})</h3>{caps.length === 0 && <p className="spin">Aucune capture. Tout ce qui se dit (tél, séance) ou se voit (chantier) se consigne ici — horodaté et attribué.</p>}{caps.map((c: any) => (<div className="claim" key={c.id}><span className={`ds-ts ${CAP_TS[c.kind] || "is-unknown"}`}><span className="dot" />{CAP_KIND[c.kind] || c.kind}</span><div style={{ flex: 1 }}><div className="ttl">{c.content}</div><small>{[c.author ? "par " + c.author : null, (c.created_at || "").slice(0, 16).replace("T", " "), c.source_ref].filter(Boolean).join(" · ")}</small></div><button className="signout" style={{ padding: 0 }} onClick={() => act(onDelCapture(c.id), "d" + c.id)}>✕</button></div>))}</div>
+        <div className="card"><h3>Inconnues &amp; journal</h3>{unknowns.map((c: any, i: number) => (<div className="claim" key={"u" + i}><Trust state={c.state} /><div><div className="ttl">{c.title}</div>{c.next_action && <small>{c.next_action}</small>}</div></div>))}{[...(ledger || [])].reverse().slice(0, 6).map((e: any, i: number) => (<div className="claim" key={"l" + i}><Trust state={e.mutating ? "conflict" : e.event_type === "approval" ? "sourced" : "computed"} label={EVENT[e.event_type] || e.event_type} /><div><div className="ttl">{human(e)}</div></div></div>))}{unknowns.length === 0 && (ledger || []).length === 0 && <p className="spin">Rien encore.</p>}</div>
+      </div>
+    </>
+  );
+}
+
+/* ===================== INTERVENANTS (W9) ===================== */
+const GROUP_KINDS: Record<string, string> = { company: "Entreprise", discipline: "Discipline", group: "Groupe" };
+function Intervenants({ data, onAddGroup, onDelGroup, onAdd, onDel }: any) {
+  const [gName, setGName] = useState(""); const [gKind, setGKind] = useState("discipline"); const [showG, setShowG] = useState(false);
+  const [f, setF] = useState<any>({ name: "", role: "", organization: "", email: "", phone: "", is_responsible: false, group_id: "" });
+  const [busy, setBusy] = useState(false);
+  if (!data) return <p className="spin">Chargement…</p>;
+  const groups: any[] = data.groups || []; const people: any[] = data.people || [];
+  const inGroup = (gid: number | null) => people.filter((p) => (p.group_id ?? null) === gid);
+  const submit = async () => { if (!f.name.trim()) return; setBusy(true); try { await onAdd({ ...f, group_id: f.group_id ? Number(f.group_id) : null }); setF({ name: "", role: "", organization: "", email: "", phone: "", is_responsible: false, group_id: f.group_id }); } catch { } finally { setBusy(false); } };
+  const addG = async () => { if (!gName.trim()) return; await onAddGroup(gName, gKind); setGName(""); setShowG(false); };
+  const Person = ({ p }: any) => (
+    <div className="member"><span className="grow"><span className="nm">{p.name}{p.is_responsible && <small style={{ display: "inline", color: "var(--accent)" }}> · responsable</small>}</span><span className="em">{[p.role, p.organization, p.email, p.phone].filter(Boolean).join(" · ") || "—"}</span></span><button className="signout" style={{ padding: 0 }} onClick={() => onDel(p.id)}>Retirer</button></div>
+  );
+  return (
+    <>
+      <div className="vh"><div className="row"><h2>Intervenants</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>L&apos;arborescence des acteurs du projet — groupes, sous-groupes, personnes — avec contacts sourcés. Socle de l&apos;accès documentaire et de l&apos;annuaire d&apos;atelier.</p></div>
+      <div className="card" style={{ marginBottom: 14 }}>
+        <h3>Ajouter un intervenant</h3>
+        <div className="g2">
+          <input className="fld" placeholder="Nom" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+          <input className="fld" placeholder="Rôle (ex. ingénieur civil)" value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })} />
+          <input className="fld" placeholder="Organisation" value={f.organization} onChange={(e) => setF({ ...f, organization: e.target.value })} />
+          <input className="fld" placeholder="E-mail" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
+          <input className="fld" placeholder="Téléphone" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+          <select className="fld" value={f.group_id} onChange={(e) => setF({ ...f, group_id: e.target.value })}><option value="">— sans groupe —</option>{groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select>
+        </div>
+        <div className="actbar">
+          <label className="mono" style={{ display: "flex", alignItems: "center", gap: 7 }}><input type="checkbox" checked={f.is_responsible} onChange={(e) => setF({ ...f, is_responsible: e.target.checked })} /> Responsable / de référence</label>
+          <span style={{ marginLeft: "auto" }} /><button className="ds-btn" disabled={busy || !f.name} onClick={submit}>{busy ? "…" : "Ajouter"}</button>
+        </div>
+      </div>
+      <div className="row" style={{ marginBottom: 12 }}>
+        {showG ? (
+          <div className="actbar" style={{ margin: 0, width: "100%" }}>
+            <input className="fld" style={{ margin: 0, flex: 1 }} placeholder="Nom du groupe (ex. Ingénieurs)" value={gName} onChange={(e) => setGName(e.target.value)} />
+            <select className="fld" style={{ margin: 0, width: "auto" }} value={gKind} onChange={(e) => setGKind(e.target.value)}>{Object.entries(GROUP_KINDS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+            <button className="ds-btn" onClick={addG} disabled={!gName}>Créer</button><button className="ds-btn ghost" onClick={() => setShowG(false)}>Annuler</button>
+          </div>
+        ) : <button className="toggle" onClick={() => setShowG(true)}>+ Nouveau groupe</button>}
+      </div>
+      {groups.map((g) => (
+        <div className="card" key={g.id} style={{ marginBottom: 12 }}>
+          <h3 style={{ display: "flex", alignItems: "center" }}>{g.name} <span className="chip" style={{ marginLeft: 8 }}>{GROUP_KINDS[g.kind] || g.kind}</span><button className="signout" style={{ marginLeft: "auto", padding: 0 }} onClick={() => onDelGroup(g.id)}>Supprimer le groupe</button></h3>
+          {inGroup(g.id).length ? inGroup(g.id).map((p: any) => <Person key={p.id} p={p} />) : <p className="spin">Aucun membre.</p>}
+        </div>
+      ))}
+      <div className="card"><h3>Sans groupe</h3>{inGroup(null).length ? inGroup(null).map((p: any) => <Person key={p.id} p={p} />) : <p className="spin">Tous les intervenants sont rattachés à un groupe.</p>}</div>
+    </>
+  );
+}
+
+/* ===================== DOCUMENTS & SOURCES (W9) ===================== */
+const VLEVEL: Record<string, [string, string]> = { canonical: ["is-sourced", "Canonique"], indicative: ["is-computed", "Indicatif"], refused: ["is-conflict", "Refusé"], pending: ["is-unknown", "À valider"] };
+function Documents({ docs, summary, intervenants, onAdd, onValidate, onPatch, onDel, onGrant, onRevoke }: any) {
+  const [f, setF] = useState<any>({ official_name: "", category: "general", source: "manual", confidential: false });
+  const [busy, setBusy] = useState("");
+  const [grantFor, setGrantFor] = useState<number | null>(null);
+  const [grantSel, setGrantSel] = useState("");
+  if (!docs) return <p className="spin">Chargement…</p>;
+  const groups: any[] = intervenants?.groups || []; const people: any[] = intervenants?.people || [];
+  const gName = (id: number) => groups.find((g) => g.id === id)?.name || `groupe ${id}`;
+  const pName = (id: number) => people.find((p) => p.id === id)?.name || `personne ${id}`;
+  const submit = async () => { if (!f.official_name.trim()) return; setBusy("add"); try { await onAdd(f); setF({ official_name: "", category: "general", source: "manual", confidential: false }); } catch { } finally { setBusy(""); } };
+  const act = async (p: Promise<any>, id: string) => { setBusy(id); try { await p; } catch { } finally { setBusy(""); } };
+  const grant = async (docId: number) => { if (!grantSel) return; const [t, id] = grantSel.split(":"); setBusy("g" + docId); try { await onGrant(docId, t === "g" ? { group_id: Number(id) } : { intervenant_id: Number(id) }); setGrantFor(null); setGrantSel(""); } catch { } finally { setBusy(""); } };
+  const s = summary || { total: 0, pending: 0, by_level: {} };
+  return (
+    <>
+      <div className="vh"><div className="row"><h2>Documents &amp; sources</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>La curation des sources du projet : import + versioning, validation par l&apos;architecte (canonique / indicatif / refusé), marquage confidentiel (LPD) et accès par intervenant. « Sourcé ou inconnu — jamais inventé. »</p></div>
+      {s.pending > 0 && <div className="banner warn"><b>{s.pending}</b> document(s) à valider.</div>}
+      <div className="card" style={{ marginBottom: 14 }}>
+        <h3>Ajouter / injecter une source</h3>
+        <div className="g2">
+          <input className="fld" placeholder="Nom officiel du document" value={f.official_name} onChange={(e) => setF({ ...f, official_name: e.target.value })} />
+          <input className="fld" placeholder="Catégorie / dossier" value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} />
+        </div>
+        <div className="actbar">
+          <select className="fld" style={{ margin: 0, width: "auto" }} value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })}><option value="manual">Source manuelle (atelier)</option><option value="fetched">Récupérée en ligne</option></select>
+          <label className="mono" style={{ display: "flex", alignItems: "center", gap: 7 }}><input type="checkbox" checked={f.confidential} onChange={(e) => setF({ ...f, confidential: e.target.checked })} /> Confidentiel (LPD)</label>
+          <span style={{ marginLeft: "auto" }} /><button className="ds-btn" disabled={busy === "add" || !f.official_name} onClick={submit}>{busy === "add" ? "…" : "Ajouter"}</button>
+        </div>
+      </div>
+      <div className="card">
+        <h3>Sources du projet ({s.total})</h3>
+        {docs.length === 0 && <p className="spin">Aucun document. Ajoutez ou injectez une source ci-dessus.</p>}
+        {docs.map((dd: any) => { const [c, l] = VLEVEL[dd.validation_level] || ["is-unknown", dd.validation_level]; return (
+          <div key={dd.id} style={{ borderTop: "1px solid var(--line)", paddingTop: 11, marginTop: 11 }}>
+            <div className="row-line" style={{ border: 0, padding: 0 }}>
+              <span className={`ds-ts ${c}`}><span className="dot" />{l}</span>
+              <span className="grow"><span className="ttl">{dd.official_name}{dd.confidential && <small style={{ display: "inline", color: "var(--ts-conflict)" }}> · confidentiel</small>}</span><small>{[dd.category, dd.latest, dd.validated_by ? `validé par ${dd.validated_by}` : null].filter(Boolean).join(" · ")}</small></span>
+              <span className="row" style={{ gap: 6 }}>
+                <button className="toggle" disabled={busy === `v${dd.id}`} onClick={() => act(onValidate(dd.id, "canonical"), `v${dd.id}`)}>Canonique</button>
+                <button className="toggle" onClick={() => act(onValidate(dd.id, "indicative"), `v${dd.id}`)}>Indicatif</button>
+                <button className="toggle" onClick={() => act(onValidate(dd.id, "refused"), `v${dd.id}`)}>Refusé</button>
+                <button className="toggle" onClick={() => act(onPatch(dd.id, { confidential: !dd.confidential }), `c${dd.id}`)}>{dd.confidential ? "Rendre public" : "Confidentiel"}</button>
+                <button className="signout" style={{ padding: 0 }} onClick={() => act(onDel(dd.id), `x${dd.id}`)}>✕</button>
+              </span>
+            </div>
+            <div className="row" style={{ gap: 6, marginTop: 7, flexWrap: "wrap" }}>
+              <span className="mono" style={{ fontSize: 10 }}>Accès :</span>
+              {(dd.grants || []).length === 0 && <span className="mono" style={{ fontSize: 10, color: dd.confidential ? "var(--ts-conflict)" : "var(--mut)" }}>{dd.confidential ? "confidentiel — restreint" : "aucun (atelier seul)"}</span>}
+              {(dd.grants || []).map((gr: any) => (
+                <span key={gr.id} className="chip" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>{gr.group_id ? gName(gr.group_id) : pName(gr.intervenant_id)}<button className="signout" style={{ padding: 0 }} onClick={() => act(onRevoke(dd.id, gr.id), `r${gr.id}`)}>✕</button></span>
+              ))}
+              {grantFor === dd.id ? (
+                <span className="row" style={{ gap: 4 }}>
+                  <select className="fld" style={{ margin: 0, padding: "4px 8px", width: "auto" }} value={grantSel} onChange={(e) => setGrantSel(e.target.value)}>
+                    <option value="">— qui ? —</option>
+                    {groups.map((g) => <option key={"g" + g.id} value={"g:" + g.id}>Groupe · {g.name}</option>)}
+                    {people.map((p) => <option key={"p" + p.id} value={"p:" + p.id}>{p.name}</option>)}
+                  </select>
+                  <button className="toggle" disabled={!grantSel} onClick={() => grant(dd.id)}>OK</button>
+                  <button className="signout" style={{ padding: 0 }} onClick={() => setGrantFor(null)}>annuler</button>
+                </span>
+              ) : <button className="toggle" style={{ padding: "3px 8px" }} onClick={() => { setGrantFor(dd.id); setGrantSel(""); }}>+ accès</button>}
+            </div>
+          </div>
+        ); })}
+      </div>
+    </>
+  );
+}
+
+/* ===================== CHECKLIST SIA (W9 #221) ===================== */
+const SIA_PHASE_FR: Record<string, string> = { "11": "1 · Définition des objectifs", "21": "2 · Études préliminaires", "22": "2 · Choix des mandataires", "31": "3.31 · Avant-projet", "32": "3.32 · Projet de l'ouvrage", "33": "3.33 · Autorisation / enquête", "41": "4.41 · Appel d'offres", "51": "5.51 · Projet d'exécution", "52": "5.52 · Chantier", "53": "5.53 · Mise en service", "61": "6 · Exploitation" };
+const CSTATUS: Record<string, [string, string]> = { done: ["is-sourced", "Fait"], todo: ["is-unknown", "À faire"], deferred: ["is-assume", "Plus tard"], skipped: ["is-computed", "Inutile"] };
+function Checklist({ data, entryPhase, onSeed, onPatch }: any) {
+  const valid = /^(11|21|22|31|32|33|41|51|52|53|61)$/;
+  const [phase, setPhase] = useState(valid.test(entryPhase || "") ? entryPhase : "11");
+  const [busy, setBusy] = useState("");
+  if (!data) return <p className="spin">Chargement…</p>;
+  const items: any[] = data.items || []; const s = data.summary || {};
+  const seed = async () => { setBusy("seed"); try { await onSeed(phase); } catch { } finally { setBusy(""); } };
+  const set = async (id: number, status: string) => { setBusy("i" + id); try { await onPatch(id, status); } catch { } finally { setBusy(""); } };
+  if (!s.seeded) {
+    return (
+      <>
+        <div className="vh"><h2>Checklist SIA</h2><p>Les steps du mandat, dérivés de la norme SIA — déjà classés dans l&apos;ordre. Vous les activez / différez / désactivez selon le projet (pas de step imposé).</p></div>
+        <div className="placeholder"><h4>Checklist non initialisée</h4><p>Initialisez la checklist depuis le gabarit SIA. Choisissez la <b>phase d&apos;entrée</b> du projet : les steps des phases antérieures seront marqués « rétroactif » (à reconstituer pour un projet repris en cours).</p>
+          <div className="actbar" style={{ justifyContent: "center", marginTop: 14 }}>
+            <select className="fld" style={{ margin: 0, width: "auto" }} value={phase} onChange={(e) => setPhase(e.target.value)}>{Object.entries(SIA_PHASE_FR).map(([v, lb]) => <option key={v} value={v}>{lb}</option>)}</select>
+            <button className="ds-btn" disabled={busy === "seed"} onClick={seed}>{busy === "seed" ? "…" : "Initialiser la checklist"}</button>
+          </div>
+        </div>
+      </>
+    );
+  }
+  const done = (s.by_status?.done) || 0;
+  const phases = items.map((i) => i.phase_code).filter((v, idx, a) => a.indexOf(v) === idx);
+  return (
+    <>
+      <div className="vh"><div className="row"><h2>Checklist SIA</h2><span className="badge live"><span className="d" />{done}/{s.total} fait</span></div><p>Les steps réels du projet.{s.retroactive > 0 && <> <b>{s.retroactive} step(s) rétroactif(s)</b> à reconstituer (projet repris en cours).</>}</p></div>
+      {phases.map((ph) => (
+        <div className="card" key={ph} style={{ marginBottom: 12 }}>
+          <h3>{SIA_PHASE_FR[ph] || ph}</h3>
+          {items.filter((i) => i.phase_code === ph).map((it) => { const [c, l] = CSTATUS[it.status] || ["is-unknown", it.status]; return (
+            <div className="row-line" key={it.id}>
+              <span className={`ds-ts ${c}`}><span className="dot" />{l}</span>
+              <span className="grow"><span className="ttl">{it.title}{it.is_retroactive && <small style={{ display: "inline", color: "var(--ts-assume)" }}> · rétroactif</small>}</span></span>
+              <span className="row" style={{ gap: 6 }}>
+                <button className="toggle" disabled={busy === `i${it.id}`} onClick={() => set(it.id, "done")}>Fait</button>
+                <button className="toggle" onClick={() => set(it.id, "todo")}>À faire</button>
+                <button className="toggle" onClick={() => set(it.id, "deferred")}>Plus tard</button>
+                <button className="toggle" onClick={() => set(it.id, "skipped")}>Inutile</button>
+              </span>
+            </div>
+          ); })}
+        </div>
+      ))}
+    </>
+  );
+}
+
+/* ===================== EXIGENCES · BRS (W9 #223) ===================== */
+const BRS_CHAN: Record<string, string> = { phone: "Téléphone", email: "E-mail", pv: "PV", meeting: "Séance", other: "Autre" };
+const BRS_KIND: Record<string, string> = { requirement: "Exigence", change: "Changement", decision: "Décision" };
+const BRS_STATUS: Record<string, [string, string]> = { active: ["is-sourced", "Actif"], superseded: ["is-computed", "Remplacé"], locked: ["is-decision", "Verrouillé"] };
+function Brs({ data, intervenants, onAdd, onPatch, onDel }: any) {
+  const [f, setF] = useState<any>({ content: "", kind: "requirement", channel: "phone", emitter_intervenant_id: "", source_ref: "" });
+  const [busy, setBusy] = useState("");
+  if (!data) return <p className="spin">Chargement…</p>;
+  const entries: any[] = data.entries || []; const s = data.summary || {};
+  const people: any[] = intervenants?.people || [];
+  const submit = async () => { if (!f.content.trim()) return; setBusy("add"); try { await onAdd({ ...f, emitter_intervenant_id: f.emitter_intervenant_id ? Number(f.emitter_intervenant_id) : null }); setF({ content: "", kind: f.kind, channel: f.channel, emitter_intervenant_id: f.emitter_intervenant_id, source_ref: "" }); } catch { } finally { setBusy(""); } };
+  const act = async (p: Promise<any>, id: string) => { setBusy(id); try { await p; } catch { } finally { setBusy(""); } };
+  return (
+    <>
+      <div className="vh"><div className="row"><h2>Exigences · BRS</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p><b>Business Requirements Specifications</b> — le registre vivant des exigences du client / maître d&apos;ouvrage, qui changent en permanence. Chaque entrée est <b>sourcée</b> (canal), <b>attribuée</b> (émetteur) et <b>horodatée</b> : votre traçabilité pour vous protéger.</p></div>
+      <div className="card" style={{ marginBottom: 14 }}>
+        <h3>Consigner une exigence / un changement</h3>
+        <textarea className="fld" style={{ minHeight: 64, resize: "vertical", width: "100%" }} placeholder="Ce que le client / le maître d'ouvrage a demandé ou décidé…" value={f.content} onChange={(e) => setF({ ...f, content: e.target.value })} />
+        <div className="g2">
+          <select className="fld" value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })}>{Object.entries(BRS_KIND).map(([v, lb]) => <option key={v} value={v}>{lb}</option>)}</select>
+          <select className="fld" value={f.channel} onChange={(e) => setF({ ...f, channel: e.target.value })}>{Object.entries(BRS_CHAN).map(([v, lb]) => <option key={v} value={v}>Canal : {lb}</option>)}</select>
+          <select className="fld" value={f.emitter_intervenant_id} onChange={(e) => setF({ ...f, emitter_intervenant_id: e.target.value })}><option value="">— émetteur —</option>{people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+          <input className="fld" placeholder="Référence / pièce (facultatif)" value={f.source_ref} onChange={(e) => setF({ ...f, source_ref: e.target.value })} />
+        </div>
+        <div className="actbar"><span style={{ marginLeft: "auto" }} /><button className="ds-btn" disabled={busy === "add" || !f.content} onClick={submit}>{busy === "add" ? "…" : "Consigner"}</button></div>
+      </div>
+      <div className="card"><h3>Registre des exigences ({s.total || 0})</h3>
+        {entries.length === 0 && <p className="spin">Aucune exigence consignée. La première entrée crée la base vivante.</p>}
+        {entries.map((e: any) => { const [c, l] = BRS_STATUS[e.status] || ["is-unknown", e.status]; return (
+          <div className="claim" key={e.id}><span className={`ds-ts ${c}`}><span className="dot" />{l}</span>
+            <div style={{ flex: 1 }}><div className="ttl">{e.content}</div><small>{[BRS_KIND[e.kind] || e.kind, "canal : " + (BRS_CHAN[e.channel] || e.channel), e.emitter ? "par " + e.emitter : null, (e.created_at || "").slice(0, 16).replace("T", " "), e.source_ref].filter(Boolean).join(" · ")}</small></div>
+            <span className="row" style={{ gap: 6 }}>{e.status !== "locked" && <button className="toggle" disabled={busy === `l${e.id}`} onClick={() => act(onPatch(e.id, { status: "locked" }), `l${e.id}`)}>Verrouiller</button>}<button className="signout" style={{ padding: 0 }} onClick={() => act(onDel(e.id), `d${e.id}`)}>✕</button></span>
+          </div>
+        ); })}
+      </div>
+    </>
+  );
+}
+
+/* ===================== TÂCHES & PRIORITÉS (W9 #226/#228) ===================== */
+const PRIO: Record<string, [string, string]> = { p0: ["eleve", "P0"], p1: ["modere", "P1"], p2: ["faible", "P2"] };
+const TSTATUS: Record<string, string> = { todo: "À faire", doing: "En cours", done: "Fait", blocked: "Bloqué" };
+function Taches({ data, onAdd, onPatch, onDel, onAddDep, onPredict }: any) {
+  const [f, setF] = useState<any>({ title: "", priority: "p2", estimate_hours: "", due_date: "", assignee_user_id: "", is_quick_win: false });
+  const [busy, setBusy] = useState("");
+  const [pred, setPred] = useState<Record<number, any>>({});
+  const [depFor, setDepFor] = useState<number | null>(null); const [depSel, setDepSel] = useState("");
+  if (!data) return <p className="spin">Chargement…</p>;
+  const tasks: any[] = data.tasks || []; const users: any[] = data.users || []; const s = data.summary || {};
+  const submit = async () => { if (!f.title.trim()) return; setBusy("add"); try { await onAdd({ ...f, estimate_hours: f.estimate_hours ? Number(f.estimate_hours) : null, assignee_user_id: f.assignee_user_id ? Number(f.assignee_user_id) : null, due_date: f.due_date || null }); setF({ title: "", priority: f.priority, estimate_hours: "", due_date: "", assignee_user_id: f.assignee_user_id, is_quick_win: false }); } catch { } finally { setBusy(""); } };
+  const act = async (p: Promise<any>, id: string) => { setBusy(id); try { await p; } catch { } finally { setBusy(""); } };
+  const predict = async (id: number) => { setBusy("p" + id); try { const r = await onPredict(id); setPred((x) => ({ ...x, [id]: r })); } catch { } finally { setBusy(""); } };
+  const addDep = async (id: number) => { if (!depSel) return; await act(onAddDep(id, Number(depSel)), "dep" + id); setDepFor(null); setDepSel(""); };
+  const ordered = [...tasks].sort((a, b) => (a.priority > b.priority ? 1 : a.priority < b.priority ? -1 : 0) || ((a.status === "done" ? 1 : 0) - (b.status === "done" ? 1 : 0)));
+  return (
+    <>
+      <div className="vh"><div className="row"><h2>Tâches &amp; priorités</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>On navigue par <b>priorité</b> (P0 / P1 / P2) et par <b>ce qui bloque</b>, pas par agenda. Estimez la durée, liez les dépendances, assignez aux collaborateurs.</p></div>
+      <div className="kpis">
+        <div className="kpi"><div className="lab">P0 · bloquant</div><div className="num">{s.by_priority?.p0 || 0}</div></div>
+        <div className="kpi"><div className="lab">Bloquées</div><div className="num">{s.blocked || 0}</div></div>
+        <div className="kpi"><div className="lab">Quick wins</div><div className="num">{s.quick_wins || 0}</div></div>
+        <div className="kpi"><div className="lab">Ouvertes</div><div className="num">{(s.total || 0) - (s.by_status?.done || 0)}</div></div>
+      </div>
+      <div className="card" style={{ marginBottom: 14 }}>
+        <h3>Nouvelle tâche</h3>
+        <input className="fld" placeholder="Intitulé de la tâche" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} />
+        <div className="g2">
+          <select className="fld" value={f.priority} onChange={(e) => setF({ ...f, priority: e.target.value })}><option value="p0">P0 · bloquant</option><option value="p1">P1</option><option value="p2">P2</option></select>
+          <input className="fld" type="number" placeholder="Estimation (h)" value={f.estimate_hours} onChange={(e) => setF({ ...f, estimate_hours: e.target.value })} />
+          <input className="fld" type="date" value={f.due_date} onChange={(e) => setF({ ...f, due_date: e.target.value })} />
+          <select className="fld" value={f.assignee_user_id} onChange={(e) => setF({ ...f, assignee_user_id: e.target.value })}><option value="">— assigner à —</option>{users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select>
+        </div>
+        <div className="actbar"><label className="mono" style={{ display: "flex", alignItems: "center", gap: 7 }}><input type="checkbox" checked={f.is_quick_win} onChange={(e) => setF({ ...f, is_quick_win: e.target.checked })} /> Quick win</label><span style={{ marginLeft: "auto" }} /><button className="ds-btn" disabled={busy === "add" || !f.title} onClick={submit}>{busy === "add" ? "…" : "Ajouter"}</button></div>
+      </div>
+      <div className="card">
+        <h3>Tâches ({tasks.length})</h3>
+        {tasks.length === 0 && <p className="spin">Aucune tâche. Ajoutez-en une ci-dessus.</p>}
+        {ordered.map((t) => { const [pc, pl] = PRIO[t.priority] || ["modere", t.priority]; const p = pred[t.id]; return (
+          <div className="row-line" key={t.id} style={{ opacity: t.status === "done" ? 0.6 : 1 }}>
+            <span className={`lvl ${pc}`}>{pl}</span>
+            <span className="grow"><span className="ttl">{t.title}{t.is_quick_win && <small style={{ display: "inline", color: "var(--ts-sourced)" }}> · quick win</small>}{t.is_blocked && t.status !== "done" && <small style={{ display: "inline", color: "var(--ts-conflict)" }}> · bloquée</small>}</span><small>{[TSTATUS[t.status], t.assignee ? "→ " + t.assignee : null, t.estimate_hours ? t.estimate_hours + " h" : null, t.due_date ? "éch. " + t.due_date : null, (t.blocked_by && t.blocked_by.length) ? "dépend de #" + t.blocked_by.join(", #") : null, p ? "≈ " + (p.prediction ?? "?") + " h prédit" : null].filter(Boolean).join(" · ")}</small></span>
+            <span className="row" style={{ gap: 6 }}>
+              <select className="fld" style={{ margin: 0, padding: "4px 6px", width: "auto" }} value={t.status} onChange={(e) => act(onPatch(t.id, { status: e.target.value }), "s" + t.id)}>{Object.entries(TSTATUS).map(([v, lb]) => <option key={v} value={v}>{lb}</option>)}</select>
+              <button className="toggle" disabled={busy === "p" + t.id} onClick={() => predict(t.id)} title="Prédire la durée depuis l'historique de l'atelier">≈ h</button>
+              {depFor === t.id ? <span className="row" style={{ gap: 4 }}><select className="fld" style={{ margin: 0, padding: "4px 6px", width: "auto" }} value={depSel} onChange={(e) => setDepSel(e.target.value)}><option value="">dépend de…</option>{tasks.filter((x) => x.id !== t.id).map((x) => <option key={x.id} value={x.id}>{x.title.slice(0, 24)}</option>)}</select><button className="toggle" disabled={!depSel} onClick={() => addDep(t.id)}>OK</button></span> : <button className="toggle" onClick={() => { setDepFor(t.id); setDepSel(""); }}>+ dép.</button>}
+              <button className="signout" style={{ padding: 0 }} onClick={() => act(onDel(t.id), "d" + t.id)}>✕</button>
+            </span>
+          </div>
+        ); })}
       </div>
     </>
   );
