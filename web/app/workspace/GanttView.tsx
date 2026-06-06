@@ -65,6 +65,7 @@ export function GanttView({ tasks, onPatch }: {
   onPatch: (project_id: string, task_id: number, body: any) => Promise<any>;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const styleRef = useRef<HTMLStyleElement | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode | "auto">("auto");
 
@@ -153,29 +154,36 @@ export function GanttView({ tasks, onPatch }: {
           catch { }
         },
       });
-      // W15 fix — frappe-gantt's SVG covers the whole project span and
-      // starts the visible window at "today + start_padding". When the
-      // only task is 5+ weeks out, the bar lands off-screen to the right.
-      // Poll for the first `.bar` (frappe-gantt mounts asynchronously,
-      // so a single rAF may fire before it appears) and scroll the
-      // container so the bar sits at ~1/4 of the viewport.
+      // W15 — frappe-gantt's SVG covers the whole project span and starts
+      // the visible window near "today". When the only task is 5+ weeks
+      // out, the bar lands off-screen to the right. We re-apply scrollLeft
+      // every 80ms for 2.4s after mount, because frappe-gantt internally
+      // calls `scroll_today()` which can override us if we run too early.
+      // Using an explicit scrollerRef avoids parentElement-chain fragility.
       let attempts = 0;
-      const tryScroll = () => {
-        if (cancelled || !ref.current) return;
+      const intv = setInterval(() => {
+        attempts++;
+        if (cancelled || attempts > 30) { clearInterval(intv); return; }
+        const scroller = scrollerRef.current;
         const firstBar = svg.querySelector(".bar") as SVGRectElement | null;
-        if (!firstBar) {
-          if (attempts++ < 30) requestAnimationFrame(tryScroll);
+        if (!scroller || !firstBar) return;
+        if (scroller.scrollWidth <= scroller.clientWidth) {
+          clearInterval(intv);
           return;
         }
-        const scroller = ref.current.parentElement;
-        if (!scroller || scroller.scrollWidth <= scroller.clientWidth) return;
         const barRect = firstBar.getBoundingClientRect();
         const scRect = scroller.getBoundingClientRect();
         const offset = (barRect.left - scRect.left) + scroller.scrollLeft;
         const target = Math.max(0, offset - scroller.clientWidth * 0.25);
-        scroller.scrollLeft = target;
-      };
-      requestAnimationFrame(tryScroll);
+        // Only set if meaningfully different (avoid fighting user scroll
+        // after the first second).
+        if (Math.abs(scroller.scrollLeft - target) > 10) {
+          scroller.scrollLeft = target;
+        } else if (attempts > 8) {
+          // We landed on target ≥ 8 frames in a row — stop polling.
+          clearInterval(intv);
+        }
+      }, 80);
     })();
     return () => { cancelled = true; };
   }, [rows, effectiveMode, onPatch]);
@@ -236,7 +244,7 @@ export function GanttView({ tasks, onPatch }: {
       {/* The Gantt itself — explicit min-height so a single-row plan doesn't
           collapse, and forced horizontal overflow with a visible scrollbar
           so the architect can scroll long timelines. */}
-      <div style={{
+      <div ref={scrollerRef} style={{
         overflow: "auto",
         minHeight: Math.max(220, rows.length * 36 + 80),
         border: "1px solid var(--line)",
