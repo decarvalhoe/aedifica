@@ -123,24 +123,45 @@ function Icon({ n }: { n: string }) {
   );
 }
 
-// W11 P1: the OFFICIAL wordmark — `logo-aedifica-horizontal.svg` (ÆDIFICA in the
-// Datum typeface + the +13.50 datum stamp + the red datum rule). Used everywhere
-// the brand appears. Height drives the rendered size; the SVG's intrinsic 480×150
-// ratio (≈ 3.2:1) determines the width. No more inline `.wordmark` typo + custom Æ.
-function Wordmark({ height = 32, alt = "Aedifica" }: { height?: number; alt?: string }) {
-  const width = Math.round(height * (480 / 150));
+// W11 P1: official ÆDIFICA wordmark — same geometry as the DS spec (viewBox 480×150)
+// but rendered INLINE as JSX so the page's @font-face Space Grotesk applies. An
+// <img src=".svg"> would isolate the SVG from page fonts and fall back to the browser
+// default — that's why it was rendering in a wrong serif before. 300 weight on
+// DIFICA, 400 on the Æ ligature, 2px datum rule stepping up at x=300.
+const WORDMARK_FONT = '"Space Grotesk", Helvetica, Arial, sans-serif';
+const MONO_FONT_FAMILY = '"IBM Plex Mono", ui-monospace, monospace';
+function Wordmark({ height = 32, dark = false }: { height?: number; dark?: boolean }) {
+  const W = 480, H = 150;
+  const width = Math.round(height * (W / H));
+  const ink = dark ? "#F3F1EC" : "#16171A";
+  const mute = dark ? "#908E85" : "#87867D";
   return (
-    <img src="/assets/logo-aedifica-horizontal.svg" alt={alt} width={width} height={height}
-         style={{ display: "inline-block", verticalAlign: "middle" }} />
+    <svg width={width} height={height} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="ÆDIFICA"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      <text x={452} y={36} textAnchor="end" fontFamily={MONO_FONT_FAMILY} fontSize={11} letterSpacing={1.6} fill={mute}>DATUM +13.50</text>
+      <text x={26} y={92} fontFamily={WORDMARK_FONT} fontSize={68} fontWeight={300} letterSpacing={2} fill={ink}>
+        <tspan fontWeight={400}>Æ</tspan>DIFICA
+      </text>
+      <path d="M26 112 H300 V106 H454" fill="none" stroke="#C0392B" strokeWidth={2} />
+    </svg>
   );
 }
 
-// The compact Æ monogram — used for the favicon and small UI affordances (avatar
-// slot, narrow chrome). NOT used next to the wordmark.
-function Monogram({ size = 28, alt = "Aedifica" }: { size?: number; alt?: string }) {
+// The compact Æ monogram — INLINE for the same font reason. Used in narrow chrome
+// (avatar slot, signature corner). NOT used next to the wordmark.
+function Monogram({ size = 32, dark = false }: { size?: number; dark?: boolean }) {
+  const ink = dark ? "#F3F1EC" : "#16171A";
+  const bg = dark ? "#16171A" : "transparent";
+  const rule = dark ? "rgba(243,241,236,0.22)" : "rgba(22,23,26,0.18)";
   return (
-    <img src="/assets/logo-aedifica-monogram.svg" alt={alt} width={size} height={size}
-         style={{ display: "inline-block", verticalAlign: "middle" }} />
+    <svg width={size} height={size} viewBox="0 0 160 160" role="img" aria-label="Æ"
+         style={{ display: "inline-block", verticalAlign: "middle" }}>
+      <rect width={160} height={160} fill={bg} />
+      <line x1={28} y1={44} x2={132} y2={44} stroke={rule} strokeWidth={1} />
+      <text x={80} y={108} textAnchor="middle" fontFamily={WORDMARK_FONT} fontSize={98} fontWeight={400} fill={ink}>Æ</text>
+      <path d="M28 128 H92 V122 H132" fill="none" stroke="#C0392B" strokeWidth={2} />
+      <text x={132} y={146} textAnchor="end" fontFamily={MONO_FONT_FAMILY} fontSize={9} letterSpacing={1.5} fill={dark ? "#908E85" : "#87867D"}>+13.50</text>
+    </svg>
   );
 }
 

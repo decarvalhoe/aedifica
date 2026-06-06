@@ -1,7 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160" role="img" aria-label="AEDIFICA monogramme">
-  
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160" role="img" aria-label="Æ">
   <line x1="28" y1="44" x2="132" y2="44" stroke="#16171A" stroke-opacity="0.18" stroke-width="1"></line>
-  <text class="wm" x="80" y="108" font-size="98" font-weight="400" text-anchor="middle" fill="#16171A">Æ</text>
+  <text x="80" y="108" font-family="'Space Grotesk', Helvetica, Arial, sans-serif" font-size="98" font-weight="400" text-anchor="middle" fill="#16171A">Æ</text>
   <path d="M28 128 H92 V122 H132" fill="none" stroke="#C0392B" stroke-width="2"></path>
-  <text class="mono" x="132" y="146" text-anchor="end" font-size="9" letter-spacing="1.5" fill="#87867D">+13.50</text>
+  <text x="132" y="146" font-family="'IBM Plex Mono', ui-monospace, monospace" text-anchor="end" font-size="9" letter-spacing="1.5" fill="#87867D">+13.50</text>
 </svg>

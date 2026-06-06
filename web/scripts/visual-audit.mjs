@@ -1,11 +1,7 @@
-// W11 P1 audit — drive a real browser through every workspace surface and
-// capture a screenshot of each, so we can verify visually that the new identity
-// (official wordmark SVG, monogram, sprite icons) and the wirings (phase rail,
-// checklist filter dropdown + .on feedback, document validation buttons,
-// ingestion banner) actually render.
+// Drive Playwright through every workspace surface and capture screenshots.
 //
-// Usage:
-//   AEDIFICA_URL=https://aedifica-demo.fly.dev \
+// Usage (from web/):
+//   AEDIFICA_URL=http://localhost:3000 \
 //   AEDIFICA_EMAIL=etienne@carre-neuf.ch \
 //   AEDIFICA_PWD=carre-neuf-2026 \
 //   node scripts/visual-audit.mjs
@@ -27,110 +23,62 @@ const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 }, deviceScaleFactor: 1 });
 const page = await ctx.newPage();
 
-function shot(name) {
-  return page.screenshot({ path: resolve(OUT, `${name}.png`), fullPage: true });
-}
-
-async function step(name, fn) {
+async function shot(name) {
+  await page.screenshot({ path: resolve(OUT, `${name}.png`), fullPage: true });
   console.log(`▸ ${name}`);
-  await fn();
-  await page.waitForTimeout(500);
-  await shot(name);
 }
 
-// 1) Login screen
+// 1) Login
 await page.goto(`${URL}/workspace`, { waitUntil: "networkidle" });
 await page.waitForTimeout(800);
-await step("01-login", async () => {});
+await shot("01-login");
 
-// 2) Log in as the architect
+// 2) Auth in
 await page.locator('input[type="email"]').fill(EMAIL);
 await page.locator('input[type="password"]').fill(PWD);
-await page.getByRole("button", { name: /Se connecter/i }).click();
+await page.locator('button.ds-btn.full').filter({ hasText: /Se connecter/i }).click();
 await page.waitForLoadState("networkidle");
 await page.waitForTimeout(1500);
-await step("02-home", async () => {});
+await shot("02-home");
 
-// 3) Open the project (click the first project card)
-const card = page.locator(".home__card, .card").first();
-await card.click({ trial: false }).catch(() => {});
+// 3) Open the seeded project
+await page.locator('button.pcard').first().click();
+await page.waitForLoadState("networkidle");
 await page.waitForTimeout(1500);
-await step("03-dashboard", async () => {});
+await shot("03-dashboard");
 
-// 4) Coordination
-await page.getByRole("button", { name: /Coordination/i }).first().click();
-await page.waitForTimeout(800);
-await step("04-coordination", async () => {});
+// 4) Iterate over the side nav by visible label
+// nav buttons contain Icon + .lb label + optional .ph phase chip — match on the label text loosely.
+// Side nav lives in `<nav class="tnav">`; each button has a `.lb` span carrying its label.
+const nav = (name) => page.locator('nav.tnav button').filter({ has: page.locator('.lb', { hasText: new RegExp(name, "i") }) }).first();
 
-// 5) Checklist
-await page.getByRole("button", { name: /Checklist SIA/i }).click();
-await page.waitForTimeout(800);
-await step("05-checklist", async () => {});
+const surfaces = [
+  ["04-coordination", "Coordination"],
+  ["05-checklist", "Checklist SIA"],
+  ["06-documents", "Documents & sources"],
+  ["07-brs", "Exigences \\(BRS\\)"],
+  ["08-intervenants", "Intervenants"],
+  ["09-terrain", "Terrain & zonage"],
+  ["10-taches", "Tâches & priorités"],
+  ["11-permis", "Dossier de permis"],
+  ["12-opposition", "Risque d'opposition"],
+  ["13-conformite", "Conformité"],
+  ["14-couts", "Coûts & soumissions"],
+  ["15-chantier", "Chantier & remise"],
+  ["16-memoire", "Mémoire"],
+  ["17-copilote", "Copilote · maquette"],
+  ["18-equipe", "Équipe"],
+];
 
-// 6) Documents
-await page.getByRole("button", { name: /Documents & sources/i }).click();
-await page.waitForTimeout(800);
-await step("06-documents", async () => {});
-
-// 7) BRS
-await page.getByRole("button", { name: /Exigences \(BRS\)/i }).click();
-await page.waitForTimeout(800);
-await step("07-brs", async () => {});
-
-// 8) Intervenants
-await page.getByRole("button", { name: /^Intervenants$/i }).click();
-await page.waitForTimeout(800);
-await step("08-intervenants", async () => {});
-
-// 9) Terrain & zonage
-await page.getByRole("button", { name: /Terrain & zonage/i }).click();
-await page.waitForTimeout(800);
-await step("09-terrain", async () => {});
-
-// 10) Tâches
-await page.getByRole("button", { name: /Tâches & priorités/i }).click();
-await page.waitForTimeout(800);
-await step("10-taches", async () => {});
-
-// 11) Permis
-await page.getByRole("button", { name: /Dossier de permis/i }).click();
-await page.waitForTimeout(800);
-await step("11-permis", async () => {});
-
-// 12) Opposition
-await page.getByRole("button", { name: /Risque d'opposition/i }).click();
-await page.waitForTimeout(800);
-await step("12-opposition", async () => {});
-
-// 13) Conformité
-await page.getByRole("button", { name: /^Conformité$/i }).click();
-await page.waitForTimeout(800);
-await step("13-conformite", async () => {});
-
-// 14) Couts
-await page.getByRole("button", { name: /Coûts & soumissions/i }).click();
-await page.waitForTimeout(800);
-await step("14-couts", async () => {});
-
-// 15) Chantier
-await page.getByRole("button", { name: /Chantier & remise/i }).click();
-await page.waitForTimeout(800);
-await step("15-chantier", async () => {});
-
-// 16) Mémoire
-await page.getByRole("button", { name: /^Mémoire$/i }).click();
-await page.waitForTimeout(800);
-await step("16-memoire", async () => {});
-
-// 17) Copilote
-await page.getByRole("button", { name: /Copilote/i }).click();
-await page.waitForTimeout(800);
-await step("17-copilote", async () => {});
-
-// 18) Équipe
-await page.getByRole("button", { name: /^Équipe$/i }).click();
-await page.waitForTimeout(800);
-await step("18-equipe", async () => {});
+for (const [slug, label] of surfaces) {
+  try {
+    await nav(label).click({ timeout: 10000 });
+    await page.waitForTimeout(700);
+    await shot(slug);
+  } catch (e) {
+    console.log(`  ✗ failed on ${slug}: ${e.message?.split("\n")[0]}`);
+  }
+}
 
 await browser.close();
-console.log(`\n✓ Wrote ${18} screenshots to ${OUT}`);
+console.log(`\n✓ Wrote screenshots to ${OUT}`);
