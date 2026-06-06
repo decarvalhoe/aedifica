@@ -635,13 +635,44 @@ function AtelierPilotage({ atelier, onOpen, projects, pendingFilter, onClearPend
   const allTasks: any[] = atelier.tasks || [];
   const projectIds = Array.from(new Set(allTasks.map((t) => t.project_id)));
   const [filter, setFilter] = useState<string>("");
+  // W14.C.2 — additional filters/sorters for when the list grows beyond a few
+  // dozen items. The user: "qu'est-ce que ça donne quand il y en aura cent,
+  // à mon avis ça ne fonctionnera plus".
+  const [search, setSearch] = useState<string>("");
+  const [prioFilter, setPrioFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("open");
+  const [sortKey, setSortKey] = useState<"priority" | "due_date" | "project" | "title">("priority");
+  const [page, setPage] = useState<number>(0);
+  const PAGE_SIZE = 25;
   useEffect(() => { if (pendingFilter) { setFilter(pendingFilter); onClearPending?.(); } }, [pendingFilter, onClearPending]);
+  useEffect(() => { setPage(0); }, [filter, search, prioFilter, statusFilter, sortKey]);
   const [view, setView] = useState<"list" | "kanban" | "gantt">(pendingFilter ? "gantt" : "list");
   const scoped = filter ? allTasks.filter((t) => t.project_id === filter) : allTasks;
   const open: any[] = scoped.filter((t: any) => t.status !== "done");
   const col = atelier.collision || {}; const load = atelier.load_by_assignee || {};
-  const top = [...open].sort((a, b) => (a.priority > b.priority ? 1 : a.priority < b.priority ? -1 : 0)).slice(0, 6);
   const openProj = (pid: string) => { const p = (projects || []).find((x: any) => x.project_id === pid); if (p) onOpen(p); };
+  // Apply list-view filters + sort.
+  const listFiltered = scoped.filter((t: any) => {
+    if (statusFilter === "open" && t.status === "done") return false;
+    if (statusFilter === "done" && t.status !== "done") return false;
+    if (statusFilter === "blocked" && !t.is_blocked) return false;
+    if (prioFilter && t.priority !== prioFilter) return false;
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      const hay = `${t.title} ${t.project_name || ""} ${t.assignee || ""}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  const sortFn: Record<string, (a: any, b: any) => number> = {
+    priority: (a, b) => (a.priority > b.priority ? 1 : a.priority < b.priority ? -1 : 0),
+    due_date: (a, b) => (a.due_date || "9999").localeCompare(b.due_date || "9999"),
+    project: (a, b) => (a.project_name || "").localeCompare(b.project_name || ""),
+    title: (a, b) => (a.title || "").localeCompare(b.title || ""),
+  };
+  const listSorted = [...listFiltered].sort(sortFn[sortKey]);
+  const totalPages = Math.max(1, Math.ceil(listSorted.length / PAGE_SIZE));
+  const paged = listSorted.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
   return (
     <div className="home__sec">
       <div className="row" style={{ alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
@@ -666,14 +697,63 @@ function AtelierPilotage({ atelier, onOpen, projects, pendingFilter, onClearPend
       {(col.overloaded || []).length > 0 && <div className="banner bad" style={{ marginTop: 10, marginBottom: 12 }}><b>Collision de charge</b> — {col.overloaded.map((o: any) => `${o.week} : ${o.hours} h (+${o.over})`).join(" · ")} au-delà de {col.weekly_capacity} h/sem.</div>}
 
       {view === "list" && (
-        <div className="g2" style={{ marginTop: 12 }}>
-          <div className="card"><h3>Tâches prioritaires{filter ? "" : " (tous projets)"}</h3>{top.length === 0 && <p className="spin">Aucune tâche ouverte.</p>}{top.map((t: any) => { const [pc, pl] = PRIO[t.priority] || ["modere", t.priority]; return (
-            <div className="row-line" key={`${t.project_id}-${t.id}`}><span className={`lvl ${pc}`}>{pl}</span><span className="grow"><span className="ttl">{t.title}{t.is_blocked && <small style={{ display: "inline", color: "var(--ts-conflict)" }}> · bloquée</small>}</span><small>{[t.project_name, t.assignee ? "→ " + t.assignee : null, t.estimate_hours ? t.estimate_hours + " h" : null, t.due_date ? "éch. " + t.due_date : null].filter(Boolean).join(" · ")}</small></span><button className="toggle" onClick={() => openProj(t.project_id)}>Ouvrir →</button></div>
-          ); })}</div>
-          <div className="card"><h3>Charge par collaborateur</h3>{Object.keys(load).length === 0 && <p className="spin">—</p>}{Object.entries(load).map(([n, h]: any) => (<div className="row-line" key={n}><span className="grow"><span className="ttl">{n}</span></span><span className={`lvl ${h > 40 ? "eleve" : h > 20 ? "modere" : "faible"}`}>{h} h</span></div>))}
-            {Object.keys(col.by_week || {}).length > 0 && <div style={{ marginTop: 12 }}><div className="mono" style={{ fontSize: 10, margin: "0 0 6px", color: "var(--mut)" }}>CHARGE PAR SEMAINE</div>{Object.entries(col.by_week).map(([w, h]: any) => (<div className="row-line" key={w}><span className="grow"><span className="mono" style={{ fontSize: 12 }}>{w}</span></span><span className={`lvl ${h > col.weekly_capacity ? "eleve" : "faible"}`}>{h} h</span></div>))}</div>}
+        <>
+          {/* W14.C.2 — filter+sort toolbar for the list view. Pagination
+              kicks in past PAGE_SIZE (25) items so the surface stays
+              usable past 100. */}
+          <div className="card" style={{ marginTop: 12, marginBottom: 12 }}>
+            <div className="row" style={{ gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <input className="fld" style={{ margin: 0, padding: "5px 9px", flex: "1 1 220px" }} placeholder="Filtrer (titre, projet, assignee)…" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <select className="fld" style={{ margin: 0, padding: "5px 9px", width: "auto" }} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                <option value="open">Statut : ouvertes</option>
+                <option value="blocked">Statut : bloquées</option>
+                <option value="done">Statut : terminées</option>
+                <option value="">Statut : toutes</option>
+              </select>
+              <select className="fld" style={{ margin: 0, padding: "5px 9px", width: "auto" }} value={prioFilter} onChange={(e) => setPrioFilter(e.target.value)}>
+                <option value="">Priorité : toutes</option>
+                <option value="p0">P0 uniquement</option>
+                <option value="p1">P1 uniquement</option>
+                <option value="p2">P2 uniquement</option>
+              </select>
+              <select className="fld" style={{ margin: 0, padding: "5px 9px", width: "auto" }} value={sortKey} onChange={(e) => setSortKey(e.target.value as any)}>
+                <option value="priority">Trier par priorité</option>
+                <option value="due_date">Trier par échéance</option>
+                <option value="project">Trier par projet</option>
+                <option value="title">Trier par titre</option>
+              </select>
+              <span style={{ marginLeft: "auto" }} />
+              <small className="mono" style={{ color: "var(--mut)" }}>{listSorted.length} résultat{listSorted.length > 1 ? "s" : ""}</small>
+            </div>
           </div>
-        </div>
+          <div className="g2">
+            <div className="card">
+              <h3>Tâches · liste filtrée{filter ? "" : " (tous projets)"}</h3>
+              {paged.length === 0 && <p className="spin">Aucune tâche ne correspond aux filtres.</p>}
+              {paged.map((t: any) => { const [pc, pl] = PRIO[t.priority] || ["modere", t.priority]; return (
+                <div className="row-line" key={`${t.project_id}-${t.id}`}>
+                  <span className={`lvl ${pc}`}>{pl}</span>
+                  <span className="grow">
+                    <span className="ttl">{t.title}{t.is_blocked && <small style={{ display: "inline", color: "var(--ts-conflict)" }}> · bloquée</small>}</span>
+                    <small>{[t.project_name, t.assignee ? "→ " + t.assignee : null, t.estimate_hours ? t.estimate_hours + " h" : null, t.due_date ? "éch. " + t.due_date : null].filter(Boolean).join(" · ")}</small>
+                  </span>
+                  <button className="toggle" onClick={() => openProj(t.project_id)}>Ouvrir →</button>
+                </div>
+              ); })}
+              {totalPages > 1 && (
+                <div className="row" style={{ marginTop: 12, alignItems: "center", gap: 8 }}>
+                  <button className="toggle" disabled={page === 0} onClick={() => setPage(p => Math.max(0, p - 1))}>← Précédent</button>
+                  <small className="mono" style={{ color: "var(--mut)" }}>Page {page + 1} / {totalPages}</small>
+                  <span className="grow" />
+                  <button className="toggle" disabled={page >= totalPages - 1} onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}>Suivant →</button>
+                </div>
+              )}
+            </div>
+            <div className="card"><h3>Charge par collaborateur</h3>{Object.keys(load).length === 0 && <p className="spin">—</p>}{Object.entries(load).map(([n, h]: any) => (<div className="row-line" key={n}><span className="grow"><span className="ttl">{n}</span></span><span className={`lvl ${h > 40 ? "eleve" : h > 20 ? "modere" : "faible"}`}>{h} h</span></div>))}
+              {Object.keys(col.by_week || {}).length > 0 && <div style={{ marginTop: 12 }}><div className="mono" style={{ fontSize: 10, margin: "0 0 6px", color: "var(--mut)" }}>CHARGE PAR SEMAINE</div>{Object.entries(col.by_week).map(([w, h]: any) => (<div className="row-line" key={w}><span className="grow"><span className="mono" style={{ fontSize: 12 }}>{w}</span></span><span className={`lvl ${h > col.weekly_capacity ? "eleve" : "faible"}`}>{h} h</span></div>))}</div>}
+            </div>
+          </div>
+        </>
       )}
 
       {view === "kanban" && (
@@ -2004,14 +2084,101 @@ const BRS_STATUS: Record<string, [string, string]> = { active: ["is-sourced", "A
 function Brs({ data, intervenants, token, pid, onAdd, onPatch, onDel }: any) {
   const [f, setF] = useState<any>({ content: "", kind: "requirement", channel: "phone", emitter_intervenant_id: "", source_ref: "" });
   const [busy, setBusy] = useState("");
+  // W14.C.2 — CSV import for bulk requirement migration (export from another
+  // tool, copy of an email thread, etc.). Expects columns: content, kind,
+  // channel, emitter_email, source_ref. First row is the header.
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvBusy, setCsvBusy] = useState(false);
+  const [csvErr, setCsvErr] = useState<string | null>(null);
+  const [csvProgress, setCsvProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
   if (!data) return <p className="spin">Chargement…</p>;
   const entries: any[] = data.entries || []; const s = data.summary || {};
   const people: any[] = intervenants?.people || [];
   const submit = async () => { if (!f.content.trim()) return; setBusy("add"); try { await onAdd({ ...f, emitter_intervenant_id: f.emitter_intervenant_id ? Number(f.emitter_intervenant_id) : null }); setF({ content: "", kind: f.kind, channel: f.channel, emitter_intervenant_id: f.emitter_intervenant_id, source_ref: "" }); } catch { } finally { setBusy(""); } };
   const act = async (p: Promise<any>, id: string) => { setBusy(id); try { await p; } catch { } finally { setBusy(""); } };
+  // Minimal RFC-4180-style CSV parser: handles quoted fields with embedded commas
+  // and escaped double-quotes. Stops at empty rows. Good enough for what spreadsheets
+  // export; we'll harden if/when an architect throws a weird file at us.
+  function parseCSV(text: string): string[][] {
+    const rows: string[][] = []; let row: string[] = []; let cell = ""; let inQ = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i]; const next = text[i + 1];
+      if (inQ) {
+        if (ch === '"' && next === '"') { cell += '"'; i++; }
+        else if (ch === '"') { inQ = false; }
+        else { cell += ch; }
+      } else {
+        if (ch === '"') { inQ = true; }
+        else if (ch === ',') { row.push(cell); cell = ""; }
+        else if (ch === '\r') { /* swallow */ }
+        else if (ch === '\n') { row.push(cell); rows.push(row); row = []; cell = ""; }
+        else { cell += ch; }
+      }
+    }
+    if (cell.length > 0 || row.length > 0) { row.push(cell); rows.push(row); }
+    return rows.filter(r => r.length > 1 || (r.length === 1 && r[0].trim().length > 0));
+  }
+  async function csvImport() {
+    if (!csvFile) return;
+    setCsvBusy(true); setCsvErr(null); setCsvProgress({ done: 0, total: 0 });
+    try {
+      const text = await csvFile.text();
+      const rows = parseCSV(text);
+      if (rows.length < 2) throw new Error("CSV vide ou en-tête manquante");
+      const header = rows[0].map(h => h.trim().toLowerCase());
+      const idx = (k: string) => header.indexOf(k);
+      const ci = idx("content"); const ki = idx("kind"); const ch = idx("channel");
+      const ei = idx("emitter_email"); const sr = idx("source_ref");
+      if (ci < 0) throw new Error("Colonne 'content' obligatoire en première ligne");
+      const dataRows = rows.slice(1);
+      setCsvProgress({ done: 0, total: dataRows.length });
+      const emailToId = new Map(people.filter(p => p.email).map(p => [p.email!.toLowerCase(), p.id]));
+      const validKinds = new Set(["requirement", "change", "decision"]);
+      const validChannels = new Set(["phone", "email", "pv", "meeting", "other"]);
+      for (let i = 0; i < dataRows.length; i++) {
+        const r = dataRows[i];
+        const content = (r[ci] || "").trim();
+        if (!content) continue;
+        const kind = ki >= 0 ? (r[ki] || "").trim() : ""; const channel = ch >= 0 ? (r[ch] || "").trim() : "";
+        const emEmail = ei >= 0 ? (r[ei] || "").trim().toLowerCase() : "";
+        const ref = sr >= 0 ? (r[sr] || "").trim() : "";
+        const emitterId = emEmail ? emailToId.get(emEmail) ?? null : null;
+        await onAdd({
+          content,
+          kind: validKinds.has(kind) ? kind : "requirement",
+          channel: validChannels.has(channel) ? channel : "other",
+          emitter_intervenant_id: emitterId,
+          source_ref: ref || null,
+        });
+        setCsvProgress({ done: i + 1, total: dataRows.length });
+      }
+      setCsvFile(null);
+    } catch (e: any) {
+      setCsvErr(e?.message || "Échec d'import CSV");
+    } finally {
+      setCsvBusy(false);
+    }
+  }
   return (
     <>
       <div className="vh"><div className="row"><h2>Exigences · BRS</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p><b>Business Requirements Specifications</b> — le registre vivant des exigences du client / maître d&apos;ouvrage, qui changent en permanence. Chaque entrée est <b>sourcée</b> (canal), <b>attribuée</b> (émetteur) et <b>horodatée</b> : votre traçabilité pour vous protéger.</p></div>
+      {/* W14.C.2 — CSV import: colonnes attendues ``content, kind, channel,
+          emitter_email, source_ref``. Tout intervenant matché par email est
+          automatiquement rattaché ; les valeurs inconnues retombent sur des
+          defaults (requirement / other) plutôt que d'échouer. */}
+      <div className="card" style={{ marginBottom: 14 }}>
+        <h3>Import CSV</h3>
+        <p style={{ marginTop: 4, color: "var(--mut)" }}>
+          Sélectionnez un fichier CSV avec une en-tête contenant <code className="mono">content</code> (obligatoire) et optionnellement <code className="mono">kind</code>, <code className="mono">channel</code>, <code className="mono">emitter_email</code>, <code className="mono">source_ref</code>. Les emails matchant un intervenant existant le rattachent automatiquement.
+        </p>
+        <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
+          <input type="file" accept=".csv,text/csv" disabled={csvBusy} onChange={(e) => setCsvFile(e.target.files?.[0] || null)} />
+          <span className="grow" />
+          {csvBusy && <small className="mono" style={{ color: "var(--mut)" }}>{csvProgress.done}/{csvProgress.total} entrées créées…</small>}
+          <button className="ds-btn" disabled={csvBusy || !csvFile} onClick={csvImport}>{csvBusy ? "…" : "Importer le CSV"}</button>
+        </div>
+        {csvErr && <small style={{ color: "var(--ts-conflict)", display: "block", marginTop: 6 }}>{csvErr}</small>}
+      </div>
       <div className="card" style={{ marginBottom: 14 }}>
         <h3>Consigner une exigence / un changement</h3>
         <textarea className="fld" style={{ minHeight: 64, resize: "vertical", width: "100%" }} placeholder="Ce que le client / le maître d'ouvrage a demandé ou décidé…" value={f.content} onChange={(e) => setF({ ...f, content: e.target.value })} />
