@@ -276,6 +276,60 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
             raise _err(404, "PROJECT_NOT_FOUND", project_id)
         return project
 
+    # ---- W11.F AAA helpers ------------------------------------------------ #
+    def _audit(session: Session, actor: m.User, event_type: str, target_summary: str,
+               *, project: m.Project | None = None, target_user: m.User | None = None,
+               meta: dict | None = None) -> None:
+        """Append a security event to the audit log. Never raises — audit must
+        never block the action being audited (we accept a small risk of missing
+        rows to avoid masking actual failures)."""
+        import json as _json
+        if event_type not in m.AUDIT_EVENT_TYPES:
+            return
+        try:
+            session.add(m.AuditEvent(
+                org_id=actor.org_id,
+                project_id=project.id if project else None,
+                event_type=event_type,
+                actor_user_id=actor.id,
+                actor_name=actor.name or actor.email,
+                actor_role=actor.role,
+                target_user_id=target_user.id if target_user else None,
+                target_summary=target_summary,
+                meta_json=_json.dumps(meta) if meta else None,
+            ))
+            session.flush()
+        except Exception:
+            pass
+
+    def _audit_dict(e: m.AuditEvent) -> dict:
+        import json as _json
+        return {"id": e.id, "event_type": e.event_type, "actor": e.actor_name,
+                "actor_role": e.actor_role, "target": e.target_summary,
+                "project_id": e.project_id, "target_user_id": e.target_user_id,
+                "meta": _json.loads(e.meta_json) if e.meta_json else None,
+                "timestamp": e.timestamp.isoformat() if e.timestamp else None}
+
+    def _docs_visible_to_external(session: Session, project: m.Project, user: m.User):
+        """Filter documents to those the external user has an AccessGrant on (via
+        their linked intervenant, directly or through any of its groups)."""
+        if not user.linked_intervenant_id:
+            return []
+        iv = session.query(m.Intervenant).filter_by(id=user.linked_intervenant_id, project_id=project.id).first()
+        if not iv:
+            return []
+        gids = [iv.group_id] if iv.group_id else []
+        from sqlalchemy import or_ as _or
+        grants = session.query(m.AccessGrant).filter(
+            _or(m.AccessGrant.intervenant_id == iv.id,
+                m.AccessGrant.group_id.in_(gids) if gids else False)
+        ).all()
+        doc_ids = {g.document_id for g in grants}
+        if not doc_ids:
+            return []
+        return session.query(m.Document).filter(m.Document.project_id == project.id,
+                                                 m.Document.id.in_(doc_ids)).order_by(m.Document.id).all()
+
     # ---- public ---------------------------------------------------------- #
     @app.get("/api/health")
     def health():
@@ -326,10 +380,34 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         if not u.api_token:
             u.api_token = auth.new_token()
         u.invite_token = None  # one-shot
+        # W11.F audit — redeemed invitations
+        _audit(session, u, "invite_redeemed", f"{u.email} redeemed invite",
+               target_user=u, meta={"role": u.role, "linked_intervenant_id": u.linked_intervenant_id})
+        _audit(session, u, "password_set", f"{u.email} set password via invite", target_user=u)
         session.commit()
         iv = session.query(m.Intervenant).filter_by(id=u.linked_intervenant_id).first() if u.linked_intervenant_id else None
         return {"token": u.api_token, "user_email": u.email, "role": u.role,
                 "linked_intervenant": {"id": iv.id, "name": iv.name, "role": iv.role} if iv else None}
+
+    # ---- W11.F: token rotation + revocation (any authenticated user) ----- #
+    @app.post("/api/auth/me/rotate-token")
+    def rotate_token(user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        """Rotate the caller's API token. The old token stops working immediately;
+        the new one is returned once (one-shot reveal). Audited."""
+        new = auth.new_token()
+        user.api_token = new
+        _audit(session, user, "token_rotated", f"{user.email} rotated their API token", target_user=user)
+        session.commit()
+        return {"token": new, "user_email": user.email, "role": user.role}
+
+    @app.post("/api/auth/me/revoke-token")
+    def revoke_token(user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        """Revoke the caller's API token (sign-out everywhere). The user will need
+        to log in again via email+password. Audited."""
+        user.api_token = None
+        _audit(session, user, "token_revoked", f"{user.email} revoked their API token", target_user=user)
+        session.commit()
+        return {"revoked": True, "user_email": user.email}
 
     # ---- org & team management (owner only) ------------------------------ #
     @app.get("/api/orgs/users")
@@ -511,17 +589,36 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         u = m.User(org_id=user.org_id, email=body.email, name=body.name or iv.name,
                    role="external", linked_intervenant_id=iv.id, invite_token=invite,
                    api_token=None, password_hash=None)
-        session.add(u); session.commit()
+        session.add(u); session.flush()
         # Also mirror the email back to the intervenant if blank (no-op otherwise).
         if not iv.email:
             iv.email = body.email
-            session.commit()
+        # W11.F audit
+        _audit(session, user, "invite_issued",
+               f"{u.email} invited as external for intervenant {iv.name}",
+               project=p, target_user=u,
+               meta={"intervenant_id": iv.id, "intervenant_role": iv.role})
+        session.commit()
         return {"user": {"id": u.id, "email": u.email, "name": u.name, "role": u.role,
                           "linked_intervenant_id": iv.id},
                 "invite_token": invite}
 
     @app.get("/api/projects/{project_id}/documents")
     def list_documents(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        # W11.F: external users don't have project.read — they get a scoped view
+        # of only the documents granted to their linked intervenant (directly or
+        # via group). Other roles use the normal capability check.
+        if user.role == "external":
+            p = session.query(m.Project).filter_by(org_id=user.org_id, project_id=project_id).first()
+            if p is None:
+                raise _err(404, "PROJECT_NOT_FOUND", project_id)
+            docs = _docs_visible_to_external(session, p, user)
+            counts: dict = {lvl: 0 for lvl in m.VALIDATION_LEVELS}
+            for d in docs:
+                counts[d.validation_level] = counts.get(d.validation_level, 0) + 1
+            return {"documents": [_doc_dict(d) for d in docs],
+                    "summary": {"total": len(docs), "by_level": counts, "pending": counts.get("pending", 0)},
+                    "scoped": "external"}
         require(user, "project.read")
         p = _project(session, user, project_id)
         docs = session.query(m.Document).filter_by(project_id=p.id).order_by(m.Document.id).all()
@@ -530,6 +627,28 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
             counts[d.validation_level] = counts.get(d.validation_level, 0) + 1
         return {"documents": [_doc_dict(d) for d in docs],
                 "summary": {"total": len(docs), "by_level": counts, "pending": counts.get("pending", 0)}}
+
+    # ---- W11.F: audit log endpoints --------------------------------------- #
+    @app.get("/api/orgs/audit")
+    def list_org_audit(user: m.User = Depends(current_user), session: Session = Depends(get_session),
+                      limit: int = 200):
+        """Org-wide security log. Owner only — covers cross-project events too
+        (token rotations, account-level revocations)."""
+        require(user, "org.manage")
+        rows = (session.query(m.AuditEvent).filter_by(org_id=user.org_id)
+                .order_by(m.AuditEvent.id.desc()).limit(min(limit, 1000)).all())
+        return {"events": [_audit_dict(e) for e in rows], "total": len(rows)}
+
+    @app.get("/api/projects/{project_id}/audit")
+    def list_project_audit(project_id: str, user: m.User = Depends(current_user),
+                           session: Session = Depends(get_session), limit: int = 200):
+        """Per-project security log (invites, grants, revocations). Project
+        members only — externals never see audit events."""
+        require(user, "project.read")
+        p = _project(session, user, project_id)
+        rows = (session.query(m.AuditEvent).filter_by(org_id=user.org_id, project_id=p.id)
+                .order_by(m.AuditEvent.id.desc()).limit(min(limit, 1000)).all())
+        return {"events": [_audit_dict(e) for e in rows], "total": len(rows)}
 
     @app.post("/api/projects/{project_id}/documents", status_code=201)
     def create_document(project_id: str, body: DocumentIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
@@ -584,8 +703,21 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         d = session.query(m.Document).filter_by(project_id=p.id, id=document_id).first()
         if not d:
             raise _err(404, "DOCUMENT_NOT_FOUND", str(document_id))
-        session.add(m.AccessGrant(document_id=d.id, group_id=body.get("group_id"),
-                                  intervenant_id=body.get("intervenant_id"), level=body.get("level", "read")))
+        gr = m.AccessGrant(document_id=d.id, group_id=body.get("group_id"),
+                           intervenant_id=body.get("intervenant_id"), level=body.get("level", "read"))
+        session.add(gr); session.flush()
+        # W11.F audit — track who got access to what
+        target_label = []
+        if body.get("intervenant_id"):
+            iv = session.query(m.Intervenant).filter_by(id=body["intervenant_id"]).first()
+            target_label.append(f"intervenant:{iv.name if iv else body['intervenant_id']}")
+        if body.get("group_id"):
+            g = session.query(m.IntervenantGroup).filter_by(id=body["group_id"]).first()
+            target_label.append(f"group:{g.name if g else body['group_id']}")
+        _audit(session, user, "access_granted",
+               f"{d.official_name} → {' + '.join(target_label) or 'unknown'} (level={gr.level})",
+               project=p, meta={"document_id": d.id, "grant_id": gr.id, "level": gr.level,
+                                "intervenant_id": body.get("intervenant_id"), "group_id": body.get("group_id")})
         session.commit()
         return {"document": _doc_dict(d)}
 
@@ -595,7 +727,13 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         p = _project(session, user, project_id)
         gr = session.query(m.AccessGrant).filter_by(id=grant_id, document_id=document_id).first()
         if gr:
-            session.delete(gr); session.commit()
+            d_for_audit = session.query(m.Document).filter_by(id=document_id).first()
+            session.delete(gr)
+            # W11.F audit
+            _audit(session, user, "access_revoked",
+                   f"{d_for_audit.official_name if d_for_audit else document_id}: grant {grant_id} removed",
+                   project=p, meta={"document_id": document_id, "grant_id": grant_id})
+            session.commit()
         d = session.query(m.Document).filter_by(project_id=p.id, id=document_id).first()
         return {"document": _doc_dict(d) if d else None}
 

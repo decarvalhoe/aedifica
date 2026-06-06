@@ -427,6 +427,44 @@ class Attachment(Base):
     created_at: Mapped[_dt.datetime] = _TS()
 
 
+# W11.F — AAA: org/project-level security events that are NOT part of the
+# domain ledger (which is per-project, business-meaning). Audit covers
+# invitations, revocations, access grants, token rotations, password resets.
+AUDIT_EVENT_TYPES = (
+    "invite_issued",       # architect provisioned an external user
+    "invite_redeemed",     # external accepted the invite and set their password
+    "invite_revoked",      # architect cancelled an unredeemed invite
+    "access_granted",      # AccessGrant created (intervenant/group can read a doc)
+    "access_revoked",      # AccessGrant deleted
+    "token_rotated",       # user explicitly rotated their api_token
+    "token_revoked",       # user (or org owner) revoked the token, forcing re-login
+    "password_set",        # user set/changed their password
+    "external_view_blocked",  # external attempted an out-of-scope read; recorded for audit
+)
+
+
+class AuditEvent(Base):
+    """Append-only security audit log. Distinct from LedgerEntry (domain-scoped,
+    project-bound) because security events (rotate token, invite, revoke) cross
+    project boundaries and must survive even if the project is deleted.
+
+    Queryable per-org (owner only) and per-project (members). Never edited,
+    never deleted — only inserted."""
+
+    __tablename__ = "audit_event"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    org_id: Mapped[int] = mapped_column(ForeignKey("org.id"))
+    project_id: Mapped[int | None] = mapped_column(ForeignKey("project.id"), nullable=True)
+    event_type: Mapped[str] = mapped_column(String(40))
+    actor_user_id: Mapped[int | None] = mapped_column(ForeignKey("user.id"), nullable=True)
+    actor_name: Mapped[str] = mapped_column(String(200))
+    actor_role: Mapped[str] = mapped_column(String(20))
+    target_user_id: Mapped[int | None] = mapped_column(ForeignKey("user.id"), nullable=True)
+    target_summary: Mapped[str] = mapped_column(Text)
+    meta_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    timestamp: Mapped[_dt.datetime] = _TS()
+
+
 class CaptureNote(Base):
     """A captured note — site friction/observation, a photo proof ('preuve à futur'),
     a verbal decision, or a 'regulation under study' alert. Append-only, author-tagged,
