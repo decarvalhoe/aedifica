@@ -59,32 +59,85 @@ def source(session, project, source_id: str) -> dict:
     return {"source_id": source_id, "claims": claims, "sources": sources}
 
 
+SIA_PHASE_ORDER = ("11", "21", "22", "31", "32", "33", "41", "51", "52", "53", "61")
+
+
+def _phase_window(project_phase: str | None, look_ahead: int = 1) -> set[str]:
+    """W11.A coherence: the *prochain pas* surface only makes sense if it tracks
+    the project's actual phase. Return the set of phase codes that count as
+    "now" — the current phase + the next ``look_ahead`` upcoming ones. When the
+    project isn't started yet (``phase_code`` empty or "0"), show only the
+    first SIA sub-phase as the immediate next step."""
+    code = (project_phase or "").strip()
+    if not code or code == "0":
+        return {SIA_PHASE_ORDER[0]}
+    try:
+        idx = SIA_PHASE_ORDER.index(code)
+    except ValueError:
+        return {SIA_PHASE_ORDER[0]}
+    return set(SIA_PHASE_ORDER[idx: idx + 1 + look_ahead])
+
+
 def next_step(session, project, phase: str | None = None) -> dict:
-    steps = []
+    """W11.A: return next steps grounded in the project's current SIA phase.
+    Three buckets are walked: unresolved unknowns (any phase), missing permit
+    items (phase 33), unknown compliance gates (phase 33), then the actual
+    SIA *checklist* — the per-actor steps the workspace seeded — which is the
+    authoritative source of "what's next per phase". By default only the
+    current + next phases are returned (anything later is pushed to
+    ``upcoming``)."""
+    window = _phase_window(project.phase_code) if not phase else {phase}
+    # Fallback phase for steps that have no natural phase tied to them (project-wide
+    # unknowns, the commune-not-supported warning…). Anchor them to the project's
+    # current phase, or to the first SIA sub-phase if not started yet.
+    here = project.phase_code if project.phase_code and project.phase_code != "0" else SIA_PHASE_ORDER[0]
+
+    raw_steps = []
     for c in unknowns(session, project):
-        steps.append({"kind": "resolve_unknown", "phase": project.phase_code, "state": "unknown", "title": c["title"], "action": c["next_action"], "source_refs": c["source_refs"]})
+        raw_steps.append({"kind": "resolve_unknown", "phase": here,
+                          "state": "unknown", "title": c["title"], "action": c["next_action"],
+                          "source_refs": c["source_refs"]})
 
     permit = reports.permit_view(project)
     for group in permit["groups"]:
         for item in group["items"]:
             if item["status"] == "missing":
-                steps.append({"kind": "permit_blocker", "phase": "33", "state": "missing", "title": item["title"], "action": item.get("missing_message")})
+                raw_steps.append({"kind": "permit_blocker", "phase": "33", "state": "missing",
+                                  "title": item["title"], "action": item.get("missing_message")})
 
     compliance = reports.compliance_view(project)
     for gate in compliance["legal"]:
         if gate["status"] in {"unknown", "action_required"}:
-            steps.append({"kind": "compliance", "phase": "33", "state": "unknown", "title": gate["title"], "action": gate.get("next_action")})
+            raw_steps.append({"kind": "compliance", "phase": "33", "state": "unknown",
+                              "title": gate["title"], "action": gate.get("next_action")})
 
     support = ingestion.support_state(session, project.commune, project.canton)
     if not support["usable"]:
-        steps.append({"kind": "commune", "phase": project.phase_code, "state": "unknown", "title": f"Commune {project.commune} non supportée", "action": "Ingérer le règlement communal avant de fiabiliser l'enveloppe."})
+        raw_steps.append({"kind": "commune", "phase": here,
+                          "state": "unknown",
+                          "title": f"Commune {project.commune} non supportée",
+                          "action": "Ingérer le règlement communal avant de fiabiliser l'enveloppe."})
 
-    if phase:
-        steps = [s for s in steps if s.get("phase") == phase]
+    # Checklist — the actual SIA per-actor steps this project carries (W10).
+    # Surface unfinished items, tagged by their responsible actor.
+    cl = session.query(m.ChecklistItem).filter_by(project_id=project.id).order_by(m.ChecklistItem.order_index).all()
+    for it in cl:
+        if it.status != "todo":
+            continue
+        raw_steps.append({"kind": "checklist", "phase": it.phase_code, "state": "todo",
+                          "title": it.title, "actor": it.actor,
+                          "is_retroactive": bool(it.is_retroactive),
+                          "action": ("Étape rétroactive à reconstituer." if it.is_retroactive
+                                     else "Avancer cette étape dans la phase courante.")})
+
+    steps = [s for s in raw_steps if s.get("phase") in window]
+    upcoming = [s for s in raw_steps if s.get("phase") not in window]
     return {
         "project_id": project.project_id,
-        "phase": phase,
+        "phase": phase or project.phase_code or "",
+        "window": sorted(window),
         "claims_prediction": False,
         "note": "Recommandations sourcées; jamais une décision d'autorité.",
         "steps": steps,
+        "upcoming": upcoming,
     }

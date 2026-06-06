@@ -1,144 +1,145 @@
-# Wave 11 — Audit critique & plan d'exécution
+# Wave 11 — plan consolidé d'exécution
 
-> Source : retours du propriétaire (2026-06-06, après livraison W10 sur Fly + manuel
-> Etienne). Audit code conduit en parallèle pour confirmer/élargir chaque point.
-> Cadre : **ne plus livrer de surface visuellement polie mais câblée à rien**.
+> Document vivant. Consolide **tous** les retours du propriétaire (session du
+> 2026-06-06 sur la démo Etienne + audit visuel Playwright) et impose une
+> exécution **par tranches courtes et shippables**, chaque tranche aboutissant
+> à un PR + déploiement Fly + vérification visuelle. Plus de polish-sans-câblage.
 
-## 1 · Tout ce qui a été remonté
+## 0 · Garde-fous
 
-### A · Identité graphique — assets officiels inutilisés
-- Aucun **favicon** officiel — l'app sert le favicon Next.js par défaut.
-- **Monogramme** Aedifica (`logo-aedifica-monogram.svg`) jamais rendu.
-- **Sprite officiel** des 22 icônes (`functional-icons.svg`) ignoré : l'app utilise 8 SVG
-  custom inline qui ne respectent ni la grille 24 px, ni l'épaisseur 1.5 px, ni les caps
-  carrés du design system.
-- **Datum-marks** (`ic-datum-target`, `ic-datum-dimension`, `ic-datum-north`) — jamais
-  utilisés alors qu'ils portent la *langue de dessin* architecturale.
-- Glyphes utilisés **ne sont pas issus du sprite officiel**.
+- **Plus aucun bouton sans handler vérifié end-to-end.**
+- **Plus aucun gabarit statique passé pour du dynamique** — les compteurs / les
+  *prochain pas* / les chips doivent refléter l'état réel du projet.
+- **Tout PR a un audit visuel** (Playwright traverse les 18 surfaces et
+  commit les captures dans `docs/audit/<wave>/`).
+- **L'identité Datum est la loi** : sprite officiel, fontes officielles,
+  composants Wordmark/Monogram. Plus de SVG inline maison ni de classe `.wm`.
 
-### B · Bugs visibles confirmés par l'audit
-- **Phase rail SIA** (barre du haut) : pas cliquable, pas câblée. Aucun handler. C'est
-  pourtant le premier endroit où on s'attend à pouvoir naviguer par phase et voir *« ce
-  qui s'y passe »*.
-- **Checklist** : boutons de tri par acteur = row de 5 toggles (peu élégant), à remplacer
-  par un dropdown. Les statuts *« Plus tard »* / *« Inutile »* PATCH bien (vérifié), mais
-  le feedback visuel est minimal — la pastille change discrètement et le step reste à la
-  même place ; perception = *« ça ne fait rien »*.
-- **Tableau de bord — Prochain pas** : la liste vient bien de `/projects/{id}/next-step`,
-  mais l'algorithme renvoie des steps **non-corrélés à la phase réelle du projet**.
-  Au mieux, c'est mal pondéré ; à vérifier surface par surface.
+## 1 · Inventaire complet à traiter
 
-### C · Surfaces partiellement câblées / floues
-- **Copilote IA** : opération hardcodée `AC-SPACE-101 → "bureau"` (ligne 696). UX zéro
-  indication d'usage, ressenti = surface fake. À refondre ou cacher derrière un flag.
-- **Mémoire** : conçue comme journal automatique (ledger + unknowns + captures), mais
-  perçue comme zone de saisie manuelle car la capture utilisateur prend toute la place.
-  Le purpose initial doit être réaffirmé OU la surface revue.
-- **Terrain & zonage — *« Demander l'ingestion »*** : POST `/communes` réussit mais aucun
-  retour utilisateur visible (le bouton ne tigge pas de banner, et l'utilisateur reste
-  sur la même page sans signal). Le mécanisme existe mais le feedback est cassé.
-- **Coordination** : 4 cadrans fonctionnels mais présentation à reprendre — sensation de
-  *« bâclé »*.
+### A — Cohérence des données affichées **(quick wins, P0)**
+- `phase_code = 0` provoque un `indexOf(...) = 0` → la rail allume *11
+  OBJECTIFS* et la carte projet titre *« Phase 11 »*. Faux.
+- *« Prochain pas »* renvoie systématiquement des actions phase 33 (4 docs
+  permis) même quand le projet est à phase 0/11/21. Algo backend
+  `/next-step` indépendant de `phase_code` réel.
+- Caractères parasites `�` dans les seeds Etienne (apostrophes
+  Unicode mal encodées) qui apparaissent dans Mémoire et Captures.
+- Page d'accueil affiche un dossier *« 8 pièces manquantes »* pour des
+  projets vides (compteur du gabarit, pas l'état réel).
+- `À valider` affiche *« 50 step(s) à faire · 5 rétroactif »* sur un
+  projet à phase 0 — chiffres réels mais formulation qui paraît figée.
 
-### D · Manque structurel — gestion documentaire
-- **Aucun mécanisme d'upload** dans toute l'app. La création de document accepte un
-  `file_ref` (string) mais pas de fichier réel — aucun stockage.
-- **Aucun lien externe** non plus (Drive, OneDrive, Dropbox, intranet atelier…).
-- Présent dans : Checklist · BRS · Documents & sources · Permis · Mémoire · Tâches.
-  Tous les domaines fonctionnels demandent à pointer vers des documents — actuellement
-  impossible.
-- **Doctrine validée par l'utilisateur** : ne PAS proposer un hébergement Aedifica.
-  Intégrer les hébergements des ateliers **flexiblement** — soit upload local, soit lien
-  externe avec gestion des permissions à l'extérieur.
-- Documents architecturaux = **plans lourds** : il faut un mode *« lien vers la source »*
-  par défaut, upload pour les petits volumes seulement.
+### B — Pièces jointes partout **(structurel, P1)**
+- Aucun endroit dans l'app pour **uploader** un document ou **pointer
+  vers un lien externe** (Drive, OneDrive, Dropbox, intranet atelier).
+- Doctrine confirmée : Aedifica = index + droits + traçabilité, **pas
+  un Dropbox bis**.
+- Cibles : Documents · BRS · Permis · Mémoire · Checklist · Tâches.
+- Plans architecturaux = gros fichiers ⇒ mode *« lien »* par défaut,
+  upload local optionnel plafonné à 25 Mo.
 
-### E · Manque structurel — gestion de projet (Gantt + Agile)
-- Tâches + priorités P0/P1/P2 + dépendances : OK pour la navigation par bloquant.
-- **Manque** : vue *Gantt* (timeline + barres + dépendances), vue *Kanban* (tableau
-  agile par statut), vue *Calendrier* (gros plan sur la semaine/mois).
-- **Doctrine validée par l'utilisateur** : **ne pas réinventer la roue** — intégrer une
-  librairie OSS reconnue.
-- Candidats : **frappe-gantt** (MIT, vanilla JS, léger, ~50 ko), **dhtmlx-gantt** (GPL),
-  ou un composant React minimal au-dessus de SVG.
-- Recommandation : **frappe-gantt** + un composant Kanban maison (simple, < 200 lignes).
+### C — Vraie gestion de projet **(structurel, P2)**
+- Tâches/priorités P0/P1/P2 + dépendances : OK pour la navigation par
+  bloquant. Manque : **Gantt** + **Kanban** + vue calendrier.
+- **Ne pas réinventer la roue** : intégrer `frappe-gantt` (MIT, ~50 ko,
+  vanilla JS, drag des barres natif). Kanban : composant maison
+  (< 200 lignes, 4 colonnes todo/doing/done/blocked, drag minimal).
 
-### F · Authentification / autorisation
-- Intervenants : registre fonctionnel ; on peut inviter en `external`.
-- Manque (suggestion du propriétaire) : usage *AAA* (Authentication, Authorization,
-  Accounting). En pratique pour Aedifica : audit log des accès, rotation token, scoping
-  plus fin. À cadrer.
+### D — Surfaces ambiguës à clarifier **(P3)**
+- **Mémoire** doit être un journal automatique (ledger + unknowns +
+  captures système), pas une zone de saisie manuelle. Repositionner la
+  capture rapide en onglet secondaire.
+- **Copilote IA** : opération `AC-SPACE-101 → "bureau"` hardcodée
+  (audit confirme). Soit (a) brancher l'Archicad live + sélecteur d'opérations
+  (b) cacher derrière un flag `LIVE_ARCHICAD_OK` avec un état vide
+  honnête.
+- **Coordination** : presentation pass — micro-icônes par acteur,
+  bouton vers la surface concernée sur chaque cadran.
+- **Tableau de bord — Prochain pas** : ré-aligner l'algo backend
+  `/next-step` sur `project.phase_code`.
 
----
+### E — Identité jusqu'au bout **(P0 + complément)**
+- Wordmark officielle, polices Space Grotesk + IBM Plex Mono, tailles
+  correctes — **fait** dans la dernière PR.
+- Sprite Datum mappé à NAV — **fait** en W11 P0.
+- À faire : utilisation des **datum-marks** (`ic-datum-target`,
+  `ic-datum-dimension`, `ic-datum-north`) dans des contextes
+  pertinents (orientation, mesures, intake) — pas seulement le menu.
+- Auditer chaque libellé / chip pour s'assurer qu'on n'utilise pas
+  d'emoji.
 
-## 2 · Roadmap exécutable
+### F — AAA **(P4)**
+- Audit log des accès et mutations sensibles (ledger existe, à
+  étendre aux invitations + révocations + scope d'accès).
+- Rotation des tokens API + révocation des invitations.
+- Scoping fin par rôle (external = vue scopée uniquement à son
+  intervenant).
 
-### W11 · P0 — Identité + wirings critiques *(cette PR)*
-1. **Sprite officiel + assets identité** dans `web/public/assets/`.
-2. **Favicon** Aedifica (le svg du DS) + métadonnées dans `layout.tsx`.
-3. **Monogramme** sur le header workspace + login.
-4. **Refonte du composant `Icon`** : référence au sprite via `<use>`. Mapping NAV → IDs
-   officiels (`ic-portfolio`, `ic-parcel`, `ic-permit`, `ic-opposition`, etc.).
-5. **Phase rail cliquable** : PATCH `/projects/{id}` ajout `phase_code` (si manquant)
-   + handler `onClick` sur chaque phase pour basculer le projet.
-6. **Checklist : filtres acteur → dropdown** unique au lieu de la row de toggles.
-7. **Feedback PATCH visible** sur les actions checklist : la ligne disparaît si statut
-   ≠ "todo" et est filtrée par défaut sur "à faire", avec un toggle *« voir tout »*.
-8. **Terrain — ingestion demandée** : banner success/error explicit + redirection sur
-   *Atelier* quand la commune est en attente.
+## 2 · Ordre d'exécution (1 tranche = 1 PR = 1 déploiement)
 
-### W11 · P1 — Pièces jointes partout *(PR séparée)*
-9. **Modèle `Attachment`** : `(project, owner_kind, owner_id, kind: upload|link,
-   url|file_ref, provider: local|gdrive|onedrive|dropbox|other, sha256, size)`.
-10. **Endpoint `POST /api/projects/{id}/attachments`** (multipart pour upload, JSON pour
-    lien). **Endpoint `DELETE`**. **Endpoint `GET`** scoped au owner.
-11. **UI** : composant `AttachField` réutilisable. Intégré dans Documents, BRS, Permis,
-    Mémoire, Checklist, Tâches. Mode par défaut = *lien*, upload en option (cap 25 Mo).
-12. **Stockage** : sur Fly, FS éphémère par défaut + recommandation de déléguer au
-    cloud du client (Drive/OneDrive). Pas d'objet store au début.
-
-### W11 · P2 — Vues projet (Gantt + Kanban) *(PR séparée)*
-13. **Intégration frappe-gantt** sous une nouvelle nav *Pilotage → Planning*. Tasks
-    déjà persistées → barres Gantt. Drag pour déplacer.
-14. **Kanban** : composant maison, colonnes todo/doing/done/blocked, drag minimal.
-15. **Bascule de vue** dans *Tâches & priorités* : liste · Kanban · Gantt.
-
-### W11 · P3 — Clarification surfaces ambiguës *(PR séparée)*
-16. **Copilote IA** : soit (a) finir le câblage live Archicad + ajouter un sélecteur
-    d'opération (b) cacher la surface derrière un flag `LIVE_ARCHICAD_OK`.
-17. **Mémoire** : repositionner comme *journal* (ledger + unknowns + captures) avec un
-    onglet *Auto* / *Manuel* distinct.
-18. **Coordination** : refonte présentation (grouping plus net, micro-icônes de bloquant,
-    bouton vers la surface correspondante).
-19. **Dashboard — Prochain pas** : auditer l'algo backend et ré-aligner avec
-    `project.phase_code`.
-
-### W11 · P4 — AAA *(PR séparée)*
-20. **Audit log** des accès / mutations sensibles (ledger existe déjà, à étendre).
-21. **Rotation token** + révocation invitations.
-
----
-
-## 3 · Garde-fous renouvelés
-
-- **Plus aucune surface poussée en prod sans câblage end-to-end vérifié**.
-- **Aucun nouveau bouton sans handler câblé**.
-- **Identité = Datum DS, point**. Plus de SVG custom inline ; tout passe par le sprite
-  officiel.
-- **Feedback utilisateur explicite** sur chaque action mutative (banner / toast / ligne
-  qui change).
-- **Documents** : reconnaître que l'atelier a déjà son stockage. Aedifica est l'index +
-  les droits d'accès + la traçabilité, pas un Dropbox bis.
-- **Project management** : ne pas réinventer. Intégrer.
-
----
-
-## 4 · Suivi PR
-
-| PR | Wave | Contenu | Statut |
+| PR / Tranche | Thème | Durée | Pré-requis |
 |---|---|---|---|
-| #239 | W11 P0 | Identité + phase rail + filtre dropdown + feedback | en cours |
-| à venir | W11 P1 | Pièces jointes (upload + lien) partout | planifié |
-| à venir | W11 P2 | Gantt frappe + Kanban | planifié |
-| à venir | W11 P3 | Mémoire / Copilote / Coordination / Prochain pas | planifié |
-| à venir | W11 P4 | AAA | planifié |
+| **W11.A** (cette PR) | **Cohérence** des données (phase_code, prochain pas, encoding) | 1-2 h | aucun |
+| **W11.B** | **Attachments** : modèle + upload + lien externe + UI partout | 4-6 h | W11.A |
+| **W11.C** | **Gantt + Kanban** (frappe-gantt + composant maison) | 3-4 h | W11.B (les tâches portent les attachments) |
+| **W11.D** | **Mémoire / Copilote / Coordination** — refonte clarification | 2-3 h | W11.A |
+| **W11.E** | **Identité fin** — datum-marks + audit libellés + datum-stamps cohérents | 1-2 h | W11.A |
+| **W11.F** | **AAA** — audit log + rotation + scoping | 2-3 h | W11.B |
+
+## 3 · Méthode par tranche
+
+Chaque tranche suit le même pipeline (pas de raccourci) :
+
+1. **Implémentation** (backend + frontend) avec tests product.
+2. **Build + tests locaux verts** (68+ tests product).
+3. **Audit visuel Playwright** (les captures avant/après dans
+   `docs/audit/wave-11-X/`) pour confirmer que ce que je dis correspond
+   à ce qu'on voit à l'écran.
+4. **PR** avec description complète, captures comparatives.
+5. **CI 5/5 verte**.
+6. **Merge** + **déploiement Fly**.
+7. **Re-audit visuel sur prod** pour confirmation finale.
+8. **Tâche TaskList marquée done** + état du plan mis à jour ici.
+
+## 4 · Tranche A — cohérence des données *(exécution maintenant)*
+
+### A.1 — Phase rail / project card / dashboard cohérents avec `phase_code`
+- Backend : si `phase_code = "0"` (jamais initialisé), renvoyer un
+  marqueur clair côté API (`phase_label = "Pas démarré"`) ; les routes
+  `/coordination`, `/checklist`, `/next-step` doivent ignorer la phase
+  par défaut.
+- Frontend : ne plus retomber sur `PHASES[0]` quand `phase_code` est
+  `"0"` ou inconnu. Afficher *« Phase de cadrage à définir »*.
+- Phase rail : pas d'item highlighté si non démarré, **bouton dédié
+  *« Démarrer · phase 1 »***.
+
+### A.2 — Algo `/next-step` ré-aligné sur `phase_code`
+- Backend : `next-step` retourne les bons items selon la phase
+  courante (phase 0/11 → setup objectifs ; 21 → faisabilité ; 32 →
+  développement projet…).
+- Test : changer la phase via la rail → `next-step` change.
+
+### A.3 — Encoding seed
+- Re-encoder le seed Etienne en ASCII pur (apostrophes ASCII, pas
+  Unicode dangereux). Wipe + re-seed sur Fly.
+
+### A.4 — Carte projet du Home
+- N'affiche la phase que si réellement définie. Sinon : *« À cadrer »*.
+
+### A.5 — Compteur *« À valider »*
+- Si checklist non seedée → masquer le bloc ou afficher *« Initialiser
+  la checklist »* avec un CTA.
+
+## 5 · Suivi des PRs
+
+| PR | Tranche | État | Lien |
+|---|---|---|---|
+| #239 | W11 P0 (W11 historique) | ✅ mergé | … |
+| #240 | wordmark + fontes + tailles | ✅ mergé | … |
+| (next) | **W11.A — cohérence** | 🔄 en cours | — |
+| — | W11.B — attachments | planifié | — |
+| — | W11.C — Gantt + Kanban | planifié | — |
+| — | W11.D — refontes Mémoire/Copilote/Coordination | planifié | — |
+| — | W11.E — identité fin | planifié | — |
+| — | W11.F — AAA | planifié | — |

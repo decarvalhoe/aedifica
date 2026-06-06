@@ -1,7 +1,7 @@
 #!/bin/bash
 # Seed an Aedifica demo on the given base URL (e.g. https://aedifica-demo.fly.dev).
 # Idempotent-ish: returns the owner token + two invite tokens. Re-running creates
-# duplicate intervenants — drop the volume to start over.
+# duplicate intervenants -- drop the volume to start over.
 #
 # Usage: scripts/seed-demo.sh https://aedifica-demo.fly.dev
 set -e
@@ -16,7 +16,7 @@ patch_auth() { curl -fsS -X PATCH "$1" -H 'Content-Type: application/json' -H "A
 R=$(post "$API/orgs" '{"org_name":"Atelier demo W10","user_email":"demo@aedifica.ch","password":"demo123"}')
 TOK=$(echo "$R" | python -c 'import sys,json;print(json.load(sys.stdin)["token"])')
 
-# 2) Project, seeded at phase 21 (so phase 11 is retroactive — external blocker on the MO)
+# 2) Project, seeded at phase 21 (so phase 11 is retroactive -- external blocker on the MO)
 post_auth "$API/projects" '{"project_id":"DEMO-W10","name":"Maison Etienne - demo W10","commune":"Lausanne"}' > /dev/null
 post_auth "$API/projects/DEMO-W10/checklist/seed" '{"entry_phase":"21"}' > /dev/null
 
