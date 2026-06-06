@@ -697,6 +697,76 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
             "freshness": None,
         }
 
+    @app.get("/api/projects/{project_id}/foresight/explain/{proposal_id}")
+    def explain_foresight(project_id: str, proposal_id: int,
+                          user: m.User = Depends(current_user),
+                          session: Session = Depends(get_session)):
+        """W12.F — full explainability dump for one proposal.
+
+        Returns every named source actually inspectable: the live row text
+        for each task/BRS/ledger/capture cited in ``basis``, plus the rule
+        that fired and the confidence formula's inputs. Doctrine: the
+        architect must be able to answer ``pourquoi cette proposition ?``
+        without leaving the workspace and without trusting a black box."""
+        import json as _json
+        require(user, "project.read")
+        p = _project(session, user, project_id)
+        row = session.query(m.Proposal).filter_by(project_id=p.id, id=proposal_id).first()
+        if not row:
+            raise _err(404, "PROPOSAL_NOT_FOUND", str(proposal_id))
+        basis = _json.loads(row.basis_json) if row.basis_json else []
+        hydrated = []
+        for b in basis:
+            kind = b.get("source_kind"); sid = b.get("source_id")
+            live = None
+            try:
+                if kind == "task":
+                    t = session.query(m.Task).filter_by(id=sid).first()
+                    if t:
+                        live = {"title": t.title, "status": t.status,
+                                "estimate_hours": t.estimate_hours, "actual_hours": t.actual_hours,
+                                "phase_code": t.phase_code, "priority": t.priority}
+                elif kind == "brs":
+                    e = session.query(m.BrsEntry).filter_by(id=sid).first()
+                    if e:
+                        live = {"content": e.content, "kind": e.kind,
+                                "created_at": e.created_at.isoformat() if e.created_at else None}
+                elif kind == "ledger":
+                    le = session.query(m.LedgerEntry).filter_by(id=sid).first()
+                    if le:
+                        live = {"event_type": le.event_type, "summary": le.summary,
+                                "phase_code": le.phase_code,
+                                "timestamp": le.timestamp.isoformat() if le.timestamp else None}
+                elif kind == "capture":
+                    c = session.query(m.CaptureNote).filter_by(id=sid).first()
+                    if c:
+                        live = {"content": c.content, "kind": c.kind,
+                                "source_ref": c.source_ref,
+                                "created_at": c.created_at.isoformat() if c.created_at else None}
+                elif kind == "user":
+                    u = session.query(m.User).filter_by(id=sid).first()
+                    if u:
+                        live = {"name": u.name, "email": u.email, "role": u.role}
+                elif kind == "project":
+                    other = session.query(m.Project).filter_by(id=sid).first()
+                    if other:
+                        live = {"project_id": other.project_id, "name": other.name,
+                                "commune": other.commune, "phase_code": other.phase_code}
+            except Exception:
+                live = None
+            hydrated.append({**b, "live": live, "live_resolved": live is not None})
+        return {
+            "proposal": _proposal_dict(row),
+            "basis_hydrated": hydrated,
+            "rule": row.kind,
+            "confidence_formula": {
+                "duration_adjust": "min(1.0, comparable_count / 20)",
+                "cost_factor": "min(1.0, archived_pair_count / 8)",
+                "risk_alert": "règle-spécifique : 1.0 pour signaux durs, 0.7-0.9 pour signaux souples",
+            }.get(row.kind, "—"),
+            "freshness": row.proposed_at.isoformat() if row.proposed_at else None,
+        }
+
     @app.post("/api/projects/{project_id}/foresight/{proposal_id}/decide")
     def decide_foresight(project_id: str, proposal_id: int, body: dict,
                          user: m.User = Depends(current_user),
