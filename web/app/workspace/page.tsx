@@ -14,12 +14,14 @@ const PHASES: [string, string][] = [
 const phaseIndex = (code?: string) => { const i = PHASES.findIndex((p) => p[0] === code); return i < 0 ? 0 : i; };
 const phaseLabel = (code?: string) => { const p = PHASES.find((x) => x[0] === code); return p ? `Phase ${p[0]} · ${p[1]}` : "Phase 0 · Intake"; };
 
-type View = "dashboard" | "terrain" | "permis" | "opposition" | "conformite" | "copilote" | "memoire" | "couts" | "chantier" | "equipe";
+type View = "dashboard" | "terrain" | "intervenants" | "documents" | "permis" | "opposition" | "conformite" | "copilote" | "memoire" | "couts" | "chantier" | "equipe";
 const NAV: { id: View; lb: string; ico: string; ph?: string; grp: string }[] = [
   { id: "dashboard", lb: "Tableau de bord", ico: "grid", grp: "Pilotage" },
   { id: "terrain", lb: "Terrain & zonage", ico: "pin", ph: "0–11", grp: "Pilotage" },
   { id: "copilote", lb: "Copilote · maquette", ico: "spark", ph: "32", grp: "Pilotage" },
   { id: "memoire", lb: "Mémoire", ico: "clock", ph: "6", grp: "Pilotage" },
+  { id: "intervenants", lb: "Intervenants", ico: "users", ph: "0", grp: "Coordination" },
+  { id: "documents", lb: "Documents & sources", ico: "doc", ph: "0–33", grp: "Coordination" },
   { id: "permis", lb: "Dossier de permis", ico: "doc", ph: "33", grp: "Dossier réglementaire" },
   { id: "opposition", lb: "Risque d'opposition", ico: "shield", ph: "33", grp: "Dossier réglementaire" },
   { id: "conformite", lb: "Conformité", ico: "check", ph: "33", grp: "Dossier réglementaire" },
@@ -27,7 +29,7 @@ const NAV: { id: View; lb: string; ico: string; ph?: string; grp: string }[] = [
   { id: "chantier", lb: "Chantier & remise", ico: "cone", ph: "52", grp: "Économie & chantier" },
   { id: "equipe", lb: "Équipe", ico: "users", grp: "Atelier" },
 ];
-const GROUPS = ["Pilotage", "Dossier réglementaire", "Économie & chantier", "Atelier"];
+const GROUPS = ["Pilotage", "Coordination", "Dossier réglementaire", "Économie & chantier", "Atelier"];
 
 const TRUST: Record<string, [string, string]> = {
   sourced: ["is-sourced", "Source officielle"], computed: ["is-computed", "Calculé"],
@@ -178,11 +180,23 @@ export default function App() {
   async function loadAll(p: Project, t: string) {
     const pid = p.project_id; const g = (path: string) => api<any>(`/projects/${pid}${path}`, { token: t });
     const sup = api<any>(`/communes/${p.jurisdiction.commune}/${p.jurisdiction.canton}/support`, { token: t }).then((r) => r.support).catch(() => null);
-    const [claims, permit, opposition, compliance, cost, site, ledger, next, unknowns, support] = await Promise.all([
-      g("/claims"), g("/permit"), g("/opposition"), g("/compliance"), g("/cost"), g("/site"), g("/ledger"), g("/next-step"), g("/memory/unknowns"), sup,
+    const [claims, permit, opposition, compliance, cost, site, ledger, next, unknowns, support, interv, docs] = await Promise.all([
+      g("/claims"), g("/permit"), g("/opposition"), g("/compliance"), g("/cost"), g("/site"), g("/ledger"), g("/next-step"), g("/memory/unknowns"), sup, g("/intervenants"), g("/documents"),
     ]);
-    setD({ claims: claims.claims, permit: permit.permit, opposition: opposition.opposition, compliance: compliance.compliance, cost: cost.cost, site: site.site, ledger: ledger.ledger, next: next.steps, unknowns: unknowns.unknowns, support });
+    setD({ claims: claims.claims, permit: permit.permit, opposition: opposition.opposition, compliance: compliance.compliance, cost: cost.cost, site: site.site, ledger: ledger.ledger, next: next.steps, unknowns: unknowns.unknowns, support, intervenants: interv, documents: docs.documents, docSummary: docs.summary });
   }
+  async function refreshInterv() { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/intervenants`, { token: token! }); setD((x) => ({ ...x, intervenants: r })); }
+  async function refreshDocs() { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/documents`, { token: token! }); setD((x) => ({ ...x, documents: r.documents, docSummary: r.summary })); }
+  async function api2(path: string, body?: any, method = "POST") { return api<any>(`/projects/${active!.project_id}${path}`, { method, token: token!, body }); }
+  async function addGroup(name: string, kind: string) { await api2("/intervenant-groups", { name, kind }); await refreshInterv(); }
+  async function delGroup(id: number) { await api2(`/intervenant-groups/${id}`, undefined, "DELETE"); await refreshInterv(); }
+  async function addIntervenant(b: any) { await api2("/intervenants", b); await refreshInterv(); }
+  async function patchIntervenant(id: number, b: any) { await api2(`/intervenants/${id}`, b, "PATCH"); await refreshInterv(); }
+  async function delIntervenant(id: number) { await api2(`/intervenants/${id}`, undefined, "DELETE"); await refreshInterv(); }
+  async function addDocument(b: any) { await api2("/documents", b); await refreshDocs(); }
+  async function validateDocument(id: number, level: string) { await api2(`/documents/${id}/validate`, { level }); await refreshDocs(); }
+  async function patchDocument(id: number, b: any) { await api2(`/documents/${id}`, b, "PATCH"); await refreshDocs(); }
+  async function delDocument(id: number) { await api2(`/documents/${id}`, undefined, "DELETE"); await refreshDocs(); }
   async function refreshLedger() { if (!active) return; const [ledger, unknowns] = await Promise.all([api<any>(`/projects/${active.project_id}/ledger`, { token: token! }), api<any>(`/projects/${active.project_id}/memory/unknowns`, { token: token! })]); setD((x) => ({ ...x, ledger: ledger.ledger, unknowns: unknowns.unknowns })); }
   async function lookup(query: string) {
     if (!active) return;
@@ -303,6 +317,8 @@ export default function App() {
           {flash && <div className={`banner ${flash.kind}`} style={{ display: "flex", alignItems: "center", gap: 12 }}><span style={{ flex: 1 }}>{flash.text}</span><button className="toggle" onClick={() => setFlash(null)}>Compris</button></div>}
           {view === "dashboard" && <Dashboard d={d} project={active} go={setView} />}
           {view === "terrain" && <Terrain claims={d.claims} mode={d.intakeMode} support={d.support} commune={j.commune} initialQuery={d.pendingQuery} onLookup={lookup} onRequest={requestCommune} />}
+          {view === "intervenants" && <Intervenants data={d.intervenants} onAddGroup={addGroup} onDelGroup={delGroup} onAdd={addIntervenant} onPatch={patchIntervenant} onDel={delIntervenant} />}
+          {view === "documents" && <Documents docs={d.documents} summary={d.docSummary} onAdd={addDocument} onValidate={validateDocument} onPatch={patchDocument} onDel={delDocument} go={setView} />}
           {view === "permis" && <Permis d={d.permit} onSubmit={submitPermit} />}
           {view === "opposition" && <Opposition d={d.opposition} />}
           {view === "conformite" && <Conformite d={d.compliance} />}
@@ -635,6 +651,104 @@ function Memoire({ unknowns, ledger }: any) {
       <div className="g2">
         <div className="card"><h3>Inconnues résiduelles ({unknowns.length})</h3>{unknowns.map((c: any, i: number) => (<div className="claim" key={i}><Trust state={c.state} /><div><div className="ttl">{c.title}</div>{c.next_action && <small>{c.next_action}</small>}</div></div>))}{unknowns.length === 0 && <p className="spin">Aucune inconnue.</p>}</div>
         <div className="card"><h3>Journal du projet ({(ledger || []).length})</h3>{[...(ledger || [])].reverse().map((e: any, i: number) => (<div className="claim" key={i}><Trust state={e.mutating ? "conflict" : e.event_type === "approval" ? "sourced" : "computed"} label={EVENT[e.event_type] || e.event_type} /><div><div className="ttl">{human(e)}</div></div></div>))}{(ledger || []).length === 0 && <p className="spin">Aucune entrée.</p>}</div>
+      </div>
+    </>
+  );
+}
+
+/* ===================== INTERVENANTS (W9) ===================== */
+const GROUP_KINDS: Record<string, string> = { company: "Entreprise", discipline: "Discipline", group: "Groupe" };
+function Intervenants({ data, onAddGroup, onDelGroup, onAdd, onDel }: any) {
+  const [gName, setGName] = useState(""); const [gKind, setGKind] = useState("discipline"); const [showG, setShowG] = useState(false);
+  const [f, setF] = useState<any>({ name: "", role: "", organization: "", email: "", phone: "", is_responsible: false, group_id: "" });
+  const [busy, setBusy] = useState(false);
+  if (!data) return <p className="spin">Chargement…</p>;
+  const groups: any[] = data.groups || []; const people: any[] = data.people || [];
+  const inGroup = (gid: number | null) => people.filter((p) => (p.group_id ?? null) === gid);
+  const submit = async () => { if (!f.name.trim()) return; setBusy(true); try { await onAdd({ ...f, group_id: f.group_id ? Number(f.group_id) : null }); setF({ name: "", role: "", organization: "", email: "", phone: "", is_responsible: false, group_id: f.group_id }); } catch { } finally { setBusy(false); } };
+  const addG = async () => { if (!gName.trim()) return; await onAddGroup(gName, gKind); setGName(""); setShowG(false); };
+  const Person = ({ p }: any) => (
+    <div className="member"><span className="grow"><span className="nm">{p.name}{p.is_responsible && <small style={{ display: "inline", color: "var(--accent)" }}> · responsable</small>}</span><span className="em">{[p.role, p.organization, p.email, p.phone].filter(Boolean).join(" · ") || "—"}</span></span><button className="signout" style={{ padding: 0 }} onClick={() => onDel(p.id)}>Retirer</button></div>
+  );
+  return (
+    <>
+      <div className="vh"><div className="row"><h2>Intervenants</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>L&apos;arborescence des acteurs du projet — groupes, sous-groupes, personnes — avec contacts sourcés. Socle de l&apos;accès documentaire et de l&apos;annuaire d&apos;atelier.</p></div>
+      <div className="card" style={{ marginBottom: 14 }}>
+        <h3>Ajouter un intervenant</h3>
+        <div className="g2">
+          <input className="fld" placeholder="Nom" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+          <input className="fld" placeholder="Rôle (ex. ingénieur civil)" value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })} />
+          <input className="fld" placeholder="Organisation" value={f.organization} onChange={(e) => setF({ ...f, organization: e.target.value })} />
+          <input className="fld" placeholder="E-mail" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
+          <input className="fld" placeholder="Téléphone" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+          <select className="fld" value={f.group_id} onChange={(e) => setF({ ...f, group_id: e.target.value })}><option value="">— sans groupe —</option>{groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select>
+        </div>
+        <div className="actbar">
+          <label className="mono" style={{ display: "flex", alignItems: "center", gap: 7 }}><input type="checkbox" checked={f.is_responsible} onChange={(e) => setF({ ...f, is_responsible: e.target.checked })} /> Responsable / de référence</label>
+          <span style={{ marginLeft: "auto" }} /><button className="ds-btn" disabled={busy || !f.name} onClick={submit}>{busy ? "…" : "Ajouter"}</button>
+        </div>
+      </div>
+      <div className="row" style={{ marginBottom: 12 }}>
+        {showG ? (
+          <div className="actbar" style={{ margin: 0, width: "100%" }}>
+            <input className="fld" style={{ margin: 0, flex: 1 }} placeholder="Nom du groupe (ex. Ingénieurs)" value={gName} onChange={(e) => setGName(e.target.value)} />
+            <select className="fld" style={{ margin: 0, width: "auto" }} value={gKind} onChange={(e) => setGKind(e.target.value)}>{Object.entries(GROUP_KINDS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+            <button className="ds-btn" onClick={addG} disabled={!gName}>Créer</button><button className="ds-btn ghost" onClick={() => setShowG(false)}>Annuler</button>
+          </div>
+        ) : <button className="toggle" onClick={() => setShowG(true)}>+ Nouveau groupe</button>}
+      </div>
+      {groups.map((g) => (
+        <div className="card" key={g.id} style={{ marginBottom: 12 }}>
+          <h3 style={{ display: "flex", alignItems: "center" }}>{g.name} <span className="chip" style={{ marginLeft: 8 }}>{GROUP_KINDS[g.kind] || g.kind}</span><button className="signout" style={{ marginLeft: "auto", padding: 0 }} onClick={() => onDelGroup(g.id)}>Supprimer le groupe</button></h3>
+          {inGroup(g.id).length ? inGroup(g.id).map((p: any) => <Person key={p.id} p={p} />) : <p className="spin">Aucun membre.</p>}
+        </div>
+      ))}
+      <div className="card"><h3>Sans groupe</h3>{inGroup(null).length ? inGroup(null).map((p: any) => <Person key={p.id} p={p} />) : <p className="spin">Tous les intervenants sont rattachés à un groupe.</p>}</div>
+    </>
+  );
+}
+
+/* ===================== DOCUMENTS & SOURCES (W9) ===================== */
+const VLEVEL: Record<string, [string, string]> = { canonical: ["is-sourced", "Canonique"], indicative: ["is-computed", "Indicatif"], refused: ["is-conflict", "Refusé"], pending: ["is-unknown", "À valider"] };
+function Documents({ docs, summary, onAdd, onValidate, onPatch, onDel, go }: any) {
+  const [f, setF] = useState<any>({ official_name: "", category: "general", source: "manual", confidential: false });
+  const [busy, setBusy] = useState("");
+  if (!docs) return <p className="spin">Chargement…</p>;
+  const submit = async () => { if (!f.official_name.trim()) return; setBusy("add"); try { await onAdd(f); setF({ official_name: "", category: "general", source: "manual", confidential: false }); } catch { } finally { setBusy(""); } };
+  const act = async (p: Promise<any>, id: string) => { setBusy(id); try { await p; } catch { } finally { setBusy(""); } };
+  const s = summary || { total: 0, pending: 0, by_level: {} };
+  return (
+    <>
+      <div className="vh"><div className="row"><h2>Documents &amp; sources</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>La curation des sources du projet : import + versioning, validation par l&apos;architecte (canonique / indicatif / refusé), marquage confidentiel (LPD). « Sourcé ou inconnu — jamais inventé. »</p></div>
+      {s.pending > 0 && <div className="banner warn"><b>{s.pending}</b> document(s) à valider.</div>}
+      <div className="card" style={{ marginBottom: 14 }}>
+        <h3>Ajouter / injecter une source</h3>
+        <div className="g2">
+          <input className="fld" placeholder="Nom officiel du document" value={f.official_name} onChange={(e) => setF({ ...f, official_name: e.target.value })} />
+          <input className="fld" placeholder="Catégorie / dossier" value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} />
+        </div>
+        <div className="actbar">
+          <select className="fld" style={{ margin: 0, width: "auto" }} value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })}><option value="manual">Source manuelle (atelier)</option><option value="fetched">Récupérée en ligne</option></select>
+          <label className="mono" style={{ display: "flex", alignItems: "center", gap: 7 }}><input type="checkbox" checked={f.confidential} onChange={(e) => setF({ ...f, confidential: e.target.checked })} /> Confidentiel (LPD)</label>
+          <span style={{ marginLeft: "auto" }} /><button className="ds-btn" disabled={busy === "add" || !f.official_name} onClick={submit}>{busy === "add" ? "…" : "Ajouter"}</button>
+        </div>
+      </div>
+      <div className="card">
+        <h3>Sources du projet ({s.total})</h3>
+        {docs.length === 0 && <p className="spin">Aucun document. Ajoutez ou injectez une source ci-dessus.</p>}
+        {docs.map((dd: any) => { const [c, l] = VLEVEL[dd.validation_level] || ["is-unknown", dd.validation_level]; return (
+          <div className="row-line" key={dd.id}>
+            <span className={`ds-ts ${c}`}><span className="dot" />{l}</span>
+            <span className="grow"><span className="ttl">{dd.official_name}{dd.confidential && <small style={{ display: "inline", color: "var(--ts-conflict)" }}> · confidentiel</small>}</span><small>{[dd.category, dd.latest, dd.validated_by ? `validé par ${dd.validated_by}` : null].filter(Boolean).join(" · ")}</small></span>
+            <span className="row" style={{ gap: 6 }}>
+              <button className="toggle" disabled={busy === `v${dd.id}`} onClick={() => act(onValidate(dd.id, "canonical"), `v${dd.id}`)}>Canonique</button>
+              <button className="toggle" onClick={() => act(onValidate(dd.id, "indicative"), `v${dd.id}`)}>Indicatif</button>
+              <button className="toggle" onClick={() => act(onValidate(dd.id, "refused"), `v${dd.id}`)}>Refusé</button>
+              <button className="toggle" onClick={() => act(onPatch(dd.id, { confidential: !dd.confidential }), `c${dd.id}`)}>{dd.confidential ? "Rendre public" : "Confidentiel"}</button>
+              <button className="signout" style={{ padding: 0 }} onClick={() => act(onDel(dd.id), `x${dd.id}`)}>✕</button>
+            </span>
+          </div>
+        ); })}
       </div>
     </>
   );

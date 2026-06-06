@@ -83,6 +83,9 @@ class Project(Base):
     reports: Mapped[list["Report"]] = relationship(back_populates="project", cascade="all, delete-orphan")
     ledger_entries: Mapped[list["LedgerEntry"]] = relationship(back_populates="project", cascade="all, delete-orphan")
     routes: Mapped[list["RegulatoryRoute"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    intervenant_groups: Mapped[list["IntervenantGroup"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    intervenants: Mapped[list["Intervenant"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    documents: Mapped[list["Document"]] = relationship(back_populates="project", cascade="all, delete-orphan")
 
 
 class Source(Base):
@@ -210,6 +213,87 @@ class IngestionJob(Base):
     sources: Mapped[list] = mapped_column(JSON, default=list)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     pack: Mapped[CommunePack] = relationship(back_populates="jobs")
+
+
+# --------------------------------------------------------------------------- #
+# W9 — Operating layer: intervenants, documents & access (the "Project OS").    #
+# Captured from the partner session (docs/strategy/session-2026-06-05-…).        #
+# --------------------------------------------------------------------------- #
+VALIDATION_LEVELS = ("pending", "canonical", "indicative", "refused")
+ACCESS_LEVELS = ("read", "write")
+
+
+class IntervenantGroup(Base):
+    """A group of actors on a project (a company / a discipline), nestable via parent_id."""
+
+    __tablename__ = "intervenant_group"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    parent_id: Mapped[int | None] = mapped_column(ForeignKey("intervenant_group.id"), nullable=True)
+    name: Mapped[str] = mapped_column(String(200))
+    kind: Mapped[str] = mapped_column(String(60), default="group")  # company | discipline | group
+    created_at: Mapped[_dt.datetime] = _TS()
+    project: Mapped["Project"] = relationship(back_populates="intervenant_groups")
+
+
+class Intervenant(Base):
+    """A person on the project, sourced with their contact and responsibility."""
+
+    __tablename__ = "intervenant"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    group_id: Mapped[int | None] = mapped_column(ForeignKey("intervenant_group.id"), nullable=True)
+    name: Mapped[str] = mapped_column(String(200))
+    role: Mapped[str | None] = mapped_column(String(120), nullable=True)  # architecte, ingénieur civil…
+    organization: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(254), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    is_responsible: Mapped[bool] = mapped_column(default=False)  # personne responsable / de référence
+    created_at: Mapped[_dt.datetime] = _TS()
+    project: Mapped["Project"] = relationship(back_populates="intervenants")
+
+
+class Document(Base):
+    """A project document/source under curation, validated by the lead architect."""
+
+    __tablename__ = "document"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    official_name: Mapped[str] = mapped_column(String(300))
+    category: Mapped[str] = mapped_column(String(80), default="general")  # dossier / catégorie
+    validation_level: Mapped[str] = mapped_column(String(20), default="pending")  # pending|canonical|indicative|refused
+    confidential: Mapped[bool] = mapped_column(default=False)  # LPD
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[_dt.datetime] = _TS()
+    validated_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    validated_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    project: Mapped["Project"] = relationship(back_populates="documents")
+    versions: Mapped[list["DocumentVersion"]] = relationship(back_populates="document", cascade="all, delete-orphan")
+    grants: Mapped[list["AccessGrant"]] = relationship(back_populates="document", cascade="all, delete-orphan")
+
+
+class DocumentVersion(Base):
+    __tablename__ = "document_version"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[int] = mapped_column(ForeignKey("document.id"))
+    label: Mapped[str] = mapped_column(String(40))  # v1, v2…
+    file_ref: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    source: Mapped[str] = mapped_column(String(40), default="manual")  # manual | fetched
+    uploaded_at: Mapped[_dt.datetime] = _TS()
+    document: Mapped["Document"] = relationship(back_populates="versions")
+
+
+class AccessGrant(Base):
+    """Who (group or person) may access a document, and at what level."""
+
+    __tablename__ = "access_grant"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    document_id: Mapped[int] = mapped_column(ForeignKey("document.id"))
+    group_id: Mapped[int | None] = mapped_column(ForeignKey("intervenant_group.id"), nullable=True)
+    intervenant_id: Mapped[int | None] = mapped_column(ForeignKey("intervenant.id"), nullable=True)
+    level: Mapped[str] = mapped_column(String(20), default="read")  # read | write
+    document: Mapped["Document"] = relationship(back_populates="grants")
 
 
 # --------------------------------------------------------------------------- #

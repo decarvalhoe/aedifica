@@ -98,6 +98,53 @@ class CommuneIngestIn(BaseModel):
     sources: list | None = None
 
 
+# ---- W9 operating layer ---------------------------------------------------- #
+class GroupIn(BaseModel):
+    name: str
+    kind: str = "group"
+    parent_id: int | None = None
+
+
+class IntervenantIn(BaseModel):
+    name: str
+    role: str | None = None
+    organization: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    is_responsible: bool = False
+    group_id: int | None = None
+
+
+class IntervenantPatch(BaseModel):
+    name: str | None = None
+    role: str | None = None
+    organization: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    is_responsible: bool | None = None
+    group_id: int | None = None
+
+
+class DocumentIn(BaseModel):
+    official_name: str
+    category: str = "general"
+    confidential: bool = False
+    note: str | None = None
+    version_label: str = "v1"
+    file_ref: str | None = None
+    source: str = "manual"
+
+
+class DocumentPatch(BaseModel):
+    confidential: bool | None = None
+    note: str | None = None
+    category: str | None = None
+
+
+class ValidateIn(BaseModel):
+    level: str  # canonical | indicative | refused | pending
+
+
 def _err(status: int, code: str, message: str) -> HTTPException:
     return HTTPException(status_code=status, detail={"code": code, "message": message})
 
@@ -242,6 +289,162 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def open_project(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.read")
         return {"project": repository.project_summary(session, _project(session, user, project_id))}
+
+    # ---- W9 operating layer: intervenants, documents, access ---------------- #
+    def _interv_dict(i: m.Intervenant) -> dict:
+        return {"id": i.id, "name": i.name, "role": i.role, "organization": i.organization, "email": i.email,
+                "phone": i.phone, "is_responsible": i.is_responsible, "group_id": i.group_id}
+
+    def _group_dict(g: m.IntervenantGroup) -> dict:
+        return {"id": g.id, "name": g.name, "kind": g.kind, "parent_id": g.parent_id}
+
+    def _doc_dict(d: m.Document) -> dict:
+        return {"id": d.id, "official_name": d.official_name, "category": d.category,
+                "validation_level": d.validation_level, "confidential": d.confidential, "note": d.note,
+                "validated_by": d.validated_by, "validated_at": d.validated_at,
+                "versions": [{"label": v.label, "source": v.source, "file_ref": v.file_ref} for v in d.versions],
+                "latest": (d.versions[-1].label if d.versions else None),
+                "grants": [{"id": gr.id, "group_id": gr.group_id, "intervenant_id": gr.intervenant_id, "level": gr.level} for gr in d.grants]}
+
+    @app.get("/api/projects/{project_id}/intervenants")
+    def list_intervenants(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.read")
+        p = _project(session, user, project_id)
+        groups = session.query(m.IntervenantGroup).filter_by(project_id=p.id).order_by(m.IntervenantGroup.id).all()
+        people = session.query(m.Intervenant).filter_by(project_id=p.id).order_by(m.Intervenant.id).all()
+        return {"groups": [_group_dict(g) for g in groups], "people": [_interv_dict(i) for i in people]}
+
+    @app.post("/api/projects/{project_id}/intervenant-groups", status_code=201)
+    def create_group(project_id: str, body: GroupIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        g = m.IntervenantGroup(project_id=p.id, name=body.name, kind=body.kind, parent_id=body.parent_id)
+        session.add(g); session.commit()
+        return {"group": _group_dict(g)}
+
+    @app.delete("/api/projects/{project_id}/intervenant-groups/{group_id}")
+    def delete_group(project_id: str, group_id: int, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        g = session.query(m.IntervenantGroup).filter_by(project_id=p.id, id=group_id).first()
+        if not g:
+            raise _err(404, "GROUP_NOT_FOUND", str(group_id))
+        session.query(m.Intervenant).filter_by(group_id=group_id).update({"group_id": None})
+        session.query(m.IntervenantGroup).filter_by(parent_id=group_id).update({"parent_id": None})
+        session.query(m.AccessGrant).filter_by(group_id=group_id).delete()
+        session.delete(g); session.commit()
+        return {"deleted": group_id}
+
+    @app.post("/api/projects/{project_id}/intervenants", status_code=201)
+    def create_intervenant(project_id: str, body: IntervenantIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        i = m.Intervenant(project_id=p.id, name=body.name, role=body.role, organization=body.organization,
+                          email=body.email, phone=body.phone, is_responsible=body.is_responsible, group_id=body.group_id)
+        session.add(i); session.commit()
+        return {"intervenant": _interv_dict(i)}
+
+    @app.patch("/api/projects/{project_id}/intervenants/{intervenant_id}")
+    def patch_intervenant(project_id: str, intervenant_id: int, body: IntervenantPatch, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        i = session.query(m.Intervenant).filter_by(project_id=p.id, id=intervenant_id).first()
+        if not i:
+            raise _err(404, "INTERVENANT_NOT_FOUND", str(intervenant_id))
+        for k, v in body.model_dump(exclude_unset=True).items():
+            setattr(i, k, v)
+        session.commit()
+        return {"intervenant": _interv_dict(i)}
+
+    @app.delete("/api/projects/{project_id}/intervenants/{intervenant_id}")
+    def delete_intervenant(project_id: str, intervenant_id: int, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        i = session.query(m.Intervenant).filter_by(project_id=p.id, id=intervenant_id).first()
+        if not i:
+            raise _err(404, "INTERVENANT_NOT_FOUND", str(intervenant_id))
+        session.query(m.AccessGrant).filter_by(intervenant_id=intervenant_id).delete()
+        session.delete(i); session.commit()
+        return {"deleted": intervenant_id}
+
+    @app.get("/api/projects/{project_id}/documents")
+    def list_documents(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.read")
+        p = _project(session, user, project_id)
+        docs = session.query(m.Document).filter_by(project_id=p.id).order_by(m.Document.id).all()
+        counts: dict = {lvl: 0 for lvl in m.VALIDATION_LEVELS}
+        for d in docs:
+            counts[d.validation_level] = counts.get(d.validation_level, 0) + 1
+        return {"documents": [_doc_dict(d) for d in docs],
+                "summary": {"total": len(docs), "by_level": counts, "pending": counts.get("pending", 0)}}
+
+    @app.post("/api/projects/{project_id}/documents", status_code=201)
+    def create_document(project_id: str, body: DocumentIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        d = m.Document(project_id=p.id, official_name=body.official_name, category=body.category,
+                       confidential=body.confidential, note=body.note)
+        d.versions.append(m.DocumentVersion(label=body.version_label, file_ref=body.file_ref, source=body.source))
+        session.add(d); session.commit()
+        return {"document": _doc_dict(d)}
+
+    @app.post("/api/projects/{project_id}/documents/{document_id}/validate")
+    def validate_document(project_id: str, document_id: int, body: ValidateIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        if body.level not in m.VALIDATION_LEVELS:
+            raise _err(400, "BAD_LEVEL", f"level must be one of {m.VALIDATION_LEVELS}")
+        p = _project(session, user, project_id)
+        d = session.query(m.Document).filter_by(project_id=p.id, id=document_id).first()
+        if not d:
+            raise _err(404, "DOCUMENT_NOT_FOUND", str(document_id))
+        d.validation_level = body.level
+        d.validated_by = user.name if body.level != "pending" else None
+        session.commit()
+        return {"document": _doc_dict(d)}
+
+    @app.patch("/api/projects/{project_id}/documents/{document_id}")
+    def patch_document(project_id: str, document_id: int, body: DocumentPatch, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        d = session.query(m.Document).filter_by(project_id=p.id, id=document_id).first()
+        if not d:
+            raise _err(404, "DOCUMENT_NOT_FOUND", str(document_id))
+        for k, v in body.model_dump(exclude_unset=True).items():
+            setattr(d, k, v)
+        session.commit()
+        return {"document": _doc_dict(d)}
+
+    @app.delete("/api/projects/{project_id}/documents/{document_id}")
+    def delete_document(project_id: str, document_id: int, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        d = session.query(m.Document).filter_by(project_id=p.id, id=document_id).first()
+        if not d:
+            raise _err(404, "DOCUMENT_NOT_FOUND", str(document_id))
+        session.delete(d); session.commit()
+        return {"deleted": document_id}
+
+    @app.post("/api/projects/{project_id}/documents/{document_id}/grants", status_code=201)
+    def grant_access(project_id: str, document_id: int, body: dict, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        d = session.query(m.Document).filter_by(project_id=p.id, id=document_id).first()
+        if not d:
+            raise _err(404, "DOCUMENT_NOT_FOUND", str(document_id))
+        session.add(m.AccessGrant(document_id=d.id, group_id=body.get("group_id"),
+                                  intervenant_id=body.get("intervenant_id"), level=body.get("level", "read")))
+        session.commit()
+        return {"document": _doc_dict(d)}
+
+    @app.delete("/api/projects/{project_id}/documents/{document_id}/grants/{grant_id}")
+    def revoke_access(project_id: str, document_id: int, grant_id: int, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        gr = session.query(m.AccessGrant).filter_by(id=grant_id, document_id=document_id).first()
+        if gr:
+            session.delete(gr); session.commit()
+        d = session.query(m.Document).filter_by(project_id=p.id, id=document_id).first()
+        return {"document": _doc_dict(d) if d else None}
 
     @app.get("/api/projects/{project_id}/claims")
     def project_claims(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
