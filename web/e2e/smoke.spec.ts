@@ -24,6 +24,10 @@ test("auth → project → action loop", async ({ page }) => {
 
   // Open the Copilote IA surface (task nav) and run the action loop.
   await page.locator(".ws__side").getByRole("button", { name: /Copilote/ }).click();
+  // W11.D: the demand is now parametric — fill the target element + the desired
+  // value before asking for a preview. Type defaults to set_property.
+  await page.getByPlaceholder("ex. AC-SPACE-101").fill("AC-SPACE-101");
+  await page.getByPlaceholder("ex. bureau").fill("bureau");
   await page.getByRole("button", { name: "Demander un aperçu" }).click();
   await expect(page.getByText(/Aperçu prêt/)).toBeVisible();
 
