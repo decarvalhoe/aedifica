@@ -543,7 +543,7 @@ export default function App() {
               {view === "conformite" && <Conformite d={d.compliance} tasks={d.tasks?.tasks || []} projectId={active.project_id} token={token!} onOpenAtelierPlanning={openAtelierPlanning} />}
               {view === "copilote" && <Copilote token={token} pid={active.project_id} ledger={d.ledger} onChange={refreshLedger} />}
               {view === "memoire" && <Memoire unknowns={d.unknowns} ledger={d.ledger} captures={d.captures} token={token!} pid={active.project_id} onAddCapture={addCapture} onDelCapture={delCapture} />}
-              {view === "couts" && <Couts d={d.cost} onFee={feeEstimate} tasks={d.tasks?.tasks || []} projectPhase={active.phase_code} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
+              {view === "couts" && <Couts d={d.cost} onFee={feeEstimate} tasks={d.tasks?.tasks || []} projectPhase={active.phase_code} projectId={active.project_id} token={token!} onOpenAtelierPlanning={openAtelierPlanning} />}
               {view === "chantier" && <Chantier d={d.site} tasks={d.tasks?.tasks || []} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
               {view === "foresight" && token && <Foresight token={token} pid={active.project_id} />}
             </>
@@ -1292,13 +1292,47 @@ function Copilote({ token, pid, ledger, onChange }: { token: string; pid: string
 }
 
 /* ===================== COUTS ===================== */
-function Couts({ d, onFee, tasks, projectPhase, projectId, onOpenAtelierPlanning }: any) {
+function Couts({ d, onFee, tasks, projectPhase, projectId, token, onOpenAtelierPlanning }: any) {
   const [fi, setFi] = useState<any>({ cfc2: "", project_type: "villa", hourly_rate: "150", hours: "" });
   const [est, setEst] = useState<any>(null); const [busy, setBusy] = useState(false);
+  // W14.C.4 — auto-fill from project data + atelier benchmark.
+  const [autoBusy, setAutoBusy] = useState(false);
+  const [autoNote, setAutoNote] = useState<string | null>(null);
   const chf = (n: number) => "CHF " + Number(n).toLocaleString("fr-CH");
   const c = d?.cockpit;
   const calc = async () => { setBusy(true); try { const r = await onFee({ cfc2: Number(fi.cfc2) || 0, project_type: fi.project_type, hourly_rate: fi.hourly_rate ? Number(fi.hourly_rate) : null, hours: fi.hours ? Number(fi.hours) : null }); setEst(r.estimate); } catch { } finally { setBusy(false); } };
-  const head = <div className="vh"><h2>Coûts &amp; honoraires</h2><p>Estimateur d&apos;honoraires SIA 102 (deux méthodes), rentabilité et hypothèses. Aucun coefficient SIA payant embarqué — la formule publique, vos paramètres.</p></div>;
+  // Pre-fill hours from the sum of project tasks' estimate_hours; pull the
+  // most recent atelier benchmark (W12.E) for cost_factor + hourly_rate
+  // when available. NEVER fabricates a CFC2 — that stays the architect's
+  // input, since it depends on the building program.
+  async function autoFill() {
+    setAutoBusy(true); setAutoNote(null);
+    try {
+      const allTasks = (tasks || []) as any[];
+      const taskHours = allTasks.reduce((s, t) => s + (Number(t.estimate_hours) || 0), 0);
+      let bench: any = null;
+      if (token) {
+        try { bench = (await api<any>("/orgs/benchmark/latest", { token })).benchmark; }
+        catch { bench = null; }
+      }
+      const next = { ...fi };
+      const notes: string[] = [];
+      if (taskHours > 0) { next.hours = String(Math.round(taskHours)); notes.push(`${Math.round(taskHours)} h depuis les tâches du projet`); }
+      if (bench?.cost_factor && Number(fi.cfc2) > 0) {
+        // suggest a CFC2 adjustment for the benchmark — informational only
+        notes.push(`coefficient atelier ${bench.cost_factor}× sourcé du benchmark ${bench.period_label}`);
+      }
+      if (bench?.cost_factor && Number(fi.hourly_rate) > 0) {
+        next.hourly_rate = String(Math.round(Number(fi.hourly_rate) * bench.cost_factor));
+        notes.push(`tarif horaire ajusté par coefficient atelier ${bench.cost_factor}× (était ${fi.hourly_rate})`);
+      }
+      setFi(next);
+      setAutoNote(notes.length ? notes.join(" · ") : "Pas assez de données pour pré-remplir — saisissez les paramètres manuellement.");
+    } finally {
+      setAutoBusy(false);
+    }
+  }
+  const head = <div className="vh"><h2>Coûts &amp; honoraires</h2><p>Estimateur d&apos;honoraires SIA 102 (deux méthodes), rentabilité et hypothèses. Aucun coefficient SIA payant embarqué — la formule publique, vos paramètres. Le bouton <b>« Pré-remplir »</b> tire les heures depuis vos tâches et applique le coefficient atelier (benchmark W12) quand il existe.</p></div>;
   const feeCard = (
     <div className="card" style={{ marginBottom: 14 }}>
       <h3>Estimateur d&apos;honoraires (SIA 102)</h3>
@@ -1308,7 +1342,8 @@ function Couts({ d, onFee, tasks, projectPhase, projectId, onOpenAtelierPlanning
         <input className="fld" type="number" placeholder="Tarif horaire (CHF/h)" value={fi.hourly_rate} onChange={(e) => setFi({ ...fi, hourly_rate: e.target.value })} />
         <input className="fld" type="number" placeholder="Heures estimées (T)" value={fi.hours} onChange={(e) => setFi({ ...fi, hours: e.target.value })} />
       </div>
-      <div className="actbar"><span className="mono" style={{ fontSize: 11 }}>% du CFC2 &nbsp;ou&nbsp; H = T × h</span><span style={{ marginLeft: "auto" }} /><button className="ds-btn" disabled={busy} onClick={calc}>{busy ? "…" : "Estimer"}</button></div>
+      <div className="actbar"><span className="mono" style={{ fontSize: 11 }}>% du CFC2 &nbsp;ou&nbsp; H = T × h</span><span style={{ marginLeft: "auto" }} /><button className="toggle" disabled={autoBusy} onClick={autoFill} title="Pré-remplir Heures + Tarif depuis les tâches du projet et le benchmark atelier">{autoBusy ? "…" : "Pré-remplir"}</button><button className="ds-btn" disabled={busy} onClick={calc}>{busy ? "…" : "Estimer"}</button></div>
+      {autoNote && <small style={{ display: "block", marginTop: 6, color: "var(--mut)" }}>{autoNote}</small>}
       {est && (
         <div style={{ marginTop: 10 }}>
           <div className="kpis">
