@@ -1745,39 +1745,88 @@ function Checklist({ data, entryPhase, token, pid, onSeed, onPatch }: any) {
           <input type="checkbox" checked={hideDone} onChange={(e) => setHideDone(e.target.checked)} /> Masquer les étapes terminées / inutiles
         </label>
       </div>
-      {phases.map((ph) => (
+      {phases.map((ph) => {
+        const phaseItems = filtered.filter((i) => i.phase_code === ph);
+        const phaseDone = phaseItems.filter((i) => i.status === "done" || i.status === "skipped");
+        const phaseOpen = phaseItems.filter((i) => i.status !== "done" && i.status !== "skipped");
+        return (
         <div className="card" key={ph} style={{ marginBottom: 12 }}>
-          <h3>{SIA_PHASE_FR[ph] || ph}</h3>
-          {filtered.filter((i) => i.phase_code === ph).map((it) => { const [c, l] = CSTATUS[it.status] || ["is-unknown", it.status]; const ac = ACTOR_CHIP[it.actor] || "is-unknown"; return (
-            <div key={it.id} style={{ borderTop: "1px solid var(--line)", paddingTop: 8, marginTop: 8 }}>
-              <div className="row-line" style={{ border: 0, padding: 0 }}>
-                <span className={`ds-ts ${c}`}><span className="dot" />{l}</span>
-                <span className={`ds-ts ${ac}`} title="Acteur responsable"><span className="dot" />{ACTOR_FR[it.actor] || it.actor}{it.responsible_name ? ` · ${it.responsible_name}` : ""}</span>
-                <span className="grow"><span className="ttl">{it.title}{it.is_retroactive && <small style={{ display: "inline", color: "var(--ts-assume)" }}> · rétroactif</small>}{it.is_external && it.status === "todo" && <small style={{ display: "inline", color: "var(--ts-conflict)" }}> · en attente de l&apos;extérieur</small>}</span></span>
-                <span className="row" style={{ gap: 6 }}>
-                  <button className={`toggle ${it.status === "done" ? "on" : ""}`} disabled={busy === `i${it.id}`} onClick={() => set(it.id, "done")}>Fait</button>
-                  <button className={`toggle ${it.status === "todo" ? "on" : ""}`} disabled={busy === `i${it.id}`} onClick={() => set(it.id, "todo")}>À faire</button>
-                  <button className={`toggle ${it.status === "deferred" ? "on" : ""}`} disabled={busy === `i${it.id}`} onClick={() => set(it.id, "deferred")}>Plus tard</button>
-                  <button className={`toggle ${it.status === "skipped" ? "on" : ""}`} disabled={busy === `i${it.id}`} onClick={() => set(it.id, "skipped")}>Inutile</button>
-                </span>
+          <div className="row" style={{ alignItems: "baseline" }}>
+            <h3 style={{ margin: 0 }}>{SIA_PHASE_FR[ph] || ph}</h3>
+            <small style={{ color: "var(--mut)", marginLeft: 8 }}>
+              {phaseOpen.length} ouvert{phaseOpen.length > 1 ? "s" : ""}{phaseDone.length > 0 ? ` · ${phaseDone.length} clos` : ""}
+            </small>
+          </div>
+          {/* W14.C.1 — compact row: a single status select (was 4 toggles
+              taking up half the row) + the actor as a discreet tag rather
+              than another colored chip. Title + status are what we read. */}
+          {phaseItems.map((it) => {
+            const done = it.status === "done" || it.status === "skipped";
+            const [c, l] = CSTATUS[it.status] || ["is-unknown", it.status];
+            return (
+              <div key={it.id} style={{ borderTop: "1px solid var(--line)", paddingTop: 10, marginTop: 10, opacity: done ? 0.55 : 1 }}>
+                <div className="row-line" style={{ border: 0, padding: 0, gap: 10 }}>
+                  <span className={`ds-ts ${c}`} style={{ minWidth: 80 }}><span className="dot" />{l}</span>
+                  <span className="grow">
+                    <span className="ttl">
+                      {it.title}
+                      {it.is_retroactive && <small style={{ display: "inline", color: "var(--ts-assume)" }}> · rétroactif</small>}
+                      {it.is_external && it.status === "todo" && <small style={{ display: "inline", color: "var(--ts-conflict)" }}> · en attente de l&apos;extérieur</small>}
+                    </span>
+                    <small style={{ color: "var(--mut)" }}>
+                      {ACTOR_FR[it.actor] || it.actor}{it.responsible_name ? ` · ${it.responsible_name}` : ""}
+                    </small>
+                  </span>
+                  <select className="fld" style={{ margin: 0, padding: "5px 10px", width: "auto" }}
+                          disabled={busy === `i${it.id}`}
+                          value={it.status}
+                          onChange={(e) => set(it.id, e.target.value)}
+                          title="Changer le statut">
+                    <option value="todo">À faire</option>
+                    <option value="done">Fait</option>
+                    <option value="deferred">Plus tard</option>
+                    <option value="skipped">Inutile</option>
+                  </select>
+                </div>
+                {token && pid && !done && <AttachField token={token} projectId={pid} ownerKind="checklist" ownerId={it.id} label="Livrables / preuves" />}
               </div>
-              {token && pid && <AttachField token={token} projectId={pid} ownerKind="checklist" ownerId={it.id} label="Livrables / preuves" />}
-            </div>
-          ); })}
+            );
+          })}
         </div>
-      ))}
+        );
+      })}
     </>
   );
 }
 
 /* ===================== COORDINATION — single point of truth (W10) ===================== */
+// W14.C.1 — Coordination rework. The previous layout was a vertical stack of
+// nested cards (g2 inside card), visually flat and dense. The new layout
+// builds a clear hierarchy:
+//   1. KPI strip up top — the 4 numbers the architect scans first.
+//   2. Single-column "Qui doit quoi" with an actor filter (tabs) so the
+//      reader sees ONE focused list at a time instead of 4 mini-cards.
+//   3. Side-by-side "Blocages externes" vs "Blocages atelier" — the colors
+//      now match the semantic (conflict-red for external waits, assume-amber
+//      for atelier blocks).
+//   4. Documents à valider + steps checklist à valider in a compact footer
+//      that doubles as nav shortcuts.
 function Coordination({ data, onRefresh, go, projectId, onOpenAtelierPlanning }: { data: any; onRefresh: () => void; go: (v: View) => void; projectId: string; onOpenAtelierPlanning: (pid: string) => void }) {
   useEffect(() => { if (!data) onRefresh(); }, []);
+  const [actorTab, setActorTab] = useState<string>("");
   if (!data) return <p className="spin">Chargement de la coordination…</p>;
   const owes = data.who_owes_what || {};
   const blockers = data.blockers || { external: [], atelier: [], counts: { external: 0, atelier: 0 } };
-  const docs = (data.documents?.items || []).slice(0, 12);
+  const docs = (data.documents?.items || []);
   const queue = data.to_validate || {};
+  const allOwes = Object.values(owes).flat() as any[];
+  const totalOpen = allOwes.length;
+  const totalExternal = blockers.counts?.external ?? blockers.external?.length ?? 0;
+  const totalAtelier = blockers.counts?.atelier ?? blockers.atelier?.length ?? 0;
+  const totalToValidate = (queue.documents?.length || 0) + (queue.checklist_todo || 0);
+  // Build per-actor counts for the tabs.
+  const actorCounts = Object.fromEntries(Object.keys(ACTOR_FR).map((k) => [k, (owes[k] || []).length])) as Record<string, number>;
+  const visibleOwes: any[] = actorTab ? (owes[actorTab] || []) : allOwes;
   return (
     <>
       <div className="vh">
@@ -1785,65 +1834,105 @@ function Coordination({ data, onRefresh, go, projectId, onOpenAtelierPlanning }:
           <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" style={{ color: "var(--ink-60)" }}><use href="/assets/functional-icons.svg#ic-datum-target" /></svg>
           <h2 style={{ margin: 0 }}>Coordination</h2><span className="badge live"><span className="d" />Point unique</span>
           <span className="grow" />
-          <button className="toggle" onClick={() => onOpenAtelierPlanning(projectId)} title="Ouvrir le planning Atelier filtré sur ce projet (Kanban + Gantt + collisions multi-projet)">
+          <button className="toggle" onClick={() => onOpenAtelierPlanning(projectId)} title="Ouvrir le planning Atelier filtré sur ce projet">
             Planning Atelier →
           </button>
         </div>
-        <p>Une seule vue pour : <b>qui doit quoi</b> · <b>où ça bloque</b> · <b>les documents</b> · <b>ce qu&apos;il vous reste à valider</b>. Source : la feuille SIA Vaud, projetée par acteur.</p>
+        <p>Le tableau de bord opérationnel du projet : <b>qui doit quoi</b>, <b>où ça bloque</b>, <b>ce qui attend votre validation</b>. Source : la feuille SIA Vaud, projetée par acteur.</p>
       </div>
-      {/* (1) Qui doit quoi — by actor */}
-      <div className="card" style={{ marginBottom: 12 }}>
-        <h3>Qui doit quoi</h3>
-        <div className="g2">
-          {Object.entries(ACTOR_FR).map(([k, lb]) => {
-            const rows = owes[k] || [];
-            const chip = ACTOR_CHIP[k] || "is-unknown";
-            return (
-              <div key={k} className="card" style={{ background: "var(--surface)", marginBottom: 0 }}>
-                <div className="row"><span className={`ds-ts ${chip}`}><span className="dot" />{lb}</span><span className="grow" /><small>{rows.length} à faire</small></div>
-                {rows.length === 0 && <small className="spin" style={{ display: "block", padding: "8px 0" }}>Rien d&apos;ouvert.</small>}
-                {rows.slice(0, 6).map((r: any) => (
-                  <div key={r.id} className="row-line"><span className="grow"><span className="ttl" style={{ fontSize: 13 }}>{r.title}</span><small> · phase {r.phase_code}{r.is_retroactive ? " · rétroactif" : ""}</small></span></div>
-                ))}
-                {rows.length > 6 && <small><button className="signout" style={{ padding: 0 }} onClick={() => go("checklist")}>Voir les {rows.length} →</button></small>}
-              </div>
-            );
-          })}
+
+      {/* KPI strip — the 4 numbers the architect scans first */}
+      <div className="kpis" style={{ marginBottom: 14 }}>
+        <div className="kpi"><div className="lab">Devoirs ouverts</div><div className="num">{totalOpen}</div><div className="sub">tous acteurs</div></div>
+        <button className="kpi click" onClick={() => go("documents")}><div className="lab">Documents à valider</div><div className="num">{queue.documents?.length || 0}</div><div className="sub">en attente</div></button>
+        <button className="kpi click" onClick={() => go("checklist")}><div className="lab">Steps checklist</div><div className="num">{queue.checklist_todo || 0}</div><div className="sub">à faire</div></button>
+        <div className="kpi"><div className="lab">Blocages</div><div className="num">{totalExternal + totalAtelier}</div><div className="sub" style={{ color: "var(--ts-conflict)" }}>{totalExternal} ext · {totalAtelier} atelier</div></div>
+      </div>
+
+      {/* Qui doit quoi — single list with actor tabs */}
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div className="row" style={{ alignItems: "baseline", gap: 12 }}>
+          <h3 style={{ margin: 0 }}>Qui doit quoi</h3>
+          <small style={{ color: "var(--mut)" }}>{visibleOwes.length} ouvert{visibleOwes.length > 1 ? "s" : ""}</small>
+          <span className="grow" />
+          <button className="signout" style={{ padding: 0 }} onClick={() => go("checklist")}>Voir la checklist complète →</button>
+        </div>
+        <div className="row" style={{ gap: 6, flexWrap: "wrap", marginTop: 10 }}>
+          <button className={`toggle ${actorTab === "" ? "on" : ""}`} onClick={() => setActorTab("")}>Tous ({totalOpen})</button>
+          {Object.entries(ACTOR_FR).map(([k, lb]) => (
+            <button key={k} className={`toggle ${actorTab === k ? "on" : ""}`} disabled={actorCounts[k] === 0 && actorTab !== k} onClick={() => setActorTab(actorTab === k ? "" : k)}>
+              {lb} ({actorCounts[k] || 0})
+            </button>
+          ))}
+        </div>
+        <div style={{ marginTop: 10 }}>
+          {visibleOwes.length === 0 && <p className="spin" style={{ paddingTop: 8 }}>Rien d&apos;ouvert pour {actorTab ? ACTOR_FR[actorTab] : "ce périmètre"}.</p>}
+          {visibleOwes.slice(0, 12).map((r: any) => (
+            <div key={r.id} className="row-line">
+              <span className={`ds-ts ${ACTOR_CHIP[r.actor] || "is-unknown"}`} style={{ minWidth: 110 }}><span className="dot" />{ACTOR_FR[r.actor] || r.actor}</span>
+              <span className="grow">
+                <span className="ttl" style={{ fontSize: 13 }}>{r.title}</span>
+                <small>phase {r.phase_code}{r.is_retroactive ? " · rétroactif" : ""}{r.responsible_name ? ` · ${r.responsible_name}` : ""}</small>
+              </span>
+            </div>
+          ))}
+          {visibleOwes.length > 12 && <small style={{ color: "var(--mut)" }}>+ {visibleOwes.length - 12} de plus — cliquez « Voir la checklist complète » au-dessus.</small>}
         </div>
       </div>
-      {/* (2) Où ça bloque */}
-      <div className="card" style={{ marginBottom: 12 }}>
-        <h3>Où ça bloque</h3>
-        <div className="g2">
-          <div className="card" style={{ background: "var(--surface)", marginBottom: 0 }}>
-            <div className="row"><span className="ds-ts is-conflict"><span className="dot" />En attente de l&apos;extérieur ({blockers.counts.external})</span></div>
-            {blockers.external.length === 0 && <small className="spin">Aucun bloquant externe.</small>}
-            {blockers.external.slice(0, 8).map((b: any) => (
-              <div key={b.id} className="row-line"><span className={`ds-ts ${ACTOR_CHIP[b.actor] || "is-assume"}`}><span className="dot" />{ACTOR_FR[b.actor] || b.actor}</span><span className="grow"><span className="ttl" style={{ fontSize: 13 }}>{b.title}</span><small> · phase {b.phase_code}</small></span></div>
-            ))}
+
+      {/* Où ça bloque — side-by-side with semantic colors */}
+      <div className="g2" style={{ marginBottom: 14 }}>
+        <div className="card" style={{ borderLeft: "3px solid var(--ts-conflict)", margin: 0 }}>
+          <div className="row" style={{ alignItems: "baseline" }}>
+            <h3 style={{ margin: 0 }}>Blocages externes ({totalExternal})</h3>
+            <small style={{ color: "var(--mut)", marginLeft: 8 }}>en attente d&apos;un acteur hors atelier</small>
           </div>
-          <div className="card" style={{ background: "var(--surface)", marginBottom: 0 }}>
-            <div className="row"><span className="ds-ts is-assume"><span className="dot" />Atelier — tâches bloquées ({blockers.counts.atelier})</span></div>
-            {blockers.atelier.length === 0 && <small className="spin">Aucun blocage atelier.</small>}
-            {blockers.atelier.slice(0, 8).map((t: any) => (
-              <div key={t.id} className="row-line"><span className="ds-ts is-assume"><span className="dot" />{t.priority?.toUpperCase()}</span><span className="grow"><span className="ttl" style={{ fontSize: 13 }}>{t.title}</span>{t.assignee && <small> · {t.assignee}</small>}</span></div>
-            ))}
+          {blockers.external.length === 0 && <p className="spin" style={{ paddingTop: 8 }}>Aucun bloquant externe.</p>}
+          {blockers.external.slice(0, 8).map((b: any) => (
+            <div key={b.id} className="row-line">
+              <span className={`ds-ts ${ACTOR_CHIP[b.actor] || "is-assume"}`}><span className="dot" />{ACTOR_FR[b.actor] || b.actor}</span>
+              <span className="grow">
+                <span className="ttl" style={{ fontSize: 13 }}>{b.title}</span>
+                <small>phase {b.phase_code}</small>
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="card" style={{ borderLeft: "3px solid var(--ts-assume)", margin: 0 }}>
+          <div className="row" style={{ alignItems: "baseline" }}>
+            <h3 style={{ margin: 0 }}>Blocages atelier ({totalAtelier})</h3>
+            <small style={{ color: "var(--mut)", marginLeft: 8 }}>tâches internes bloquées</small>
           </div>
+          {blockers.atelier.length === 0 && <p className="spin" style={{ paddingTop: 8 }}>Aucun blocage atelier.</p>}
+          {blockers.atelier.slice(0, 8).map((t: any) => (
+            <div key={t.id} className="row-line">
+              <span className="ds-ts is-assume"><span className="dot" />{t.priority?.toUpperCase()}</span>
+              <span className="grow">
+                <span className="ttl" style={{ fontSize: 13 }}>{t.title}</span>
+                {t.assignee && <small>{t.assignee}</small>}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
-      {/* (3) Documents */}
-      <div className="card" style={{ marginBottom: 12 }}>
-        <div className="row"><h3>Documents</h3><span className="grow" /><button className="toggle" onClick={() => go("documents")}>Tout voir →</button></div>
-        {docs.length === 0 && <small className="spin">Aucun document.</small>}
-        {docs.map((d: any) => { const [c, l] = (d.validation_level === "canonical" ? ["is-sourced", "Canonique"] : d.validation_level === "indicative" ? ["is-computed", "Indicatif"] : d.validation_level === "refused" ? ["is-conflict", "Refusé"] : ["is-assume", "À valider"]); return (
-          <div key={d.id} className="row-line"><span className={`ds-ts ${c}`}><span className="dot" />{l}</span><span className="grow"><span className="ttl" style={{ fontSize: 13 }}>{d.official_name}</span><small> · {d.category}{d.confidential ? " · confidentiel (LPD)" : ""}</small></span></div>
-        ); })}
-      </div>
-      {/* (4) Validation queue */}
-      <div className="card">
-        <div className="row"><h3>Ce qu&apos;il vous reste à valider</h3><span className="grow" /><button className="toggle" onClick={() => go("documents")}>Documents →</button> <button className="toggle" onClick={() => go("checklist")}>Checklist →</button></div>
-        <p><b>{(queue.documents || []).length}</b> document(s) en attente · <b>{queue.checklist_todo || 0}</b> step(s) checklist à faire.</p>
-      </div>
+
+      {/* Documents récents — only validation-pending by default */}
+      {(queue.documents?.length || 0) > 0 && (
+        <div className="card" style={{ marginBottom: 0 }}>
+          <div className="row" style={{ alignItems: "baseline" }}>
+            <h3 style={{ margin: 0 }}>Documents en attente de validation</h3>
+            <small style={{ color: "var(--mut)", marginLeft: 8 }}>{queue.documents.length} pièce{queue.documents.length > 1 ? "s" : ""}</small>
+            <span className="grow" />
+            <button className="toggle" onClick={() => go("documents")}>Ouvrir Documents →</button>
+          </div>
+          {(queue.documents || []).slice(0, 8).map((d: any) => (
+            <div key={d.id} className="row-line">
+              <span className="ds-ts is-assume"><span className="dot" />À valider</span>
+              <span className="grow"><span className="ttl" style={{ fontSize: 13 }}>{d.official_name}</span><small>{[d.category, d.confidential ? "confidentiel (LPD)" : null].filter(Boolean).join(" · ")}</small></span>
+            </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }
