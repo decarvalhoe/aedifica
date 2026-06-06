@@ -8,6 +8,7 @@ api.auth). Errors are structured: HTTP status + {"detail": {"code", "message"}}.
 """
 from __future__ import annotations
 
+import datetime as _dt
 import os
 
 from fastapi import Depends, FastAPI, Header, HTTPException
@@ -172,6 +173,40 @@ class ChecklistItemIn(BaseModel):
 
 class ChecklistPatch(BaseModel):
     status: str  # todo | done | deferred | skipped
+
+
+class TaskIn(BaseModel):
+    title: str
+    priority: str = "p2"  # p0 | p1 | p2
+    status: str = "todo"  # todo | doing | done | blocked
+    assignee_user_id: int | None = None
+    estimate_hours: float | None = None
+    due_date: str | None = None
+    is_quick_win: bool = False
+    phase_code: str | None = None
+    checklist_item_id: int | None = None
+
+
+class TaskPatch(BaseModel):
+    title: str | None = None
+    priority: str | None = None
+    status: str | None = None
+    assignee_user_id: int | None = None
+    estimate_hours: float | None = None
+    actual_hours: float | None = None
+    due_date: str | None = None
+    is_quick_win: bool | None = None
+
+
+class DepIn(BaseModel):
+    blocked_by_id: int
+
+
+class FeeIn(BaseModel):
+    cfc2: float = 0
+    project_type: str = "autre"
+    hourly_rate: float | None = None
+    hours: float | None = None
 
 
 def _err(status: int, code: str, message: str) -> HTTPException:
@@ -609,6 +644,152 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         retro_todo = session.query(m.ChecklistItem).filter_by(project_id=p.id, status="todo", is_retroactive=True).count()
         return {"pending_documents": [{"id": d.id, "official_name": d.official_name} for d in pending_docs],
                 "counts": {"documents": len(pending_docs), "checklist_todo": todo, "checklist_retroactive_todo": retro_todo}}
+
+    # ---- tasks & pilotage (#225-#229) --------------------------------------- #
+    def _task_dict(t: m.Task, names: dict, blocked_by: dict, done_ids: set) -> dict:
+        deps = blocked_by.get(t.id, [])
+        return {"id": t.id, "title": t.title, "priority": t.priority, "status": t.status,
+                "assignee_user_id": t.assignee_user_id, "assignee": names.get(t.assignee_user_id),
+                "estimate_hours": t.estimate_hours, "actual_hours": t.actual_hours, "due_date": t.due_date,
+                "is_quick_win": t.is_quick_win, "phase_code": t.phase_code, "checklist_item_id": t.checklist_item_id,
+                "blocked_by": deps, "is_blocked": any(b not in done_ids for b in deps)}
+
+    def _deps_for(session, task_ids: list) -> dict:
+        bb: dict = {}
+        if task_ids:
+            for d in session.query(m.TaskDependency).filter(m.TaskDependency.task_id.in_(task_ids)).all():
+                bb.setdefault(d.task_id, []).append(d.blocked_by_id)
+        return bb
+
+    @app.get("/api/projects/{project_id}/tasks")
+    def list_tasks(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.read")
+        p = _project(session, user, project_id)
+        tasks = session.query(m.Task).filter_by(project_id=p.id).order_by(m.Task.id).all()
+        names = {u.id: u.name for u in session.query(m.User).filter_by(org_id=p.org_id).all()}
+        bb = _deps_for(session, [t.id for t in tasks])
+        done = {t.id for t in tasks if t.status == "done"}
+        prio: dict = {x: 0 for x in m.TASK_PRIORITIES}
+        st: dict = {x: 0 for x in m.TASK_STATUS}
+        for t in tasks:
+            prio[t.priority] = prio.get(t.priority, 0) + 1
+            st[t.status] = st.get(t.status, 0) + 1
+        items = [_task_dict(t, names, bb, done) for t in tasks]
+        return {"tasks": items, "users": [{"id": uid, "name": n} for uid, n in names.items()],
+                "summary": {"total": len(tasks), "by_priority": prio, "by_status": st,
+                            "blocked": sum(1 for i in items if i["is_blocked"] and i["status"] != "done"),
+                            "quick_wins": sum(1 for t in tasks if t.is_quick_win and t.status != "done")}}
+
+    @app.post("/api/projects/{project_id}/tasks", status_code=201)
+    def add_task(project_id: str, body: TaskIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        if body.priority not in m.TASK_PRIORITIES or body.status not in m.TASK_STATUS:
+            raise _err(400, "BAD_TASK", "invalid priority or status")
+        p = _project(session, user, project_id)
+        t = m.Task(project_id=p.id, title=body.title, priority=body.priority, status=body.status,
+                   assignee_user_id=body.assignee_user_id, estimate_hours=body.estimate_hours, due_date=body.due_date,
+                   is_quick_win=body.is_quick_win, phase_code=body.phase_code, checklist_item_id=body.checklist_item_id)
+        session.add(t); session.commit()
+        names = {u.id: u.name for u in session.query(m.User).filter_by(org_id=p.org_id).all()}
+        return {"task": _task_dict(t, names, {}, set())}
+
+    @app.patch("/api/projects/{project_id}/tasks/{task_id}")
+    def patch_task(project_id: str, task_id: int, body: TaskPatch, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        t = session.query(m.Task).filter_by(project_id=p.id, id=task_id).first()
+        if not t:
+            raise _err(404, "TASK_NOT_FOUND", str(task_id))
+        data = body.model_dump(exclude_unset=True)
+        if data.get("priority") and data["priority"] not in m.TASK_PRIORITIES:
+            raise _err(400, "BAD_PRIORITY", "invalid priority")
+        if data.get("status") and data["status"] not in m.TASK_STATUS:
+            raise _err(400, "BAD_STATUS", "invalid status")
+        for k, v in data.items():
+            setattr(t, k, v)
+        if data.get("status") == "done" and not t.done_at:
+            t.done_at = _dt.date.today().isoformat()
+        session.commit()
+        names = {u.id: u.name for u in session.query(m.User).filter_by(org_id=p.org_id).all()}
+        bb = _deps_for(session, [task_id])
+        done = {x.id for x in session.query(m.Task).filter_by(project_id=p.id, status="done").all()}
+        return {"task": _task_dict(t, names, bb, done)}
+
+    @app.delete("/api/projects/{project_id}/tasks/{task_id}")
+    def del_task(project_id: str, task_id: int, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        t = session.query(m.Task).filter_by(project_id=p.id, id=task_id).first()
+        if not t:
+            raise _err(404, "TASK_NOT_FOUND", str(task_id))
+        session.query(m.TaskDependency).filter((m.TaskDependency.task_id == task_id) | (m.TaskDependency.blocked_by_id == task_id)).delete()
+        session.delete(t); session.commit()
+        return {"deleted": task_id}
+
+    @app.post("/api/projects/{project_id}/tasks/{task_id}/deps", status_code=201)
+    def add_dep(project_id: str, task_id: int, body: DepIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        if body.blocked_by_id == task_id:
+            raise _err(400, "SELF_DEP", "a task cannot block itself")
+        owned = {x.id for x in session.query(m.Task).filter_by(project_id=p.id).all()}
+        if task_id not in owned or body.blocked_by_id not in owned:
+            raise _err(404, "TASK_NOT_FOUND", "task or dependency not in project")
+        exists = session.query(m.TaskDependency).filter_by(task_id=task_id, blocked_by_id=body.blocked_by_id).first()
+        if not exists:
+            session.add(m.TaskDependency(task_id=task_id, blocked_by_id=body.blocked_by_id)); session.commit()
+        return {"task_id": task_id, "blocked_by_id": body.blocked_by_id}
+
+    @app.delete("/api/projects/{project_id}/tasks/{task_id}/deps/{blocked_by_id}")
+    def del_dep(project_id: str, task_id: int, blocked_by_id: int, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        _project(session, user, project_id)
+        session.query(m.TaskDependency).filter_by(task_id=task_id, blocked_by_id=blocked_by_id).delete()
+        session.commit()
+        return {"removed": [task_id, blocked_by_id]}
+
+    @app.post("/api/projects/{project_id}/tasks/{task_id}/predict")
+    def predict_task(project_id: str, task_id: int, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.read")
+        p = _project(session, user, project_id)
+        t = session.query(m.Task).filter_by(project_id=p.id, id=task_id).first()
+        if not t:
+            raise _err(404, "TASK_NOT_FOUND", str(task_id))
+        proj_ids = [x.id for x in session.query(m.Project).filter_by(org_id=p.org_id).all()]
+        history = [{"title": h.title, "actual_hours": h.actual_hours}
+                   for h in session.query(m.Task).filter(m.Task.project_id.in_(proj_ids), m.Task.actual_hours.isnot(None)).all()] if proj_ids else []
+        from . import pilotage
+        return {"task_id": task_id, **pilotage.predict_hours(t.title, history)}
+
+    @app.post("/api/projects/{project_id}/fee-estimate")
+    def fee_estimate_ep(project_id: str, body: FeeIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.read")
+        _project(session, user, project_id)
+        from . import pilotage
+        return {"estimate": pilotage.fee_estimate(body.cfc2, body.project_type, body.hourly_rate, body.hours)}
+
+    @app.get("/api/atelier/tasks")
+    def atelier_tasks(user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.read")
+        projects = {p.id: p for p in session.query(m.Project).filter_by(org_id=user.org_id).all()}
+        names = {u.id: u.name for u in session.query(m.User).filter_by(org_id=user.org_id).all()}
+        tasks = session.query(m.Task).filter(m.Task.project_id.in_(list(projects))).all() if projects else []
+        bb = _deps_for(session, [t.id for t in tasks])
+        done = {t.id for t in tasks if t.status == "done"}
+        items = []
+        for t in tasks:
+            pr = projects[t.project_id]
+            items.append({**_task_dict(t, names, bb, done), "project_id": pr.project_id, "project_name": pr.name})
+        from . import pilotage
+        col = pilotage.collisions([{"status": t.status, "due_date": t.due_date, "estimate_hours": t.estimate_hours} for t in tasks])
+        # per-collaborator open load
+        by_assignee: dict = {}
+        for t in tasks:
+            if t.status == "done":
+                continue
+            key = names.get(t.assignee_user_id) or "non assigné"
+            by_assignee[key] = round(by_assignee.get(key, 0.0) + float(t.estimate_hours or 0), 1)
+        return {"tasks": items, "projects": len(projects), "collision": col, "load_by_assignee": by_assignee}
 
     @app.get("/api/projects/{project_id}/claims")
     def project_claims(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):

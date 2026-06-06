@@ -10,6 +10,7 @@ import datetime as _dt
 
 from sqlalchemy import (
     DateTime,
+    Float,
     ForeignKey,
     JSON,
     String,
@@ -88,6 +89,7 @@ class Project(Base):
     documents: Mapped[list["Document"]] = relationship(back_populates="project", cascade="all, delete-orphan")
     brs_entries: Mapped[list["BrsEntry"]] = relationship(back_populates="project", cascade="all, delete-orphan")
     checklist_items: Mapped[list["ChecklistItem"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    tasks: Mapped[list["Task"]] = relationship(back_populates="project", cascade="all, delete-orphan")
 
 
 class Source(Base):
@@ -337,6 +339,42 @@ class ChecklistItem(Base):
     is_retroactive: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[_dt.datetime] = _TS()
     project: Mapped["Project"] = relationship(back_populates="checklist_items")
+
+
+TASK_PRIORITIES = ("p0", "p1", "p2")
+TASK_STATUS = ("todo", "doing", "done", "blocked")
+
+
+class Task(Base):
+    """A project task — priority (P0/P1/P2), optional estimate/actual hours (for learned
+    prediction), assignee (collaborator), deadline, quick-win flag, and dependency edges.
+    The atelier navigates by priority + what blocks, across all projects (not an agenda)."""
+
+    __tablename__ = "task"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    title: Mapped[str] = mapped_column(String(300))
+    priority: Mapped[str] = mapped_column(String(8), default="p2")  # p0|p1|p2
+    status: Mapped[str] = mapped_column(String(12), default="todo")  # todo|doing|done|blocked
+    assignee_user_id: Mapped[int | None] = mapped_column(ForeignKey("user.id"), nullable=True)
+    estimate_hours: Mapped[float | None] = mapped_column(Float, nullable=True)
+    actual_hours: Mapped[float | None] = mapped_column(Float, nullable=True)
+    due_date: Mapped[str | None] = mapped_column(String(20), nullable=True)  # YYYY-MM-DD
+    is_quick_win: Mapped[bool] = mapped_column(default=False)
+    phase_code: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    checklist_item_id: Mapped[int | None] = mapped_column(ForeignKey("checklist_item.id"), nullable=True)
+    created_at: Mapped[_dt.datetime] = _TS()
+    done_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    project: Mapped["Project"] = relationship(back_populates="tasks")
+
+
+class TaskDependency(Base):
+    """``task`` is blocked by ``blocked_by`` (a dependency edge for the task graph)."""
+
+    __tablename__ = "task_dependency"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    task_id: Mapped[int] = mapped_column(ForeignKey("task.id"))
+    blocked_by_id: Mapped[int] = mapped_column(ForeignKey("task.id"))
 
 
 # --------------------------------------------------------------------------- #

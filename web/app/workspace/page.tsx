@@ -21,9 +21,10 @@ const phaseLabel = (code?: string) => { const c = norm(code); return `Phase ${c}
 // SIA cost-precision convergence per phase (from the SIA Vaud chart)
 const COST_PRECISION: Record<string, string> = { "31": "± 15 %", "32": "± 10 %", "33": "± 10 %", "41": "ferme", "51": "ferme", "52": "ferme" };
 
-type View = "dashboard" | "terrain" | "checklist" | "intervenants" | "documents" | "brs" | "permis" | "opposition" | "conformite" | "copilote" | "memoire" | "couts" | "chantier" | "equipe";
+type View = "dashboard" | "taches" | "terrain" | "checklist" | "intervenants" | "documents" | "brs" | "permis" | "opposition" | "conformite" | "copilote" | "memoire" | "couts" | "chantier" | "equipe";
 const NAV: { id: View; lb: string; ico: string; ph?: string; grp: string }[] = [
   { id: "dashboard", lb: "Tableau de bord", ico: "grid", grp: "Pilotage" },
+  { id: "taches", lb: "Tâches & priorités", ico: "check", grp: "Pilotage" },
   { id: "checklist", lb: "Checklist SIA", ico: "check", grp: "Pilotage" },
   { id: "terrain", lb: "Terrain & zonage", ico: "pin", ph: "0–11", grp: "Pilotage" },
   { id: "copilote", lb: "Copilote · maquette", ico: "spark", ph: "32", grp: "Pilotage" },
@@ -137,15 +138,17 @@ export default function App() {
   const [flashKey, setFlashKey] = useState<string | null>(null);
   const [flash, setFlash] = useState<{ kind: "ok" | "warn"; text: string } | null>(null);
   const [users, setUsers] = useState<any[] | null>(null);
+  const [atelier, setAtelier] = useState<any>(null);
 
   useEffect(() => {
     const t = typeof window !== "undefined" ? localStorage.getItem("aedifica_token") : null;
     if (t) verify(t); else setReady(true);
   }, []);
   async function verify(t: string) {
-    try { await loadProjects(t); await loadUsers(t); setToken(t); }
+    try { await loadProjects(t); await loadUsers(t); loadAtelier(t); setToken(t); }
     catch { localStorage.removeItem("aedifica_token"); } finally { setReady(true); }
   }
+  async function loadAtelier(t: string) { try { setAtelier(await api<any>("/atelier/tasks", { token: t })); } catch { setAtelier(null); } }
   async function loadProjects(t: string): Promise<Project[]> {
     const ids = (await api<any>("/projects", { token: t })).projects as string[];
     const sums = await Promise.all(ids.map((id) => api<any>(`/projects/${id}`, { token: t }).then((r) => r.project as Project)));
@@ -163,13 +166,13 @@ export default function App() {
   async function register(orgName: string, email: string, password: string) {
     setBusy(true); setErr("");
     try { const t = (await api<any>("/orgs", { method: "POST", body: { org_name: orgName, user_email: email, password } })).token as string;
-      localStorage.setItem("aedifica_token", t); await seedReference(t); await loadProjects(t); await loadUsers(t); setToken(t);
+      localStorage.setItem("aedifica_token", t); await seedReference(t); await loadProjects(t); await loadUsers(t); loadAtelier(t); setToken(t);
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   }
   async function login(email: string, password: string) {
     setBusy(true); setErr("");
     try { const t = (await api<any>("/auth/login", { method: "POST", body: { email, password } })).token as string;
-      localStorage.setItem("aedifica_token", t); await loadProjects(t); await loadUsers(t); setToken(t);
+      localStorage.setItem("aedifica_token", t); await loadProjects(t); await loadUsers(t); loadAtelier(t); setToken(t);
     } catch (e: any) { setErr(e.message?.includes("incorrect") ? "E-mail ou mot de passe incorrect." : (e.message || "Connexion impossible.")); } finally { setBusy(false); }
   }
   async function joinWithKey(key: string) {
@@ -189,11 +192,19 @@ export default function App() {
   async function loadAll(p: Project, t: string) {
     const pid = p.project_id; const g = (path: string) => api<any>(`/projects/${pid}${path}`, { token: t });
     const sup = api<any>(`/communes/${p.jurisdiction.commune}/${p.jurisdiction.canton}/support`, { token: t }).then((r) => r.support).catch(() => null);
-    const [claims, permit, opposition, compliance, cost, site, ledger, next, unknowns, support, interv, docs, checklist, brs, toval] = await Promise.all([
-      g("/claims"), g("/permit"), g("/opposition"), g("/compliance"), g("/cost"), g("/site"), g("/ledger"), g("/next-step"), g("/memory/unknowns"), sup, g("/intervenants"), g("/documents"), g("/checklist"), g("/brs"), g("/to-validate"),
+    const [claims, permit, opposition, compliance, cost, site, ledger, next, unknowns, support, interv, docs, checklist, brs, toval, tasks] = await Promise.all([
+      g("/claims"), g("/permit"), g("/opposition"), g("/compliance"), g("/cost"), g("/site"), g("/ledger"), g("/next-step"), g("/memory/unknowns"), sup, g("/intervenants"), g("/documents"), g("/checklist"), g("/brs"), g("/to-validate"), g("/tasks"),
     ]);
-    setD({ claims: claims.claims, permit: permit.permit, opposition: opposition.opposition, compliance: compliance.compliance, cost: cost.cost, site: site.site, ledger: ledger.ledger, next: next.steps, unknowns: unknowns.unknowns, support, intervenants: interv, documents: docs.documents, docSummary: docs.summary, checklist, brs, toValidate: toval });
+    setD({ claims: claims.claims, permit: permit.permit, opposition: opposition.opposition, compliance: compliance.compliance, cost: cost.cost, site: site.site, ledger: ledger.ledger, next: next.steps, unknowns: unknowns.unknowns, support, intervenants: interv, documents: docs.documents, docSummary: docs.summary, checklist, brs, toValidate: toval, tasks });
   }
+  async function refreshTasks() { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/tasks`, { token: token! }); setD((x) => ({ ...x, tasks: r })); }
+  async function addTask(b: any) { await api2("/tasks", b); await refreshTasks(); }
+  async function patchTask(id: number, b: any) { await api2(`/tasks/${id}`, b, "PATCH"); await refreshTasks(); }
+  async function delTask(id: number) { await api2(`/tasks/${id}`, undefined, "DELETE"); await refreshTasks(); }
+  async function addDep(id: number, blocked_by_id: number) { await api2(`/tasks/${id}/deps`, { blocked_by_id }); await refreshTasks(); }
+  async function delDep(id: number, bid: number) { await api2(`/tasks/${id}/deps/${bid}`, undefined, "DELETE"); await refreshTasks(); }
+  async function predictTask(id: number) { return api2(`/tasks/${id}/predict`); }
+  async function feeEstimate(b: any) { return api2("/fee-estimate", b); }
   async function refreshInterv() { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/intervenants`, { token: token! }); setD((x) => ({ ...x, intervenants: r })); }
   async function refreshDocs() { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/documents`, { token: token! }); setD((x) => ({ ...x, documents: r.documents, docSummary: r.summary })); await refreshToVal(); }
   async function refreshChecklist() { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/checklist`, { token: token! }); setD((x) => ({ ...x, checklist: r })); await refreshToVal(); }
@@ -291,7 +302,7 @@ export default function App() {
 
   if (!ready) return <div className="center"><span className="spin">Chargement…</span></div>;
   if (!token) return <Login busy={busy} err={err} onRegister={register} onLogin={login} onJoin={joinWithKey} />;
-  if (!active) return <Home projects={projects} users={users} flashKey={flashKey} busy={busy} err={err} onOpen={openProject} onCreate={createProject} onSignOut={signOut} onSearch={homeSearch} dismissFlash={() => setFlashKey(null)} />;
+  if (!active) return <Home projects={projects} users={users} atelier={atelier} flashKey={flashKey} busy={busy} err={err} onOpen={openProject} onCreate={createProject} onSignOut={signOut} onSearch={homeSearch} dismissFlash={() => setFlashKey(null)} />;
 
   const cur = NAV.find((n) => n.id === view)!;
   const j = active.jurisdiction;
@@ -300,7 +311,7 @@ export default function App() {
     <div className="ws">
       <aside className="ws__side">
         <div className="ws__brand"><span className="wordmark"><span className="ae">Æ</span>DIFICA</span></div>
-        <button className="back" onClick={() => { setActive(null); setD({}); }}>← Tous les projets</button>
+        <button className="back" onClick={() => { setActive(null); setD({}); loadAtelier(token!); }}>← Tous les projets</button>
         <div className="psw"><div className="k">Projet</div><div className="nm">{active.name}</div><div className="me">{j.commune} · {j.canton} · {phaseLabel(active.phase_code)}</div></div>
         <nav className="tnav">
           {GROUPS.map((grp) => (
@@ -340,6 +351,7 @@ export default function App() {
         <div className="ws__view">
           {flash && <div className={`banner ${flash.kind}`} style={{ display: "flex", alignItems: "center", gap: 12 }}><span style={{ flex: 1 }}>{flash.text}</span><button className="toggle" onClick={() => setFlash(null)}>Compris</button></div>}
           {view === "dashboard" && <Dashboard d={d} project={active} go={setView} />}
+          {view === "taches" && <Taches data={d.tasks} onAdd={addTask} onPatch={patchTask} onDel={delTask} onAddDep={addDep} onDelDep={delDep} onPredict={predictTask} />}
           {view === "checklist" && <Checklist data={d.checklist} entryPhase={active.phase_code} onSeed={seedChecklist} onPatch={patchChecklist} onAdd={addChecklistItem} onDel={delChecklistItem} />}
           {view === "terrain" && <Terrain claims={d.claims} mode={d.intakeMode} support={d.support} commune={j.commune} initialQuery={d.pendingQuery} onLookup={lookup} onRequest={requestCommune} />}
           {view === "intervenants" && <Intervenants data={d.intervenants} onAddGroup={addGroup} onDelGroup={delGroup} onAdd={addIntervenant} onPatch={patchIntervenant} onDel={delIntervenant} />}
@@ -350,7 +362,7 @@ export default function App() {
           {view === "conformite" && <Conformite d={d.compliance} />}
           {view === "copilote" && <Copilote token={token} pid={active.project_id} ledger={d.ledger} onChange={refreshLedger} />}
           {view === "memoire" && <Memoire unknowns={d.unknowns} ledger={d.ledger} />}
-          {view === "couts" && <Couts d={d.cost} />}
+          {view === "couts" && <Couts d={d.cost} onFee={feeEstimate} />}
           {view === "chantier" && <Chantier d={d.site} />}
           {view === "equipe" && <Team users={users} onAdd={addUser} onSetRole={setUserRole} />}
         </div>
@@ -414,7 +426,29 @@ function Login({ busy, err, onRegister, onLogin, onJoin }: { busy: boolean; err:
 }
 
 /* ===================== HOME ===================== */
-function Home({ projects, users, flashKey, busy, err, onOpen, onCreate, onSignOut, onSearch, dismissFlash }: any) {
+/* ===================== ATELIER · PILOTAGE MULTI-PROJET (W9 #225/#227) ===================== */
+function AtelierPilotage({ atelier, onOpen, projects }: any) {
+  const open: any[] = (atelier.tasks || []).filter((t: any) => t.status !== "done");
+  const col = atelier.collision || {}; const load = atelier.load_by_assignee || {};
+  const top = [...open].sort((a, b) => (a.priority > b.priority ? 1 : a.priority < b.priority ? -1 : 0)).slice(0, 6);
+  const openProj = (pid: string) => { const p = (projects || []).find((x: any) => x.project_id === pid); if (p) onOpen(p); };
+  return (
+    <div className="home__sec">
+      <h2>Atelier · pilotage multi-projet ({atelier.projects} projet·s)</h2>
+      {(col.overloaded || []).length > 0 && <div className="banner bad" style={{ marginBottom: 12 }}><b>Collision de charge</b> — {col.overloaded.map((o: any) => `${o.week} : ${o.hours} h (+${o.over})`).join(" · ")} au-delà de {col.weekly_capacity} h/sem.</div>}
+      <div className="g2">
+        <div className="card"><h3>Tâches prioritaires (tous projets)</h3>{top.length === 0 && <p className="spin">Aucune tâche ouverte.</p>}{top.map((t: any) => { const [pc, pl] = PRIO[t.priority] || ["modere", t.priority]; return (
+          <div className="row-line" key={t.id}><span className={`lvl ${pc}`}>{pl}</span><span className="grow"><span className="ttl">{t.title}{t.is_blocked && <small style={{ display: "inline", color: "var(--ts-conflict)" }}> · bloquée</small>}</span><small>{[t.project_name, t.assignee ? "→ " + t.assignee : null, t.estimate_hours ? t.estimate_hours + " h" : null, t.due_date ? "éch. " + t.due_date : null].filter(Boolean).join(" · ")}</small></span><button className="toggle" onClick={() => openProj(t.project_id)}>Ouvrir →</button></div>
+        ); })}</div>
+        <div className="card"><h3>Charge par collaborateur</h3>{Object.keys(load).length === 0 && <p className="spin">—</p>}{Object.entries(load).map(([n, h]: any) => (<div className="row-line" key={n}><span className="grow"><span className="ttl">{n}</span></span><span className={`lvl ${h > 40 ? "eleve" : h > 20 ? "modere" : "faible"}`}>{h} h</span></div>))}
+          {Object.keys(col.by_week || {}).length > 0 && <div style={{ marginTop: 12 }}><div className="mono" style={{ fontSize: 10, margin: "0 0 6px", color: "var(--mut)" }}>CHARGE PAR SEMAINE</div>{Object.entries(col.by_week).map(([w, h]: any) => (<div className="row-line" key={w}><span className="grow"><span className="mono" style={{ fontSize: 12 }}>{w}</span></span><span className={`lvl ${h > col.weekly_capacity ? "eleve" : "faible"}`}>{h} h</span></div>))}</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Home({ projects, users, atelier, flashKey, busy, err, onOpen, onCreate, onSignOut, onSearch, dismissFlash }: any) {
   const [q, setQ] = useState(""); const [creating, setCreating] = useState(false);
   const [name, setName] = useState(""); const [commune, setCommune] = useState("Lausanne");
   return (
@@ -443,6 +477,8 @@ function Home({ projects, users, flashKey, busy, err, onOpen, onCreate, onSignOu
         </div>
 
         {flashKey && <div className="flash"><b>Atelier créé.</b> Conservez votre clé d&apos;accès pour vous reconnecter :<code>{flashKey}</code><button className="signout" style={{ padding: 0 }} onClick={dismissFlash}>J&apos;ai noté ma clé</button></div>}
+
+        {atelier && (atelier.tasks || []).length > 0 && <AtelierPilotage atelier={atelier} onOpen={onOpen} projects={projects} />}
 
         <div className="home__sec">
           <h2>Vos projets ({(projects || []).length})</h2>
@@ -636,13 +672,38 @@ function Copilote({ token, pid, ledger, onChange }: { token: string; pid: string
 }
 
 /* ===================== COUTS ===================== */
-function Couts({ d }: any) {
-  if (!d) return <p className="spin">Chargement…</p>;
-  const c = d.cockpit; const chf = (n: number) => "CHF " + Number(n).toLocaleString("fr-CH");
-  const head = <div className="vh"><h2>Coûts &amp; appels d&apos;offres</h2><p>Honoraires, rentabilité du mandat et hypothèses portées en comparatif. Aucun coefficient SIA payant embarqué.</p></div>;
-  if (!c) return (<>{head}<div className="placeholder"><h4>Aucune estimation</h4><p>L&apos;estimation d&apos;honoraires n&apos;a pas encore été saisie.</p></div></>);
+function Couts({ d, onFee }: any) {
+  const [fi, setFi] = useState<any>({ cfc2: "", project_type: "villa", hourly_rate: "150", hours: "" });
+  const [est, setEst] = useState<any>(null); const [busy, setBusy] = useState(false);
+  const chf = (n: number) => "CHF " + Number(n).toLocaleString("fr-CH");
+  const c = d?.cockpit;
+  const calc = async () => { setBusy(true); try { const r = await onFee({ cfc2: Number(fi.cfc2) || 0, project_type: fi.project_type, hourly_rate: fi.hourly_rate ? Number(fi.hourly_rate) : null, hours: fi.hours ? Number(fi.hours) : null }); setEst(r.estimate); } catch { } finally { setBusy(false); } };
+  const head = <div className="vh"><h2>Coûts &amp; honoraires</h2><p>Estimateur d&apos;honoraires SIA 102 (deux méthodes), rentabilité et hypothèses. Aucun coefficient SIA payant embarqué — la formule publique, vos paramètres.</p></div>;
+  const feeCard = (
+    <div className="card" style={{ marginBottom: 14 }}>
+      <h3>Estimateur d&apos;honoraires (SIA 102)</h3>
+      <div className="g2">
+        <input className="fld" type="number" placeholder="Coût de l'ouvrage CFC2 (CHF)" value={fi.cfc2} onChange={(e) => setFi({ ...fi, cfc2: e.target.value })} />
+        <select className="fld" value={fi.project_type} onChange={(e) => setFi({ ...fi, project_type: e.target.value })}><option value="villa">Villa</option><option value="logement">Logement collectif</option><option value="renovation">Rénovation</option><option value="amenagement">Aménagement</option><option value="autre">Autre</option></select>
+        <input className="fld" type="number" placeholder="Tarif horaire (CHF/h)" value={fi.hourly_rate} onChange={(e) => setFi({ ...fi, hourly_rate: e.target.value })} />
+        <input className="fld" type="number" placeholder="Heures estimées (T)" value={fi.hours} onChange={(e) => setFi({ ...fi, hours: e.target.value })} />
+      </div>
+      <div className="actbar"><span className="mono" style={{ fontSize: 11 }}>% du CFC2 &nbsp;ou&nbsp; H = T × h</span><span style={{ marginLeft: "auto" }} /><button className="ds-btn" disabled={busy} onClick={calc}>{busy ? "…" : "Estimer"}</button></div>
+      {est && (
+        <div style={{ marginTop: 10 }}>
+          <div className="kpis">
+            <div className="kpi"><div className="lab">Méthode % CFC2</div><div className="num" style={{ fontSize: 21 }}>{est.by_cost_method ? chf(est.by_cost_method) : "—"}</div><div className="sub">{Math.round(est.percentage * 100)} % du CFC2</div></div>
+            <div className="kpi"><div className="lab">Méthode H = T × h</div><div className="num" style={{ fontSize: 21 }}>{est.by_time_method ? chf(est.by_time_method) : "—"}</div><div className="sub">{est.hours || "—"} h × {est.hourly_rate || "—"}</div></div>
+            <div className="kpi"><div className="lab">Recommandé</div><div className="num" style={{ fontSize: 21 }}>{est.recommended ? chf(est.recommended) : "—"}</div><div className="sub">à ajuster (curseur)</div></div>
+          </div>
+          {Object.keys(est.by_phase || {}).length > 0 && <div className="card" style={{ marginTop: 10 }}><h3>Répartition par phase SIA</h3>{Object.entries(est.by_phase).map(([ph, v]: any) => (<div className="row-line" key={ph}><span className="grow"><span className="ttl">{SIA_PHASE_FR[ph] || "Phase " + ph}</span></span><span className="mono">{chf(v)}</span></div>))}</div>}
+        </div>
+      )}
+    </div>
+  );
+  if (!c) return (<>{head}{feeCard}<div className="placeholder"><h4>Cockpit détaillé indisponible</h4><p>L&apos;estimation d&apos;honoraires détaillée (cockpit) n&apos;a pas encore été saisie. L&apos;estimateur ci-dessus reste utilisable.</p></div></>);
   return (
-    <>{head}
+    <>{head}{feeCard}
       <div className="kpis">
         <div className="kpi"><div className="lab">Honoraires estimés</div><div className="num" style={{ fontSize: 22 }}>{chf(c.estimated_fee_chf)}</div><div className="sub">{c.estimated_hours} h · {c.hourly_rate_chf} CHF/h</div></div>
         <div className="kpi"><div className="lab">Marge cible</div><div className="num">{c.target_margin_percent}%</div><div className="sub">objectif atelier</div></div>
@@ -895,6 +956,61 @@ function Brs({ data, intervenants, onAdd, onPatch, onDel }: any) {
           <div className="claim" key={e.id}><span className={`ds-ts ${c}`}><span className="dot" />{l}</span>
             <div style={{ flex: 1 }}><div className="ttl">{e.content}</div><small>{[BRS_KIND[e.kind] || e.kind, "canal : " + (BRS_CHAN[e.channel] || e.channel), e.emitter ? "par " + e.emitter : null, (e.created_at || "").slice(0, 16).replace("T", " "), e.source_ref].filter(Boolean).join(" · ")}</small></div>
             <span className="row" style={{ gap: 6 }}>{e.status !== "locked" && <button className="toggle" disabled={busy === `l${e.id}`} onClick={() => act(onPatch(e.id, { status: "locked" }), `l${e.id}`)}>Verrouiller</button>}<button className="signout" style={{ padding: 0 }} onClick={() => act(onDel(e.id), `d${e.id}`)}>✕</button></span>
+          </div>
+        ); })}
+      </div>
+    </>
+  );
+}
+
+/* ===================== TÂCHES & PRIORITÉS (W9 #226/#228) ===================== */
+const PRIO: Record<string, [string, string]> = { p0: ["eleve", "P0"], p1: ["modere", "P1"], p2: ["faible", "P2"] };
+const TSTATUS: Record<string, string> = { todo: "À faire", doing: "En cours", done: "Fait", blocked: "Bloqué" };
+function Taches({ data, onAdd, onPatch, onDel, onAddDep, onPredict }: any) {
+  const [f, setF] = useState<any>({ title: "", priority: "p2", estimate_hours: "", due_date: "", assignee_user_id: "", is_quick_win: false });
+  const [busy, setBusy] = useState("");
+  const [pred, setPred] = useState<Record<number, any>>({});
+  const [depFor, setDepFor] = useState<number | null>(null); const [depSel, setDepSel] = useState("");
+  if (!data) return <p className="spin">Chargement…</p>;
+  const tasks: any[] = data.tasks || []; const users: any[] = data.users || []; const s = data.summary || {};
+  const submit = async () => { if (!f.title.trim()) return; setBusy("add"); try { await onAdd({ ...f, estimate_hours: f.estimate_hours ? Number(f.estimate_hours) : null, assignee_user_id: f.assignee_user_id ? Number(f.assignee_user_id) : null, due_date: f.due_date || null }); setF({ title: "", priority: f.priority, estimate_hours: "", due_date: "", assignee_user_id: f.assignee_user_id, is_quick_win: false }); } catch { } finally { setBusy(""); } };
+  const act = async (p: Promise<any>, id: string) => { setBusy(id); try { await p; } catch { } finally { setBusy(""); } };
+  const predict = async (id: number) => { setBusy("p" + id); try { const r = await onPredict(id); setPred((x) => ({ ...x, [id]: r })); } catch { } finally { setBusy(""); } };
+  const addDep = async (id: number) => { if (!depSel) return; await act(onAddDep(id, Number(depSel)), "dep" + id); setDepFor(null); setDepSel(""); };
+  const ordered = [...tasks].sort((a, b) => (a.priority > b.priority ? 1 : a.priority < b.priority ? -1 : 0) || ((a.status === "done" ? 1 : 0) - (b.status === "done" ? 1 : 0)));
+  return (
+    <>
+      <div className="vh"><div className="row"><h2>Tâches &amp; priorités</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>On navigue par <b>priorité</b> (P0 / P1 / P2) et par <b>ce qui bloque</b>, pas par agenda. Estimez la durée, liez les dépendances, assignez aux collaborateurs.</p></div>
+      <div className="kpis">
+        <div className="kpi"><div className="lab">P0 · bloquant</div><div className="num">{s.by_priority?.p0 || 0}</div></div>
+        <div className="kpi"><div className="lab">Bloquées</div><div className="num">{s.blocked || 0}</div></div>
+        <div className="kpi"><div className="lab">Quick wins</div><div className="num">{s.quick_wins || 0}</div></div>
+        <div className="kpi"><div className="lab">Ouvertes</div><div className="num">{(s.total || 0) - (s.by_status?.done || 0)}</div></div>
+      </div>
+      <div className="card" style={{ marginBottom: 14 }}>
+        <h3>Nouvelle tâche</h3>
+        <input className="fld" placeholder="Intitulé de la tâche" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} />
+        <div className="g2">
+          <select className="fld" value={f.priority} onChange={(e) => setF({ ...f, priority: e.target.value })}><option value="p0">P0 · bloquant</option><option value="p1">P1</option><option value="p2">P2</option></select>
+          <input className="fld" type="number" placeholder="Estimation (h)" value={f.estimate_hours} onChange={(e) => setF({ ...f, estimate_hours: e.target.value })} />
+          <input className="fld" type="date" value={f.due_date} onChange={(e) => setF({ ...f, due_date: e.target.value })} />
+          <select className="fld" value={f.assignee_user_id} onChange={(e) => setF({ ...f, assignee_user_id: e.target.value })}><option value="">— assigner à —</option>{users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select>
+        </div>
+        <div className="actbar"><label className="mono" style={{ display: "flex", alignItems: "center", gap: 7 }}><input type="checkbox" checked={f.is_quick_win} onChange={(e) => setF({ ...f, is_quick_win: e.target.checked })} /> Quick win</label><span style={{ marginLeft: "auto" }} /><button className="ds-btn" disabled={busy === "add" || !f.title} onClick={submit}>{busy === "add" ? "…" : "Ajouter"}</button></div>
+      </div>
+      <div className="card">
+        <h3>Tâches ({tasks.length})</h3>
+        {tasks.length === 0 && <p className="spin">Aucune tâche. Ajoutez-en une ci-dessus.</p>}
+        {ordered.map((t) => { const [pc, pl] = PRIO[t.priority] || ["modere", t.priority]; const p = pred[t.id]; return (
+          <div className="row-line" key={t.id} style={{ opacity: t.status === "done" ? 0.6 : 1 }}>
+            <span className={`lvl ${pc}`}>{pl}</span>
+            <span className="grow"><span className="ttl">{t.title}{t.is_quick_win && <small style={{ display: "inline", color: "var(--ts-sourced)" }}> · quick win</small>}{t.is_blocked && t.status !== "done" && <small style={{ display: "inline", color: "var(--ts-conflict)" }}> · bloquée</small>}</span><small>{[TSTATUS[t.status], t.assignee ? "→ " + t.assignee : null, t.estimate_hours ? t.estimate_hours + " h" : null, t.due_date ? "éch. " + t.due_date : null, (t.blocked_by && t.blocked_by.length) ? "dépend de #" + t.blocked_by.join(", #") : null, p ? "≈ " + (p.prediction ?? "?") + " h prédit" : null].filter(Boolean).join(" · ")}</small></span>
+            <span className="row" style={{ gap: 6 }}>
+              <select className="fld" style={{ margin: 0, padding: "4px 6px", width: "auto" }} value={t.status} onChange={(e) => act(onPatch(t.id, { status: e.target.value }), "s" + t.id)}>{Object.entries(TSTATUS).map(([v, lb]) => <option key={v} value={v}>{lb}</option>)}</select>
+              <button className="toggle" disabled={busy === "p" + t.id} onClick={() => predict(t.id)} title="Prédire la durée depuis l'historique de l'atelier">≈ h</button>
+              {depFor === t.id ? <span className="row" style={{ gap: 4 }}><select className="fld" style={{ margin: 0, padding: "4px 6px", width: "auto" }} value={depSel} onChange={(e) => setDepSel(e.target.value)}><option value="">dépend de…</option>{tasks.filter((x) => x.id !== t.id).map((x) => <option key={x.id} value={x.id}>{x.title.slice(0, 24)}</option>)}</select><button className="toggle" disabled={!depSel} onClick={() => addDep(t.id)}>OK</button></span> : <button className="toggle" onClick={() => { setDepFor(t.id); setDepSel(""); }}>+ dép.</button>}
+              <button className="signout" style={{ padding: 0 }} onClick={() => act(onDel(t.id), "d" + t.id)}>✕</button>
+            </span>
           </div>
         ); })}
       </div>
