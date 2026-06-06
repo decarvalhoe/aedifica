@@ -650,6 +650,50 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
                 .order_by(m.AuditEvent.id.desc()).limit(min(limit, 1000)).all())
         return {"events": [_audit_dict(e) for e in rows], "total": len(rows)}
 
+    # ---- W12.E: atelier-wide benchmark snapshots -------------------------- #
+    def _benchmark_dict(b: m.AtelierBenchmark) -> dict:
+        import json as _json
+        return {"id": b.id, "period_label": b.period_label,
+                "n_projects": b.n_projects, "n_tasks_done": b.n_tasks_done,
+                "duration_ratios": _json.loads(b.duration_ratios_json) if b.duration_ratios_json else {},
+                "cost_factor": b.cost_factor, "note": b.note,
+                "frozen_at": b.frozen_at.isoformat() if b.frozen_at else None}
+
+    @app.post("/api/orgs/benchmark/snapshot", status_code=201)
+    def snapshot_benchmark(body: dict | None = None,
+                           user: m.User = Depends(current_user),
+                           session: Session = Depends(get_session)):
+        """Freeze the atelier's current learning state into an append-only
+        AtelierBenchmark row. Owner only — capitalization is org-wide.
+        Body: {"note": "..."} (optional)."""
+        require(user, "org.manage")
+        from ..foresight.benchmark import snapshot_atelier
+        row = snapshot_atelier(session, user.org_id,
+                               note=(body or {}).get("note"))
+        session.commit()
+        return {"benchmark": _benchmark_dict(row)}
+
+    @app.get("/api/orgs/benchmark")
+    def list_benchmarks(user: m.User = Depends(current_user),
+                        session: Session = Depends(get_session)):
+        """List all frozen snapshots, most recent first. Owner only."""
+        require(user, "org.manage")
+        rows = (session.query(m.AtelierBenchmark)
+                .filter_by(org_id=user.org_id)
+                .order_by(m.AtelierBenchmark.id.desc()).all())
+        return {"benchmarks": [_benchmark_dict(b) for b in rows], "total": len(rows)}
+
+    @app.get("/api/orgs/benchmark/latest")
+    def get_latest_benchmark(user: m.User = Depends(current_user),
+                             session: Session = Depends(get_session)):
+        """Most-recent snapshot, or 404 if none. Any project-reader role."""
+        require(user, "project.read")
+        from ..foresight.benchmark import latest_snapshot
+        row = latest_snapshot(session, user.org_id)
+        if not row:
+            raise _err(404, "NO_BENCHMARK", "no snapshot frozen yet")
+        return {"benchmark": _benchmark_dict(row)}
+
     # ---- W12.A: Foresight — deterministic predictive layer ---------------- #
     def _proposal_dict(p: m.Proposal) -> dict:
         import json as _json
