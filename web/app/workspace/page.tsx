@@ -6,6 +6,7 @@ import { AttachField } from "./AttachField";
 import { GanttView } from "./GanttView";
 import { KanbanView } from "./KanbanView";
 import { PhaseTasks } from "./PhaseTasks";
+import { Foresight } from "./Foresight";
 
 const REF_ID = "DEMO-LAUSANNE-PALUD";
 const REF = { name: "Place de la Palud", commune: "Lausanne" };
@@ -35,12 +36,13 @@ const phaseLabel = (code?: string) => {
 // SIA cost-precision convergence per phase (from the SIA Vaud chart)
 const COST_PRECISION: Record<string, string> = { "31": "± 15 %", "32": "± 10 %", "33": "± 10 %", "41": "ferme", "51": "ferme", "52": "ferme" };
 
-type View = "dashboard" | "taches" | "terrain" | "checklist" | "coordination" | "intervenants" | "documents" | "brs" | "permis" | "opposition" | "conformite" | "copilote" | "memoire" | "couts" | "chantier" | "equipe";
+type View = "dashboard" | "taches" | "terrain" | "checklist" | "coordination" | "intervenants" | "documents" | "brs" | "permis" | "opposition" | "conformite" | "copilote" | "memoire" | "couts" | "chantier" | "equipe" | "foresight";
 // W11 P0: every NAV icon references the official Datum sprite by symbol id —
 // `web/public/assets/functional-icons.svg#ic-*` — no more inline custom SVG.
 // Closest semantic match per surface, taken from the DS iconography page §05.
 const NAV: { id: View; lb: string; ico: string; ph?: string; grp: string }[] = [
   { id: "dashboard", lb: "Tableau de bord", ico: "ic-portfolio", grp: "Pilotage" },
+  { id: "foresight", lb: "Foresight · prédictions", ico: "ic-datum-target", grp: "Pilotage" },
   { id: "taches", lb: "Tâches & priorités", ico: "ic-claims", grp: "Pilotage" },
   { id: "checklist", lb: "Checklist SIA", ico: "ic-check", grp: "Pilotage" },
   { id: "terrain", lb: "Terrain & zonage", ico: "ic-map-pin", ph: "0–11", grp: "Pilotage" },
@@ -312,7 +314,7 @@ export default function App() {
     const [claims, permit, opposition, compliance, cost, site, ledger, next, unknowns, support, interv, docs, checklist, brs, toval, tasks, captures, coord] = await Promise.all([
       g("/claims"), g("/permit"), g("/opposition"), g("/compliance"), g("/cost"), g("/site"), g("/ledger"), g("/next-step"), g("/memory/unknowns"), sup, g("/intervenants"), g("/documents"), g("/checklist"), g("/brs"), g("/to-validate"), g("/tasks"), g("/captures"), g("/coordination").catch(() => null),
     ]);
-    setD({ claims: claims.claims, permit: permit.permit, opposition: opposition.opposition, compliance: compliance.compliance, cost: cost.cost, site: site.site, ledger: ledger.ledger, next: next.steps, unknowns: unknowns.unknowns, support, intervenants: interv, documents: docs.documents, docSummary: docs.summary, checklist, brs, toValidate: toval, tasks, captures, coord });
+    setD({ claims: claims.claims, permit: permit.permit, opposition: opposition.opposition, compliance: compliance.compliance, cost: cost.cost, site: site.site, ledger: ledger.ledger, next: next.steps, nextStep: next, unknowns: unknowns.unknowns, support, intervenants: interv, documents: docs.documents, docSummary: docs.summary, checklist, brs, toValidate: toval, tasks, captures, coord });
   }
   async function refreshCoord() { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/coordination`, { token: token! }); setD((x) => ({ ...x, coord: r })); }
   async function inviteIntervenant(id: number, email: string, name: string | null) { const r = await api2(`/intervenants/${id}/invite`, { email, name }); await refreshInterv(); return r; }
@@ -524,6 +526,7 @@ export default function App() {
           {view === "couts" && <Couts d={d.cost} onFee={feeEstimate} tasks={d.tasks?.tasks || []} projectPhase={active.phase_code} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
           {view === "chantier" && <Chantier d={d.site} tasks={d.tasks?.tasks || []} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
           {view === "equipe" && <Team users={users} onAdd={addUser} onSetRole={setUserRole} />}
+          {view === "foresight" && token && <Foresight token={token} pid={active.project_id} />}
         </div>
       </main>
     </div>
@@ -787,10 +790,19 @@ function Dashboard({ d, project, go, alerts, onOpenAtelierPlanning }: { d: any; 
         </div>
       )}
       <div className="next">
-        <div className="h"><span className="t">Prochain pas</span></div>
+        <div className="h"><span className="t">Prochain pas</span><button className="toggle" style={{ marginLeft: "auto", padding: "2px 8px", fontSize: 11 }} onClick={() => go("foresight")}>Voir Foresight →</button></div>
+        {d.nextStep?.top_pick && (
+          <div className="row" style={{ background: "var(--surface-2)", padding: 10, borderRadius: 2, marginBottom: 6 }}>
+            <span className="ix" style={{ background: "var(--accent)", color: "var(--surface)" }}>★</span>
+            <span>
+              <span className="tx">{fr(d.nextStep.top_pick.title)}</span>
+              <span className="mt" style={{ display: "block" }}>{d.nextStep.top_pick.rationale || d.nextStep.top_pick.action} · phase {d.nextStep.top_pick.phase} · impact {d.nextStep.top_pick.impact_score}</span>
+            </span>
+          </div>
+        )}
         {(d.next || []).slice(0, 4).map((s: any, i: number) => (
           <div className="row" key={i}><span className="ix">{String(i + 1).padStart(2, "0")}</span>
-            <span><span className="tx">{fr(s.title)}</span><span className="mt">{s.action || s.kind} · phase {s.phase}</span></span></div>
+            <span><span className="tx">{fr(s.title)}</span><span className="mt">{s.rationale || s.action || s.kind} · phase {s.phase}{s.impact_score ? ` · impact ${s.impact_score}` : ""}</span></span></div>
         ))}
         {(d.next || []).length === 0 && <div className="row"><span className="spin">Rien en attente.</span></div>}
       </div>
