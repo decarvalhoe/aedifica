@@ -6,13 +6,20 @@ import { api } from "@/lib/api";
 const REF_ID = "DEMO-LAUSANNE-PALUD";
 const REF = { name: "Place de la Palud", commune: "Lausanne" };
 
-/* ---- SIA phase model (the journey axis) ---- */
+/* ---- SIA phase model (official sub-phases SIA 112/102) ---- */
 const PHASES: [string, string][] = [
-  ["0", "Intake"], ["11", "Faisab."], ["31", "Avant-pr."], ["32", "Projet/BIM"],
-  ["33", "Permis"], ["41", "Appel d'offres"], ["5x", "Exécution"], ["6", "Exploit."],
+  ["11", "Objectifs"], ["21", "Faisab."], ["22", "Mandataires"], ["31", "Avant-pr."],
+  ["32", "Projet"], ["33", "Permis"], ["41", "Appel d'offres"], ["51", "Exécution"],
+  ["52", "Chantier"], ["53", "Service"], ["61", "Exploit."],
 ];
-const phaseIndex = (code?: string) => { const i = PHASES.findIndex((p) => p[0] === code); return i < 0 ? 0 : i; };
-const phaseLabel = (code?: string) => { const p = PHASES.find((x) => x[0] === code); return p ? `Phase ${p[0]} · ${p[1]}` : "Phase 0 · Intake"; };
+// legacy/short codes from older projects → official sub-phase
+const PHASE_ALIAS: Record<string, string> = { "0": "11", "5x": "51", "6": "61" };
+const norm = (c?: string) => (c && PHASE_ALIAS[c]) || c || "11";
+const PHASE_LABEL_FR: Record<string, string> = { "11": "Définition des objectifs", "21": "Études préliminaires", "22": "Choix des mandataires", "31": "Avant-projet", "32": "Projet de l'ouvrage", "33": "Autorisation / permis", "41": "Appel d'offres", "51": "Projet d'exécution", "52": "Exécution / chantier", "53": "Mise en service", "61": "Exploitation" };
+const phaseIndex = (code?: string) => { const i = PHASES.findIndex((p) => p[0] === norm(code)); return i < 0 ? 0 : i; };
+const phaseLabel = (code?: string) => { const c = norm(code); return `Phase ${c} · ${PHASE_LABEL_FR[c] || ""}`.trim(); };
+// SIA cost-precision convergence per phase (from the SIA Vaud chart)
+const COST_PRECISION: Record<string, string> = { "31": "± 15 %", "32": "± 10 %", "33": "± 10 %", "41": "ferme", "51": "ferme", "52": "ferme" };
 
 type View = "dashboard" | "terrain" | "checklist" | "intervenants" | "documents" | "brs" | "permis" | "opposition" | "conformite" | "copilote" | "memoire" | "couts" | "chantier" | "equipe";
 const NAV: { id: View; lb: string; ico: string; ph?: string; grp: string }[] = [
@@ -312,7 +319,10 @@ export default function App() {
 
       <main className="ws__main">
         <div className="phaserail">
-          <div className="cap"><span className="t">Parcours SIA du projet</span><span className="now">● {phaseLabel(active.phase_code)}</span></div>
+          <div className="cap"><span className="t">Parcours SIA du projet</span><span className="now">● {phaseLabel(active.phase_code)}</span>
+            {COST_PRECISION[norm(active.phase_code)] && <span className="chip">Précision coût {COST_PRECISION[norm(active.phase_code)]}</span>}
+            {d.intervenants && (d.intervenants.people || []).length > 0 && <span className="chip">{(d.intervenants.people || []).length} intervenant·e·s</span>}
+          </div>
           <div className="phases">
             {PHASES.map(([code, lb], i) => (
               <button key={code} className={`phase ${i < curIdx ? "done" : ""} ${i === curIdx ? "now" : ""}`} title={`Phase ${code}`}>
