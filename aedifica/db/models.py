@@ -79,6 +79,11 @@ class Project(Base):
     brief_risks: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     cost_inputs: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # AED-218
     site_inputs: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # AED-219
+    # W12.C — LLM opt-in mode: off (default) | local (Ollama, on the atelier's
+    # machine, confidential content allowed) | cloud (opt-in, confidential
+    # content NEVER sent — pieces with confidential=true are excluded from the
+    # prompt by the LLM layer).
+    llm_mode: Mapped[str] = mapped_column(String(10), default="off")
     created_at: Mapped[_dt.datetime] = _TS()
 
     org: Mapped[Org] = relationship(back_populates="projects")
@@ -440,6 +445,8 @@ AUDIT_EVENT_TYPES = (
     "token_revoked",       # user (or org owner) revoked the token, forcing re-login
     "password_set",        # user set/changed their password
     "external_view_blocked",  # external attempted an out-of-scope read; recorded for audit
+    "llm_mode_changed",   # W12.C — project's llm_mode flipped off/local/cloud
+    "llm_called",         # W12.C — an LLM-backed Foresight rule was invoked
 )
 
 
@@ -476,6 +483,9 @@ PROPOSAL_KINDS = (
     "reuse_checklist",
     "rebalance",
     "next_step_ranked",
+    "brs_summary",        # W12.C — LLM-generated summary of a BRS thread
+    "regulation_extract", # W12.C — extracted regulatory claims from a règlement
+    "friction_cluster",   # W12.C — clustering of recurring frictions
 )
 PROPOSAL_DECISIONS = ("pending", "accepted", "deferred", "refused")
 
