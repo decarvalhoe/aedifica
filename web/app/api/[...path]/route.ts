@@ -33,3 +33,15 @@ export async function GET(req: Request, ctx: Ctx) {
 export async function POST(req: Request, ctx: Ctx) {
   return proxy(req, ctx.params.path);
 }
+// Verbs used by the workspace: PATCH for status toggles (checklist ticks, task done,
+// BRS lock, document validation level…), PUT for full replaces, DELETE for removals.
+// Without these, Next.js answers 405 before FastAPI ever sees the request.
+export async function PATCH(req: Request, ctx: Ctx) {
+  return proxy(req, ctx.params.path);
+}
+export async function PUT(req: Request, ctx: Ctx) {
+  return proxy(req, ctx.params.path);
+}
+export async function DELETE(req: Request, ctx: Ctx) {
+  return proxy(req, ctx.params.path);
+}
