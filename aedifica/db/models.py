@@ -480,6 +480,28 @@ PROPOSAL_KINDS = (
 PROPOSAL_DECISIONS = ("pending", "accepted", "deferred", "refused")
 
 
+class AtelierBenchmark(Base):
+    """W12.E — atelier-wide capitalization snapshot. We freeze the current
+    learned ratios so they survive the noise of any single project. The
+    Foresight engine can optionally prefer a recent benchmark over live
+    computation for stability.
+
+    Append-only: a snapshot is never edited. A new snapshot supersedes the
+    old for "latest" lookups but the history is preserved — useful to see
+    how the atelier's behavior shifts over time."""
+
+    __tablename__ = "atelier_benchmark"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    org_id: Mapped[int] = mapped_column(ForeignKey("org.id"))
+    period_label: Mapped[str] = mapped_column(String(20))   # e.g. "2026-Q2"
+    n_projects: Mapped[int] = mapped_column(default=0)
+    n_tasks_done: Mapped[int] = mapped_column(default=0)
+    duration_ratios_json: Mapped[str] = mapped_column(Text)   # JSON: {"32": 1.4, "33": 1.2}
+    cost_factor: Mapped[float | None] = mapped_column(Float, nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    frozen_at: Mapped[_dt.datetime] = _TS()
+
+
 class Proposal(Base):
     """An IA proposition the architect must explicitly approve before it mutates
     anything. Doctrine: "l'IA propose, l'architecte décide" — the apply_payload
