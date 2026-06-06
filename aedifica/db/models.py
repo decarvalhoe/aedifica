@@ -90,6 +90,7 @@ class Project(Base):
     brs_entries: Mapped[list["BrsEntry"]] = relationship(back_populates="project", cascade="all, delete-orphan")
     checklist_items: Mapped[list["ChecklistItem"]] = relationship(back_populates="project", cascade="all, delete-orphan")
     tasks: Mapped[list["Task"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    captures: Mapped[list["CaptureNote"]] = relationship(back_populates="project", cascade="all, delete-orphan")
 
 
 class Source(Base):
@@ -375,6 +376,25 @@ class TaskDependency(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     task_id: Mapped[int] = mapped_column(ForeignKey("task.id"))
     blocked_by_id: Mapped[int] = mapped_column(ForeignKey("task.id"))
+
+
+CAPTURE_KINDS = ("friction", "observation", "photo", "decision", "regulation")
+
+
+class CaptureNote(Base):
+    """A captured note — site friction/observation, a photo proof ('preuve à futur'),
+    a verbal decision, or a 'regulation under study' alert. Append-only, author-tagged,
+    timestamped; never fabricated (the architect enters it). Covers #232 and #231."""
+
+    __tablename__ = "capture_note"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    kind: Mapped[str] = mapped_column(String(20), default="observation")  # friction|observation|photo|decision|regulation
+    content: Mapped[str] = mapped_column(Text)
+    author: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    source_ref: Mapped[str | None] = mapped_column(String(500), nullable=True)  # photo URL / attachment / reference
+    created_at: Mapped[_dt.datetime] = _TS()
+    project: Mapped["Project"] = relationship(back_populates="captures")
 
 
 # --------------------------------------------------------------------------- #

@@ -57,3 +57,16 @@ def test_atelier_collision_across_projects(client, owner):
     assert at["projects"] >= 2 and len(at["tasks"]) >= 2
     # 30h + 30h = 60h in one ISO week > 40h capacity → overloaded
     assert len(at["collision"]["overloaded"]) >= 1
+
+
+def test_captures_friction_photo_regulation(client, owner):
+    h = owner["headers"]
+    pid = _project(client, h, "PC")
+    f = client.post(f"/api/projects/{pid}/captures", json={"kind": "friction", "content": "Le client a changé d'avis sur la cuisine"}, headers=h).json()["capture"]
+    assert f["kind"] == "friction" and f["author"]  # author auto-set to the acting user
+    client.post(f"/api/projects/{pid}/captures", json={"kind": "photo", "content": "Fissure mur nord", "source_ref": "https://x/p.jpg"}, headers=h)
+    client.post(f"/api/projects/{pid}/captures", json={"kind": "regulation", "content": "PGA en révision — hauteurs à confirmer"}, headers=h)
+    lst = client.get(f"/api/projects/{pid}/captures", headers=h).json()
+    assert lst["by_kind"]["friction"] == 1 and lst["by_kind"]["photo"] == 1
+    assert len(lst["regulation_alerts"]) == 1  # regulation watch surfaces separately (#231)
+    assert client.post(f"/api/projects/{pid}/captures", json={"kind": "bogus", "content": "x"}, headers=h).status_code == 400

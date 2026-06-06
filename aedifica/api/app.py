@@ -209,6 +209,12 @@ class FeeIn(BaseModel):
     hours: float | None = None
 
 
+class CaptureIn(BaseModel):
+    kind: str = "observation"  # friction|observation|photo|decision|regulation
+    content: str
+    source_ref: str | None = None
+
+
 def _err(status: int, code: str, message: str) -> HTTPException:
     return HTTPException(status_code=status, detail={"code": code, "message": message})
 
@@ -790,6 +796,42 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
             key = names.get(t.assignee_user_id) or "non assigné"
             by_assignee[key] = round(by_assignee.get(key, 0.0) + float(t.estimate_hours or 0), 1)
         return {"tasks": items, "projects": len(projects), "collision": col, "load_by_assignee": by_assignee}
+
+    # ---- capture notes: friction / photos / decisions / regulation watch (#231 #232) -- #
+    def _cap_dict(c: m.CaptureNote) -> dict:
+        return {"id": c.id, "kind": c.kind, "content": c.content, "author": c.author,
+                "source_ref": c.source_ref, "created_at": str(c.created_at) if c.created_at else None}
+
+    @app.get("/api/projects/{project_id}/captures")
+    def list_captures(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.read")
+        p = _project(session, user, project_id)
+        rows = session.query(m.CaptureNote).filter_by(project_id=p.id).order_by(m.CaptureNote.id.desc()).all()
+        by_kind: dict = {}
+        for c in rows:
+            by_kind[c.kind] = by_kind.get(c.kind, 0) + 1
+        return {"captures": [_cap_dict(c) for c in rows], "by_kind": by_kind,
+                "regulation_alerts": [_cap_dict(c) for c in rows if c.kind == "regulation"]}
+
+    @app.post("/api/projects/{project_id}/captures", status_code=201)
+    def add_capture(project_id: str, body: CaptureIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        if body.kind not in m.CAPTURE_KINDS:
+            raise _err(400, "BAD_KIND", f"kind must be one of {m.CAPTURE_KINDS}")
+        p = _project(session, user, project_id)
+        c = m.CaptureNote(project_id=p.id, kind=body.kind, content=body.content, author=user.name, source_ref=body.source_ref)
+        session.add(c); session.commit()
+        return {"capture": _cap_dict(c)}
+
+    @app.delete("/api/projects/{project_id}/captures/{capture_id}")
+    def del_capture(project_id: str, capture_id: int, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        c = session.query(m.CaptureNote).filter_by(project_id=p.id, id=capture_id).first()
+        if not c:
+            raise _err(404, "CAPTURE_NOT_FOUND", str(capture_id))
+        session.delete(c); session.commit()
+        return {"deleted": capture_id}
 
     @app.get("/api/projects/{project_id}/claims")
     def project_claims(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):

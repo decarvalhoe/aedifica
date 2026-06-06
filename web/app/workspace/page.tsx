@@ -192,11 +192,14 @@ export default function App() {
   async function loadAll(p: Project, t: string) {
     const pid = p.project_id; const g = (path: string) => api<any>(`/projects/${pid}${path}`, { token: t });
     const sup = api<any>(`/communes/${p.jurisdiction.commune}/${p.jurisdiction.canton}/support`, { token: t }).then((r) => r.support).catch(() => null);
-    const [claims, permit, opposition, compliance, cost, site, ledger, next, unknowns, support, interv, docs, checklist, brs, toval, tasks] = await Promise.all([
-      g("/claims"), g("/permit"), g("/opposition"), g("/compliance"), g("/cost"), g("/site"), g("/ledger"), g("/next-step"), g("/memory/unknowns"), sup, g("/intervenants"), g("/documents"), g("/checklist"), g("/brs"), g("/to-validate"), g("/tasks"),
+    const [claims, permit, opposition, compliance, cost, site, ledger, next, unknowns, support, interv, docs, checklist, brs, toval, tasks, captures] = await Promise.all([
+      g("/claims"), g("/permit"), g("/opposition"), g("/compliance"), g("/cost"), g("/site"), g("/ledger"), g("/next-step"), g("/memory/unknowns"), sup, g("/intervenants"), g("/documents"), g("/checklist"), g("/brs"), g("/to-validate"), g("/tasks"), g("/captures"),
     ]);
-    setD({ claims: claims.claims, permit: permit.permit, opposition: opposition.opposition, compliance: compliance.compliance, cost: cost.cost, site: site.site, ledger: ledger.ledger, next: next.steps, unknowns: unknowns.unknowns, support, intervenants: interv, documents: docs.documents, docSummary: docs.summary, checklist, brs, toValidate: toval, tasks });
+    setD({ claims: claims.claims, permit: permit.permit, opposition: opposition.opposition, compliance: compliance.compliance, cost: cost.cost, site: site.site, ledger: ledger.ledger, next: next.steps, unknowns: unknowns.unknowns, support, intervenants: interv, documents: docs.documents, docSummary: docs.summary, checklist, brs, toValidate: toval, tasks, captures });
   }
+  async function refreshCaptures() { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/captures`, { token: token! }); setD((x) => ({ ...x, captures: r })); }
+  async function addCapture(b: any) { await api2("/captures", b); await refreshCaptures(); }
+  async function delCapture(id: number) { await api2(`/captures/${id}`, undefined, "DELETE"); await refreshCaptures(); }
   async function refreshTasks() { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/tasks`, { token: token! }); setD((x) => ({ ...x, tasks: r })); }
   async function addTask(b: any) { await api2("/tasks", b); await refreshTasks(); }
   async function patchTask(id: number, b: any) { await api2(`/tasks/${id}`, b, "PATCH"); await refreshTasks(); }
@@ -353,15 +356,15 @@ export default function App() {
           {view === "dashboard" && <Dashboard d={d} project={active} go={setView} />}
           {view === "taches" && <Taches data={d.tasks} onAdd={addTask} onPatch={patchTask} onDel={delTask} onAddDep={addDep} onDelDep={delDep} onPredict={predictTask} />}
           {view === "checklist" && <Checklist data={d.checklist} entryPhase={active.phase_code} onSeed={seedChecklist} onPatch={patchChecklist} onAdd={addChecklistItem} onDel={delChecklistItem} />}
-          {view === "terrain" && <Terrain claims={d.claims} mode={d.intakeMode} support={d.support} commune={j.commune} initialQuery={d.pendingQuery} onLookup={lookup} onRequest={requestCommune} />}
+          {view === "terrain" && <Terrain claims={d.claims} mode={d.intakeMode} support={d.support} commune={j.commune} initialQuery={d.pendingQuery} regAlerts={d.captures?.regulation_alerts} onLookup={lookup} onRequest={requestCommune} />}
           {view === "intervenants" && <Intervenants data={d.intervenants} onAddGroup={addGroup} onDelGroup={delGroup} onAdd={addIntervenant} onPatch={patchIntervenant} onDel={delIntervenant} />}
           {view === "documents" && <Documents docs={d.documents} summary={d.docSummary} intervenants={d.intervenants} onAdd={addDocument} onValidate={validateDocument} onPatch={patchDocument} onDel={delDocument} onGrant={addGrant} onRevoke={revokeGrant} />}
           {view === "brs" && <Brs data={d.brs} intervenants={d.intervenants} onAdd={addBrs} onPatch={patchBrs} onDel={delBrs} />}
           {view === "permis" && <Permis d={d.permit} onSubmit={submitPermit} />}
-          {view === "opposition" && <Opposition d={d.opposition} />}
+          {view === "opposition" && <Opposition d={d.opposition} canonicalDocs={(d.documents || []).filter((x: any) => x.validation_level === "canonical").length} />}
           {view === "conformite" && <Conformite d={d.compliance} />}
           {view === "copilote" && <Copilote token={token} pid={active.project_id} ledger={d.ledger} onChange={refreshLedger} />}
-          {view === "memoire" && <Memoire unknowns={d.unknowns} ledger={d.ledger} />}
+          {view === "memoire" && <Memoire unknowns={d.unknowns} ledger={d.ledger} captures={d.captures} onAddCapture={addCapture} onDelCapture={delCapture} />}
           {view === "couts" && <Couts d={d.cost} onFee={feeEstimate} />}
           {view === "chantier" && <Chantier d={d.site} />}
           {view === "equipe" && <Team users={users} onAdd={addUser} onSetRole={setUserRole} />}
@@ -558,7 +561,7 @@ function Dashboard({ d, project, go }: { d: any; project: Project; go: (v: View)
 }
 
 /* ===================== TERRAIN ===================== */
-function Terrain({ claims, mode, support, commune, onLookup, onRequest, initialQuery }: any) {
+function Terrain({ claims, mode, support, commune, onLookup, onRequest, initialQuery, regAlerts }: any) {
   const [q, setQ] = useState(initialQuery || ""); const [b, setB] = useState("");
   if (!claims) return <p className="spin">Chargement…</p>;
   const lookup = async () => { if (!q.trim()) return; setB("l"); try { await onLookup(q.trim()); } catch { } finally { setB(""); } };
@@ -566,6 +569,7 @@ function Terrain({ claims, mode, support, commune, onLookup, onRequest, initialQ
   return (
     <>
       <div className="vh"><div className="row"><h2>Terrain &amp; zonage</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>Ce que la parcelle autorise — sourcé sur une base officielle, ou marqué « à vérifier ».</p></div>
+      {(regAlerts || []).map((r: any) => <div className="banner bad" key={r.id}>⚠️ <b>Règlement à l&apos;étude</b> — {r.content}{r.source_ref ? ` (${r.source_ref})` : ""}. Les règles (hauteurs, densités) peuvent changer en cours de projet.</div>)}
       {support && !usable && <div className="banner warn">Commune <b>{commune}</b> pas encore prise en charge. <button className="toggle" onClick={onRequest}>Demander l&apos;ingestion</button></div>}
       <div className="searchrow"><input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && lookup()} placeholder="Adresse ou parcelle — ex. Place de la Palud, Lausanne" /><button onClick={lookup}>{b ? "…" : "Rechercher (live)"}</button></div>
       {mode === "offline" && <p className="note" style={{ marginBottom: 12 }}>Recherche live indisponible — données de référence affichées.</p>}
@@ -602,13 +606,14 @@ function Permis({ d, onSubmit }: any) {
 }
 
 /* ===================== OPPOSITION ===================== */
-function Opposition({ d }: any) {
+function Opposition({ d, canonicalDocs }: any) {
   if (!d) return <p className="spin">Chargement…</p>;
   if (!d.overall) return (<><div className="vh"><h2>Risque d&apos;opposition</h2></div><div className="placeholder"><h4>Aucune analyse de parcelle</h4><p>Lancez une recherche d&apos;adresse dans Terrain &amp; zonage.</p></div></>);
   return (
     <>
-      <div className="vh"><h2>Risque d&apos;opposition</h2><p>Les motifs d&apos;opposition les plus probables, évalués sur les faits — pour les désamorcer avant l&apos;enquête.</p></div>
+      <div className="vh"><h2>Risque d&apos;opposition</h2><p>Les motifs d&apos;opposition les plus probables, évalués <b>sur les faits du dossier</b> — pour cibler précisément ce qu&apos;il faut désamorcer avant l&apos;enquête.</p></div>
       <div className="banner warn">Niveau global : <b style={{ textTransform: "capitalize" }}>{d.overall}</b> (score {d.score}). {d.disclaimer}</div>
+      <p className="note" style={{ marginBottom: 12 }}>Base d&apos;analyse : <b>{canonicalDocs ?? 0} document(s) canonique(s)</b> du dossier + données parcelle. <br />Scan des <b>décisions publiques communales + jurisprudence</b> de la zone : à brancher (sources publiques) — aucune donnée inventée.</p>
       <div className="card">{d.signals?.map((s: any, i: number) => (
         <div className="row-line" key={i}><span className={`lvl ${lvlClass(s.level)}`}>{s.level}</span><span className="grow"><span className="ttl">{fr(s.ground)} <small style={{ display: "inline", color: "var(--mut)" }}>· {fr(s.category)}</small></span><small style={{ fontFamily: "var(--font-ui)", color: "var(--ink-90)", fontSize: 13 }}>{s.basis}</small></span></div>
       ))}</div>
@@ -737,14 +742,30 @@ function Chantier({ d }: any) {
 }
 
 /* ===================== MEMOIRE ===================== */
-function Memoire({ unknowns, ledger }: any) {
+const CAP_KIND: Record<string, string> = { friction: "Friction", observation: "Observation", photo: "Photo / preuve", decision: "Décision", regulation: "Règlement à l'étude" };
+const CAP_TS: Record<string, string> = { friction: "is-assume", observation: "is-computed", photo: "is-sourced", decision: "is-decision", regulation: "is-conflict" };
+function Memoire({ unknowns, ledger, captures, onAddCapture, onDelCapture }: any) {
+  const [f, setF] = useState<any>({ kind: "friction", content: "", source_ref: "" });
+  const [busy, setBusy] = useState("");
   if (!unknowns) return <p className="spin">Chargement…</p>;
+  const caps: any[] = captures?.captures || [];
+  const add = async () => { if (!f.content.trim()) return; setBusy("add"); try { await onAddCapture({ ...f, source_ref: f.source_ref || null }); setF({ kind: f.kind, content: "", source_ref: "" }); } catch { } finally { setBusy(""); } };
+  const act = async (p: Promise<any>, id: string) => { setBusy(id); try { await p; } catch { } finally { setBusy(""); } };
   return (
     <>
-      <div className="vh"><h2>Mémoire du projet</h2><p>Tout ce que le projet sait, ignore ou a décidé — conservé et interrogeable.</p></div>
+      <div className="vh"><h2>Mémoire du projet</h2><p>Tout ce que le projet sait, ignore ou a décidé — conservé et interrogeable. Captez la friction, les décisions verbales et les preuves au fil de l&apos;eau.</p></div>
+      <div className="card" style={{ marginBottom: 14 }}>
+        <h3>Capture rapide (friction · décision · photo · règlement à l&apos;étude)</h3>
+        <div className="row" style={{ gap: 8, alignItems: "stretch" }}>
+          <select className="fld" style={{ margin: 0, width: "auto" }} value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })}>{Object.entries(CAP_KIND).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+          <input className="fld" style={{ margin: 0, flex: 1, minWidth: 160 }} placeholder="Ce que vous voulez garder en trace…" value={f.content} onChange={(e) => setF({ ...f, content: e.target.value })} onKeyDown={(e) => e.key === "Enter" && add()} />
+          <input className="fld" style={{ margin: 0, width: 150 }} placeholder="Réf / photo (URL)" value={f.source_ref} onChange={(e) => setF({ ...f, source_ref: e.target.value })} />
+          <button className="ds-btn" disabled={busy === "add" || !f.content} onClick={add}>{busy === "add" ? "…" : "Capter"}</button>
+        </div>
+      </div>
       <div className="g2">
-        <div className="card"><h3>Inconnues résiduelles ({unknowns.length})</h3>{unknowns.map((c: any, i: number) => (<div className="claim" key={i}><Trust state={c.state} /><div><div className="ttl">{c.title}</div>{c.next_action && <small>{c.next_action}</small>}</div></div>))}{unknowns.length === 0 && <p className="spin">Aucune inconnue.</p>}</div>
-        <div className="card"><h3>Journal du projet ({(ledger || []).length})</h3>{[...(ledger || [])].reverse().map((e: any, i: number) => (<div className="claim" key={i}><Trust state={e.mutating ? "conflict" : e.event_type === "approval" ? "sourced" : "computed"} label={EVENT[e.event_type] || e.event_type} /><div><div className="ttl">{human(e)}</div></div></div>))}{(ledger || []).length === 0 && <p className="spin">Aucune entrée.</p>}</div>
+        <div className="card"><h3>Captures &amp; preuves ({caps.length})</h3>{caps.length === 0 && <p className="spin">Aucune capture. Tout ce qui se dit (tél, séance) ou se voit (chantier) se consigne ici — horodaté et attribué.</p>}{caps.map((c: any) => (<div className="claim" key={c.id}><span className={`ds-ts ${CAP_TS[c.kind] || "is-unknown"}`}><span className="dot" />{CAP_KIND[c.kind] || c.kind}</span><div style={{ flex: 1 }}><div className="ttl">{c.content}</div><small>{[c.author ? "par " + c.author : null, (c.created_at || "").slice(0, 16).replace("T", " "), c.source_ref].filter(Boolean).join(" · ")}</small></div><button className="signout" style={{ padding: 0 }} onClick={() => act(onDelCapture(c.id), "d" + c.id)}>✕</button></div>))}</div>
+        <div className="card"><h3>Inconnues &amp; journal</h3>{unknowns.map((c: any, i: number) => (<div className="claim" key={"u" + i}><Trust state={c.state} /><div><div className="ttl">{c.title}</div>{c.next_action && <small>{c.next_action}</small>}</div></div>))}{[...(ledger || [])].reverse().slice(0, 6).map((e: any, i: number) => (<div className="claim" key={"l" + i}><Trust state={e.mutating ? "conflict" : e.event_type === "approval" ? "sourced" : "computed"} label={EVENT[e.event_type] || e.event_type} /><div><div className="ttl">{human(e)}</div></div></div>))}{unknowns.length === 0 && (ledger || []).length === 0 && <p className="spin">Rien encore.</p>}</div>
       </div>
     </>
   );
