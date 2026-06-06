@@ -153,29 +153,29 @@ export function GanttView({ tasks, onPatch }: {
           catch { }
         },
       });
-      // W15 fix — frappe-gantt's SVG is much wider than the visible
-      // container (it covers the whole project span); by default it
-      // shows from "today + start_padding", which can leave the only
-      // bar off-screen to the right. Auto-scroll the overflow container
-      // so the first bar sits in the left third of the viewport.
-      // Delay by one frame so the SVG is fully painted.
-      requestAnimationFrame(() => {
+      // W15 fix — frappe-gantt's SVG covers the whole project span and
+      // starts the visible window at "today + start_padding". When the
+      // only task is 5+ weeks out, the bar lands off-screen to the right.
+      // Poll for the first `.bar` (frappe-gantt mounts asynchronously,
+      // so a single rAF may fire before it appears) and scroll the
+      // container so the bar sits at ~1/4 of the viewport.
+      let attempts = 0;
+      const tryScroll = () => {
         if (cancelled || !ref.current) return;
         const firstBar = svg.querySelector(".bar") as SVGRectElement | null;
-        if (!firstBar) return;
-        // The scrollable container is the parent of ref (we wrap the
-        // <div ref> in an `overflow: auto` div in JSX below).
+        if (!firstBar) {
+          if (attempts++ < 30) requestAnimationFrame(tryScroll);
+          return;
+        }
         const scroller = ref.current.parentElement;
         if (!scroller || scroller.scrollWidth <= scroller.clientWidth) return;
         const barRect = firstBar.getBoundingClientRect();
         const scRect = scroller.getBoundingClientRect();
-        // Distance from the visible left edge to the bar.
         const offset = (barRect.left - scRect.left) + scroller.scrollLeft;
-        // Position the bar at ~1/4 of the viewport (gives the user some
-        // history context to the left + plenty of room to the right).
         const target = Math.max(0, offset - scroller.clientWidth * 0.25);
         scroller.scrollLeft = target;
-      });
+      };
+      requestAnimationFrame(tryScroll);
     })();
     return () => { cancelled = true; };
   }, [rows, effectiveMode, onPatch]);

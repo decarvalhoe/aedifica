@@ -599,7 +599,7 @@ function Login({ busy, err, onRegister, onLogin, onJoin, onAcceptInvite }: { bus
   return (
     <div className="center">
       <div className="login__box">
-        <Wordmark height={84} />
+        <Wordmark fluid />
         <span className="eyebrow">ArchiOS Suisse · l&apos;assistant de l&apos;architecte</span>
         <h2>{titles[mode]}</h2>
         {mode !== "join" && (
