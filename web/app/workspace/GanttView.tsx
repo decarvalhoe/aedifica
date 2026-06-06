@@ -84,15 +84,24 @@ export function GanttView({ tasks, onPatch }: {
     return n;
   }, [tasks]);
 
-  const rows = useMemo(() => plotted.map((t) => ({
-    id: `${t.project_id}::${t.id}`,
-    name: `${t.title}  ·  ${t.project_name}`,
-    start: toISODate(addDays(new Date(t.due_date!), -(Math.max(1, Math.ceil((t.estimate_hours || 8) / 8))) + 1)),
-    end: toISODate(new Date(t.due_date!)),
-    progress: PROGRESS[t.status] ?? 0,
-    dependencies: (t.blocked_by || []).map((d) => `${t.project_id}::${d}`).join(","),
-    custom_class: `gp-${t.project_id.replace(/[^A-Za-z0-9_-]/g, "_")}`,
-  })), [plotted]);
+  // W15 fix — the previous formula `-(max(1, ceil(eh/8))) + 1` produced
+  // start === end for the most common case (estimate_hours = 8 = 1 day),
+  // which frappe-gantt renders as a zero-width bar (invisible). The user:
+  // "le rendu gantt est ridicule et inutilisable". Now: start = due - days,
+  // end = due, guaranteeing at least 1 day of visible width.
+  const rows = useMemo(() => plotted.map((t) => {
+    const due = new Date(t.due_date!);
+    const days = Math.max(1, Math.ceil((Number(t.estimate_hours) || 8) / 8));
+    return {
+      id: `${t.project_id}::${t.id}`,
+      name: `${t.title}  ·  ${t.project_name}`,
+      start: toISODate(addDays(due, -days)),
+      end: toISODate(due),
+      progress: PROGRESS[t.status] ?? 0,
+      dependencies: (t.blocked_by || []).map((d) => `${t.project_id}::${d}`).join(","),
+      custom_class: `gp-${t.project_id.replace(/[^A-Za-z0-9_-]/g, "_")}`,
+    };
+  }), [plotted]);
 
   const effectiveMode: ViewMode = viewMode === "auto" ? autoViewMode(rows) : viewMode;
 
@@ -149,7 +158,24 @@ export function GanttView({ tasks, onPatch }: {
   }, [rows, effectiveMode, onPatch]);
 
   if (rows.length === 0) {
-    return <p className="spin">Aucune tâche datée dans l&apos;atelier. Renseignez une <b>échéance</b> sur les tâches pour les voir sur le Gantt.</p>;
+    return (
+      <div className="card" style={{ borderLeft: "3px solid var(--ts-assume)" }}>
+        <h3 style={{ margin: 0 }}>Aucune tâche datée dans l&apos;atelier</h3>
+        <p>
+          Le Gantt n&apos;a rien à dessiner tant qu&apos;aucune tâche n&apos;a d&apos;échéance. Pour faire apparaître des barres :
+        </p>
+        <ul style={{ margin: "4px 0 8px 18px", padding: 0 }}>
+          <li>Ouvrez un projet → <i>Tâches &amp; priorités</i></li>
+          <li>Sur chaque tâche, renseignez une <b>échéance</b> et idéalement une <b>estimation en heures</b> (la durée de la barre = heures / 8 jours, minimum 1 jour)</li>
+          <li>Revenez ici — la barre apparaîtra avec la couleur du projet</li>
+        </ul>
+        {skipped.length > 0 && (
+          <p className="note" style={{ color: "var(--mut)", marginTop: 6 }}>
+            {skipped.length} tâche{skipped.length > 1 ? "s" : ""} actuellement <b>sans échéance</b>.
+          </p>
+        )}
+      </div>
+    );
   }
 
   return (

@@ -112,7 +112,11 @@ svg.i { fill:none; stroke:currentColor; stroke-width:1.4; stroke-linejoin:round;
 /* ---- workspace: dual nav (task side + phase rail) ---- */
 .ws { display:grid; grid-template-columns:248px 1fr; min-height:100vh; }
 .ws__side { border-right:1px solid var(--ink); background:var(--surface); display:flex; flex-direction:column; position:sticky; top:0; height:100vh; }
-.ws__brand { display:flex; align-items:center; gap:10px; padding:16px 18px; border-bottom:1px solid var(--line); }
+/* W15 fix — brand slot lets the wordmark go max-width without distorting
+   its 480/150 proportions. The 12px horizontal padding gives breathing room
+   from the sidebar's right edge; the wordmark itself fills 100% of the
+   remaining width and scales its height proportionally. */
+.ws__brand { display:block; padding:14px 12px 12px; border-bottom:1px solid var(--line); }
 .ws__brand .wordmark { font-size:18px; }
 .back { display:flex; align-items:center; width:100%; background:none; border:0; border-bottom:1px solid var(--line); padding:10px 18px; font-family:var(--font-mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--mut); cursor:pointer; }
 .back:hover { color:var(--ink); background:var(--surface-2); }
