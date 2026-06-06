@@ -811,6 +811,62 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
             "freshness": row.proposed_at.isoformat() if row.proposed_at else None,
         }
 
+    # ---- W12.C: LLM opt-in ------------------------------------------------ #
+    @app.patch("/api/projects/{project_id}/llm-mode")
+    def set_llm_mode(project_id: str, body: dict,
+                     user: m.User = Depends(current_user),
+                     session: Session = Depends(get_session)):
+        """Flip a project's llm_mode between off | local | cloud.
+        Audited. The default is 'off' — no LLM call ever leaves the API
+        without an explicit flip here."""
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        mode = (body.get("mode") or "").lower()
+        if mode not in ("off", "local", "cloud"):
+            raise _err(400, "BAD_MODE", "mode must be off|local|cloud")
+        prev = p.llm_mode
+        p.llm_mode = mode
+        _audit(session, user, "llm_mode_changed",
+               f"projet {p.project_id} : llm_mode {prev} → {mode}",
+               project=p, meta={"from": prev, "to": mode})
+        session.commit()
+        return {"project_id": p.project_id, "llm_mode": p.llm_mode}
+
+    @app.post("/api/projects/{project_id}/foresight/llm/brs-summary",
+              status_code=201)
+    def llm_brs_summary(project_id: str,
+                        user: m.User = Depends(current_user),
+                        session: Session = Depends(get_session)):
+        """Ask the configured LLM (per project.llm_mode) to summarize the
+        BRS thread. Returns a fresh Proposal — never mutates the BRS
+        register. 400 when llm_mode='off' or no BRS entries to summarize."""
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        if (p.llm_mode or "off") == "off":
+            raise _err(400, "LLM_OFF", "llm_mode is off — set it to local|cloud first")
+        from ..foresight.llm import summarize_brs_thread
+        prop = summarize_brs_thread(session, p)
+        if not prop:
+            raise _err(503, "LLM_UNAVAILABLE",
+                      "no BRS to summarize or LLM backend unavailable")
+        import json as _json
+        row = m.Proposal(
+            project_id=p.id,
+            kind=prop["kind"],
+            title=prop["title"],
+            detail=prop["detail"],
+            basis_json=_json.dumps(prop["basis"], ensure_ascii=False),
+            confidence=float(prop.get("confidence", 0.0)),
+            apply_payload_json=_json.dumps(prop["apply_payload"], ensure_ascii=False),
+            decision="pending",
+        )
+        session.add(row); session.flush()
+        _audit(session, user, "llm_called",
+               f"LLM ({p.llm_mode}) appelé sur le registre BRS",
+               project=p, meta={"kind": prop["kind"], "basis_size": len(prop["basis"])})
+        session.commit()
+        return {"proposal": _proposal_dict(row)}
+
     @app.post("/api/projects/{project_id}/foresight/{proposal_id}/decide")
     def decide_foresight(project_id: str, proposal_id: int, body: dict,
                          user: m.User = Depends(current_user),
