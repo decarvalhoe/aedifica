@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { api } from "@/lib/api";
+import { AttachField } from "./AttachField";
 
 const REF_ID = "DEMO-LAUSANNE-PALUD";
 const REF = { name: "Place de la Palud", commune: "Lausanne" };
@@ -474,18 +475,18 @@ export default function App() {
         <div className="ws__view">
           {flash && <div className={`banner ${flash.kind}`} style={{ display: "flex", alignItems: "center", gap: 12 }}><span style={{ flex: 1 }}>{flash.text}</span><button className="toggle" onClick={() => setFlash(null)}>Compris</button></div>}
           {view === "dashboard" && <Dashboard d={d} project={active} go={setView} />}
-          {view === "taches" && <Taches data={d.tasks} onAdd={addTask} onPatch={patchTask} onDel={delTask} onAddDep={addDep} onDelDep={delDep} onPredict={predictTask} />}
-          {view === "checklist" && <Checklist data={d.checklist} entryPhase={active.phase_code} onSeed={seedChecklist} onPatch={patchChecklist} onAdd={addChecklistItem} onDel={delChecklistItem} />}
+          {view === "taches" && <Taches data={d.tasks} token={token!} pid={active.project_id} onAdd={addTask} onPatch={patchTask} onDel={delTask} onAddDep={addDep} onDelDep={delDep} onPredict={predictTask} />}
+          {view === "checklist" && <Checklist data={d.checklist} entryPhase={active.phase_code} token={token!} pid={active.project_id} onSeed={seedChecklist} onPatch={patchChecklist} onAdd={addChecklistItem} onDel={delChecklistItem} />}
           {view === "terrain" && <Terrain claims={d.claims} mode={d.intakeMode} support={d.support} commune={j.commune} initialQuery={d.pendingQuery} regAlerts={d.captures?.regulation_alerts} onLookup={lookup} onRequest={requestCommune} />}
           {view === "coordination" && <Coordination data={d.coord} onRefresh={refreshCoord} go={setView} />}
           {view === "intervenants" && <Intervenants data={d.intervenants} onAddGroup={addGroup} onDelGroup={delGroup} onAdd={addIntervenant} onPatch={patchIntervenant} onDel={delIntervenant} onInvite={inviteIntervenant} />}
-          {view === "documents" && <Documents docs={d.documents} summary={d.docSummary} intervenants={d.intervenants} onAdd={addDocument} onValidate={validateDocument} onPatch={patchDocument} onDel={delDocument} onGrant={addGrant} onRevoke={revokeGrant} />}
-          {view === "brs" && <Brs data={d.brs} intervenants={d.intervenants} onAdd={addBrs} onPatch={patchBrs} onDel={delBrs} />}
+          {view === "documents" && <Documents docs={d.documents} summary={d.docSummary} intervenants={d.intervenants} token={token!} pid={active.project_id} onAdd={addDocument} onValidate={validateDocument} onPatch={patchDocument} onDel={delDocument} onGrant={addGrant} onRevoke={revokeGrant} />}
+          {view === "brs" && <Brs data={d.brs} intervenants={d.intervenants} token={token!} pid={active.project_id} onAdd={addBrs} onPatch={patchBrs} onDel={delBrs} />}
           {view === "permis" && <Permis d={d.permit} onSubmit={submitPermit} />}
           {view === "opposition" && <Opposition d={d.opposition} canonicalDocs={(d.documents || []).filter((x: any) => x.validation_level === "canonical").length} />}
           {view === "conformite" && <Conformite d={d.compliance} />}
           {view === "copilote" && <Copilote token={token} pid={active.project_id} ledger={d.ledger} onChange={refreshLedger} />}
-          {view === "memoire" && <Memoire unknowns={d.unknowns} ledger={d.ledger} captures={d.captures} onAddCapture={addCapture} onDelCapture={delCapture} />}
+          {view === "memoire" && <Memoire unknowns={d.unknowns} ledger={d.ledger} captures={d.captures} token={token!} pid={active.project_id} onAddCapture={addCapture} onDelCapture={delCapture} />}
           {view === "couts" && <Couts d={d.cost} onFee={feeEstimate} />}
           {view === "chantier" && <Chantier d={d.site} />}
           {view === "equipe" && <Team users={users} onAdd={addUser} onSetRole={setUserRole} />}
@@ -884,7 +885,7 @@ function Chantier({ d }: any) {
 /* ===================== MEMOIRE ===================== */
 const CAP_KIND: Record<string, string> = { friction: "Friction", observation: "Observation", photo: "Photo / preuve", decision: "Décision", regulation: "Règlement à l'étude" };
 const CAP_TS: Record<string, string> = { friction: "is-assume", observation: "is-computed", photo: "is-sourced", decision: "is-decision", regulation: "is-conflict" };
-function Memoire({ unknowns, ledger, captures, onAddCapture, onDelCapture }: any) {
+function Memoire({ unknowns, ledger, captures, token, pid, onAddCapture, onDelCapture }: any) {
   const [f, setF] = useState<any>({ kind: "friction", content: "", source_ref: "" });
   const [busy, setBusy] = useState("");
   if (!unknowns) return <p className="spin">Chargement…</p>;
@@ -904,7 +905,12 @@ function Memoire({ unknowns, ledger, captures, onAddCapture, onDelCapture }: any
         </div>
       </div>
       <div className="g2">
-        <div className="card"><h3>Captures &amp; preuves ({caps.length})</h3>{caps.length === 0 && <p className="spin">Aucune capture. Tout ce qui se dit (tél, séance) ou se voit (chantier) se consigne ici — horodaté et attribué.</p>}{caps.map((c: any) => (<div className="claim" key={c.id}><span className={`ds-ts ${CAP_TS[c.kind] || "is-unknown"}`}><span className="dot" />{CAP_KIND[c.kind] || c.kind}</span><div style={{ flex: 1 }}><div className="ttl">{c.content}</div><small>{[c.author ? "par " + c.author : null, (c.created_at || "").slice(0, 16).replace("T", " "), c.source_ref].filter(Boolean).join(" · ")}</small></div><button className="signout" style={{ padding: 0 }} onClick={() => act(onDelCapture(c.id), "d" + c.id)}>✕</button></div>))}</div>
+        <div className="card"><h3>Captures &amp; preuves ({caps.length})</h3>{caps.length === 0 && <p className="spin">Aucune capture. Tout ce qui se dit (tél, séance) ou se voit (chantier) se consigne ici — horodaté et attribué.</p>}{caps.map((c: any) => (
+          <div key={c.id} style={{ borderTop: "1px solid var(--line)", paddingTop: 10, marginTop: 10 }}>
+            <div className="claim" style={{ marginBottom: 0 }}><span className={`ds-ts ${CAP_TS[c.kind] || "is-unknown"}`}><span className="dot" />{CAP_KIND[c.kind] || c.kind}</span><div style={{ flex: 1 }}><div className="ttl">{c.content}</div><small>{[c.author ? "par " + c.author : null, (c.created_at || "").slice(0, 16).replace("T", " "), c.source_ref].filter(Boolean).join(" · ")}</small></div><button className="signout" style={{ padding: 0 }} onClick={() => act(onDelCapture(c.id), "d" + c.id)}>✕</button></div>
+            {token && pid && <AttachField token={token} projectId={pid} ownerKind="capture" ownerId={c.id} label="Photos / preuves" />}
+          </div>
+        ))}</div>
         <div className="card"><h3>Inconnues &amp; journal</h3>{unknowns.map((c: any, i: number) => (<div className="claim" key={"u" + i}><Trust state={c.state} /><div><div className="ttl">{c.title}</div>{c.next_action && <small>{c.next_action}</small>}</div></div>))}{[...(ledger || [])].reverse().slice(0, 6).map((e: any, i: number) => (<div className="claim" key={"l" + i}><Trust state={e.mutating ? "conflict" : e.event_type === "approval" ? "sourced" : "computed"} label={EVENT[e.event_type] || e.event_type} /><div><div className="ttl">{human(e)}</div></div></div>))}{unknowns.length === 0 && (ledger || []).length === 0 && <p className="spin">Rien encore.</p>}</div>
       </div>
     </>
@@ -992,7 +998,7 @@ function Intervenants({ data, onAddGroup, onDelGroup, onAdd, onDel, onInvite }: 
 
 /* ===================== DOCUMENTS & SOURCES (W9) ===================== */
 const VLEVEL: Record<string, [string, string]> = { canonical: ["is-sourced", "Canonique"], indicative: ["is-computed", "Indicatif"], refused: ["is-conflict", "Refusé"], pending: ["is-unknown", "À valider"] };
-function Documents({ docs, summary, intervenants, onAdd, onValidate, onPatch, onDel, onGrant, onRevoke }: any) {
+function Documents({ docs, summary, intervenants, token, pid, onAdd, onValidate, onPatch, onDel, onGrant, onRevoke }: any) {
   const [f, setF] = useState<any>({ official_name: "", category: "general", source: "manual", confidential: false });
   const [busy, setBusy] = useState("");
   const [grantFor, setGrantFor] = useState<number | null>(null);
@@ -1055,6 +1061,7 @@ function Documents({ docs, summary, intervenants, onAdd, onValidate, onPatch, on
                 </span>
               ) : <button className="toggle" style={{ padding: "3px 8px" }} onClick={() => { setGrantFor(dd.id); setGrantSel(""); }}>+ accès</button>}
             </div>
+            {token && pid && <AttachField token={token} projectId={pid} ownerKind="document" ownerId={dd.id} />}
           </div>
         ); })}
       </div>
@@ -1069,7 +1076,7 @@ const CSTATUS: Record<string, [string, string]> = { done: ["is-sourced", "Fait"]
 const ACTOR_FR: Record<string, string> = { mo: "Maître d'ouvrage", architecte: "Atelier", mandataire: "Mandataire", entreprise: "Entreprise" };
 const ACTOR_CHIP: Record<string, string> = { mo: "is-decision", architecte: "is-sourced", mandataire: "is-computed", entreprise: "is-assume" };
 
-function Checklist({ data, entryPhase, onSeed, onPatch }: any) {
+function Checklist({ data, entryPhase, token, pid, onSeed, onPatch }: any) {
   const valid = /^(11|21|22|31|32|33|41|51|52|53|61)$/;
   const [phase, setPhase] = useState(valid.test(entryPhase || "") ? entryPhase : "11");
   const [busy, setBusy] = useState("");
@@ -1119,16 +1126,19 @@ function Checklist({ data, entryPhase, onSeed, onPatch }: any) {
         <div className="card" key={ph} style={{ marginBottom: 12 }}>
           <h3>{SIA_PHASE_FR[ph] || ph}</h3>
           {filtered.filter((i) => i.phase_code === ph).map((it) => { const [c, l] = CSTATUS[it.status] || ["is-unknown", it.status]; const ac = ACTOR_CHIP[it.actor] || "is-unknown"; return (
-            <div className="row-line" key={it.id}>
-              <span className={`ds-ts ${c}`}><span className="dot" />{l}</span>
-              <span className={`ds-ts ${ac}`} title="Acteur responsable"><span className="dot" />{ACTOR_FR[it.actor] || it.actor}{it.responsible_name ? ` · ${it.responsible_name}` : ""}</span>
-              <span className="grow"><span className="ttl">{it.title}{it.is_retroactive && <small style={{ display: "inline", color: "var(--ts-assume)" }}> · rétroactif</small>}{it.is_external && it.status === "todo" && <small style={{ display: "inline", color: "var(--ts-conflict)" }}> · en attente de l&apos;extérieur</small>}</span></span>
-              <span className="row" style={{ gap: 6 }}>
-                <button className={`toggle ${it.status === "done" ? "on" : ""}`} disabled={busy === `i${it.id}`} onClick={() => set(it.id, "done")}>Fait</button>
-                <button className={`toggle ${it.status === "todo" ? "on" : ""}`} disabled={busy === `i${it.id}`} onClick={() => set(it.id, "todo")}>À faire</button>
-                <button className={`toggle ${it.status === "deferred" ? "on" : ""}`} disabled={busy === `i${it.id}`} onClick={() => set(it.id, "deferred")}>Plus tard</button>
-                <button className={`toggle ${it.status === "skipped" ? "on" : ""}`} disabled={busy === `i${it.id}`} onClick={() => set(it.id, "skipped")}>Inutile</button>
-              </span>
+            <div key={it.id} style={{ borderTop: "1px solid var(--line)", paddingTop: 8, marginTop: 8 }}>
+              <div className="row-line" style={{ border: 0, padding: 0 }}>
+                <span className={`ds-ts ${c}`}><span className="dot" />{l}</span>
+                <span className={`ds-ts ${ac}`} title="Acteur responsable"><span className="dot" />{ACTOR_FR[it.actor] || it.actor}{it.responsible_name ? ` · ${it.responsible_name}` : ""}</span>
+                <span className="grow"><span className="ttl">{it.title}{it.is_retroactive && <small style={{ display: "inline", color: "var(--ts-assume)" }}> · rétroactif</small>}{it.is_external && it.status === "todo" && <small style={{ display: "inline", color: "var(--ts-conflict)" }}> · en attente de l&apos;extérieur</small>}</span></span>
+                <span className="row" style={{ gap: 6 }}>
+                  <button className={`toggle ${it.status === "done" ? "on" : ""}`} disabled={busy === `i${it.id}`} onClick={() => set(it.id, "done")}>Fait</button>
+                  <button className={`toggle ${it.status === "todo" ? "on" : ""}`} disabled={busy === `i${it.id}`} onClick={() => set(it.id, "todo")}>À faire</button>
+                  <button className={`toggle ${it.status === "deferred" ? "on" : ""}`} disabled={busy === `i${it.id}`} onClick={() => set(it.id, "deferred")}>Plus tard</button>
+                  <button className={`toggle ${it.status === "skipped" ? "on" : ""}`} disabled={busy === `i${it.id}`} onClick={() => set(it.id, "skipped")}>Inutile</button>
+                </span>
+              </div>
+              {token && pid && <AttachField token={token} projectId={pid} ownerKind="checklist" ownerId={it.id} label="Livrables / preuves" />}
             </div>
           ); })}
         </div>
@@ -1272,7 +1282,7 @@ function ExternalView({ ext, onTick, onSignOut }: { ext: any; onTick: (id: numbe
 const BRS_CHAN: Record<string, string> = { phone: "Téléphone", email: "E-mail", pv: "PV", meeting: "Séance", other: "Autre" };
 const BRS_KIND: Record<string, string> = { requirement: "Exigence", change: "Changement", decision: "Décision" };
 const BRS_STATUS: Record<string, [string, string]> = { active: ["is-sourced", "Actif"], superseded: ["is-computed", "Remplacé"], locked: ["is-decision", "Verrouillé"] };
-function Brs({ data, intervenants, onAdd, onPatch, onDel }: any) {
+function Brs({ data, intervenants, token, pid, onAdd, onPatch, onDel }: any) {
   const [f, setF] = useState<any>({ content: "", kind: "requirement", channel: "phone", emitter_intervenant_id: "", source_ref: "" });
   const [busy, setBusy] = useState("");
   if (!data) return <p className="spin">Chargement…</p>;
@@ -1297,9 +1307,12 @@ function Brs({ data, intervenants, onAdd, onPatch, onDel }: any) {
       <div className="card"><h3>Registre des exigences ({s.total || 0})</h3>
         {entries.length === 0 && <p className="spin">Aucune exigence consignée. La première entrée crée la base vivante.</p>}
         {entries.map((e: any) => { const [c, l] = BRS_STATUS[e.status] || ["is-unknown", e.status]; return (
-          <div className="claim" key={e.id}><span className={`ds-ts ${c}`}><span className="dot" />{l}</span>
-            <div style={{ flex: 1 }}><div className="ttl">{e.content}</div><small>{[BRS_KIND[e.kind] || e.kind, "canal : " + (BRS_CHAN[e.channel] || e.channel), e.emitter ? "par " + e.emitter : null, (e.created_at || "").slice(0, 16).replace("T", " "), e.source_ref].filter(Boolean).join(" · ")}</small></div>
-            <span className="row" style={{ gap: 6 }}>{e.status !== "locked" && <button className="toggle" disabled={busy === `l${e.id}`} onClick={() => act(onPatch(e.id, { status: "locked" }), `l${e.id}`)}>Verrouiller</button>}<button className="signout" style={{ padding: 0 }} onClick={() => act(onDel(e.id), `d${e.id}`)}>✕</button></span>
+          <div key={e.id} style={{ borderTop: "1px solid var(--line)", paddingTop: 10, marginTop: 10 }}>
+            <div className="claim" style={{ marginBottom: 0 }}><span className={`ds-ts ${c}`}><span className="dot" />{l}</span>
+              <div style={{ flex: 1 }}><div className="ttl">{e.content}</div><small>{[BRS_KIND[e.kind] || e.kind, "canal : " + (BRS_CHAN[e.channel] || e.channel), e.emitter ? "par " + e.emitter : null, (e.created_at || "").slice(0, 16).replace("T", " "), e.source_ref].filter(Boolean).join(" · ")}</small></div>
+              <span className="row" style={{ gap: 6 }}>{e.status !== "locked" && <button className="toggle" disabled={busy === `l${e.id}`} onClick={() => act(onPatch(e.id, { status: "locked" }), `l${e.id}`)}>Verrouiller</button>}<button className="signout" style={{ padding: 0 }} onClick={() => act(onDel(e.id), `d${e.id}`)}>✕</button></span>
+            </div>
+            {token && pid && <AttachField token={token} projectId={pid} ownerKind="brs" ownerId={e.id} label="Pièces (PV, fichiers source)" />}
           </div>
         ); })}
       </div>
@@ -1310,7 +1323,7 @@ function Brs({ data, intervenants, onAdd, onPatch, onDel }: any) {
 /* ===================== TÂCHES & PRIORITÉS (W9 #226/#228) ===================== */
 const PRIO: Record<string, [string, string]> = { p0: ["eleve", "P0"], p1: ["modere", "P1"], p2: ["faible", "P2"] };
 const TSTATUS: Record<string, string> = { todo: "À faire", doing: "En cours", done: "Fait", blocked: "Bloqué" };
-function Taches({ data, onAdd, onPatch, onDel, onAddDep, onPredict }: any) {
+function Taches({ data, token, pid, onAdd, onPatch, onDel, onAddDep, onPredict }: any) {
   const [f, setF] = useState<any>({ title: "", priority: "p2", estimate_hours: "", due_date: "", assignee_user_id: "", is_quick_win: false });
   const [busy, setBusy] = useState("");
   const [pred, setPred] = useState<Record<number, any>>({});
@@ -1346,15 +1359,18 @@ function Taches({ data, onAdd, onPatch, onDel, onAddDep, onPredict }: any) {
         <h3>Tâches ({tasks.length})</h3>
         {tasks.length === 0 && <p className="spin">Aucune tâche. Ajoutez-en une ci-dessus.</p>}
         {ordered.map((t) => { const [pc, pl] = PRIO[t.priority] || ["modere", t.priority]; const p = pred[t.id]; return (
-          <div className="row-line" key={t.id} style={{ opacity: t.status === "done" ? 0.6 : 1 }}>
-            <span className={`lvl ${pc}`}>{pl}</span>
-            <span className="grow"><span className="ttl">{t.title}{t.is_quick_win && <small style={{ display: "inline", color: "var(--ts-sourced)" }}> · quick win</small>}{t.is_blocked && t.status !== "done" && <small style={{ display: "inline", color: "var(--ts-conflict)" }}> · bloquée</small>}</span><small>{[TSTATUS[t.status], t.assignee ? "→ " + t.assignee : null, t.estimate_hours ? t.estimate_hours + " h" : null, t.due_date ? "éch. " + t.due_date : null, (t.blocked_by && t.blocked_by.length) ? "dépend de #" + t.blocked_by.join(", #") : null, p ? "≈ " + (p.prediction ?? "?") + " h prédit" : null].filter(Boolean).join(" · ")}</small></span>
-            <span className="row" style={{ gap: 6 }}>
-              <select className="fld" style={{ margin: 0, padding: "4px 6px", width: "auto" }} value={t.status} onChange={(e) => act(onPatch(t.id, { status: e.target.value }), "s" + t.id)}>{Object.entries(TSTATUS).map(([v, lb]) => <option key={v} value={v}>{lb}</option>)}</select>
-              <button className="toggle" disabled={busy === "p" + t.id} onClick={() => predict(t.id)} title="Prédire la durée depuis l'historique de l'atelier">≈ h</button>
-              {depFor === t.id ? <span className="row" style={{ gap: 4 }}><select className="fld" style={{ margin: 0, padding: "4px 6px", width: "auto" }} value={depSel} onChange={(e) => setDepSel(e.target.value)}><option value="">dépend de…</option>{tasks.filter((x) => x.id !== t.id).map((x) => <option key={x.id} value={x.id}>{x.title.slice(0, 24)}</option>)}</select><button className="toggle" disabled={!depSel} onClick={() => addDep(t.id)}>OK</button></span> : <button className="toggle" onClick={() => { setDepFor(t.id); setDepSel(""); }}>+ dép.</button>}
-              <button className="signout" style={{ padding: 0 }} onClick={() => act(onDel(t.id), "d" + t.id)}>✕</button>
-            </span>
+          <div key={t.id} style={{ borderTop: "1px solid var(--line)", paddingTop: 8, marginTop: 8, opacity: t.status === "done" ? 0.6 : 1 }}>
+            <div className="row-line" style={{ border: 0, padding: 0 }}>
+              <span className={`lvl ${pc}`}>{pl}</span>
+              <span className="grow"><span className="ttl">{t.title}{t.is_quick_win && <small style={{ display: "inline", color: "var(--ts-sourced)" }}> · quick win</small>}{t.is_blocked && t.status !== "done" && <small style={{ display: "inline", color: "var(--ts-conflict)" }}> · bloquée</small>}</span><small>{[TSTATUS[t.status], t.assignee ? "→ " + t.assignee : null, t.estimate_hours ? t.estimate_hours + " h" : null, t.due_date ? "éch. " + t.due_date : null, (t.blocked_by && t.blocked_by.length) ? "dépend de #" + t.blocked_by.join(", #") : null, p ? "≈ " + (p.prediction ?? "?") + " h prédit" : null].filter(Boolean).join(" · ")}</small></span>
+              <span className="row" style={{ gap: 6 }}>
+                <select className="fld" style={{ margin: 0, padding: "4px 6px", width: "auto" }} value={t.status} onChange={(e) => act(onPatch(t.id, { status: e.target.value }), "s" + t.id)}>{Object.entries(TSTATUS).map(([v, lb]) => <option key={v} value={v}>{lb}</option>)}</select>
+                <button className="toggle" disabled={busy === "p" + t.id} onClick={() => predict(t.id)} title="Prédire la durée depuis l'historique de l'atelier">≈ h</button>
+                {depFor === t.id ? <span className="row" style={{ gap: 4 }}><select className="fld" style={{ margin: 0, padding: "4px 6px", width: "auto" }} value={depSel} onChange={(e) => setDepSel(e.target.value)}><option value="">dépend de…</option>{tasks.filter((x) => x.id !== t.id).map((x) => <option key={x.id} value={x.id}>{x.title.slice(0, 24)}</option>)}</select><button className="toggle" disabled={!depSel} onClick={() => addDep(t.id)}>OK</button></span> : <button className="toggle" onClick={() => { setDepFor(t.id); setDepSel(""); }}>+ dép.</button>}
+                <button className="signout" style={{ padding: 0 }} onClick={() => act(onDel(t.id), "d" + t.id)}>✕</button>
+              </span>
+            </div>
+            {token && pid && <AttachField token={token} projectId={pid} ownerKind="task" ownerId={t.id} />}
           </div>
         ); })}
       </div>
