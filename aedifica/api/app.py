@@ -11,7 +11,7 @@ from __future__ import annotations
 import datetime as _dt
 import os
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy import text
@@ -1318,6 +1318,144 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
                 "validation_level": d.validation_level, "confidential": d.confidential,
                 "access_level": doc_ids.get(d.id, "read")} for d in docs]
         return {"documents": out, "count": len(out)}
+
+    # ---- W11.B: attachments (upload OR external link) ----------------------- #
+    # Uploaded files land under /data/attachments/<project_id>/<sha[:2]>/<sha>.
+    # External links are stored as URLs with a provider tag (gdrive/onedrive/…).
+    # The polymorphic owner (owner_kind, owner_id) lets every domain object
+    # reuse the same plumbing — Documents, BRS, Permis, Mémoire, Checklist, Tâches.
+    import hashlib as _hashlib
+    # Env vars read per-request, NOT at app boot, so tests can monkeypatch them.
+    def _upload_root() -> str:
+        return os.environ.get("AEDIFICA_UPLOAD_ROOT", "/data/attachments")
+    def _upload_cap() -> int:
+        return int(os.environ.get("AEDIFICA_UPLOAD_MAX_BYTES", str(25 * 1024 * 1024)))
+
+    def _att_dict(a: m.Attachment, project_id: str | None = None) -> dict:
+        # download_path uses the string `project_id` (the API path param), NOT the
+        # integer FK — those are two different identifiers.
+        return {"id": a.id, "owner_kind": a.owner_kind, "owner_id": a.owner_id,
+                "kind": a.kind, "title": a.title, "url": a.url, "file_ref": a.file_ref,
+                "provider": a.provider, "mime": a.mime, "size_bytes": a.size_bytes,
+                "sha256": a.sha256, "note": a.note, "created_by": a.created_by,
+                "created_at": a.created_at.isoformat() if a.created_at else None,
+                "download_path": (f"/api/projects/{project_id}/attachments/{a.id}/download"
+                                  if (a.kind == "upload" and project_id) else None)}
+
+    def _verify_owner(session, project_pk: int, owner_kind: str, owner_id: str) -> None:
+        """Belt-and-suspenders: refuse attachments pointing at non-existent owners,
+        and never let owner_id span two projects."""
+        if owner_kind not in m.ATTACHMENT_OWNERS:
+            raise _err(400, "BAD_OWNER_KIND", f"owner_kind must be one of {sorted(m.ATTACHMENT_OWNERS)}")
+        kind_to_model = {"document": m.Document, "brs": m.BrsEntry, "checklist": m.ChecklistItem,
+                         "task": m.Task, "capture": m.CaptureNote}
+        Model = kind_to_model.get(owner_kind)
+        if Model is None:
+            return  # "permit" items are derived from the permit gabarit, no row to check
+        try:
+            owner_pk = int(owner_id)
+        except (TypeError, ValueError):
+            raise _err(400, "BAD_OWNER_ID", "owner_id must be the integer id of the row")
+        row = session.query(Model).filter_by(id=owner_pk, project_id=project_pk).first()
+        if row is None:
+            raise _err(404, "OWNER_NOT_FOUND", f"{owner_kind} #{owner_id} not in this project")
+
+    @app.get("/api/projects/{project_id}/attachments")
+    def list_attachments(project_id: str, owner_kind: str | None = None, owner_id: str | None = None,
+                         user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.read")
+        p = _project(session, user, project_id)
+        q = session.query(m.Attachment).filter_by(project_id=p.id)
+        if owner_kind:
+            q = q.filter_by(owner_kind=owner_kind)
+        if owner_id:
+            q = q.filter_by(owner_id=str(owner_id))
+        rows = q.order_by(m.Attachment.id.desc()).all()
+        return {"attachments": [_att_dict(a, project_id) for a in rows]}
+
+    @app.post("/api/projects/{project_id}/attachments/link", status_code=201)
+    def create_link_attachment(project_id: str, body: dict, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        url = (body.get("url") or "").strip()
+        title = (body.get("title") or "").strip()
+        owner_kind = (body.get("owner_kind") or "").strip()
+        owner_id = str(body.get("owner_id") or "").strip()
+        if not url or not title:
+            raise _err(400, "BAD_LINK", "url and title are required for a link attachment")
+        if body.get("provider") and body["provider"] not in m.ATTACHMENT_PROVIDERS:
+            raise _err(400, "BAD_PROVIDER", f"provider must be one of {sorted(m.ATTACHMENT_PROVIDERS)}")
+        _verify_owner(session, p.id, owner_kind, owner_id)
+        a = m.Attachment(project_id=p.id, owner_kind=owner_kind, owner_id=owner_id,
+                         kind="link", title=title, url=url,
+                         provider=body.get("provider") or "url", note=body.get("note"),
+                         created_by=user.name or user.email)
+        session.add(a); session.commit()
+        return {"attachment": _att_dict(a, project_id)}
+
+    @app.post("/api/projects/{project_id}/attachments/upload", status_code=201)
+    def create_upload_attachment(project_id: str,
+                                 owner_kind: str = Form(...), owner_id: str = Form(...),
+                                 title: str = Form(...), note: str | None = Form(None),
+                                 file: UploadFile = File(...),
+                                 user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        _verify_owner(session, p.id, owner_kind, owner_id)
+        # Stream + hash; refuse over the cap.
+        h = _hashlib.sha256()
+        size = 0
+        chunks = []
+        while True:
+            chunk = file.file.read(64 * 1024)
+            if not chunk:
+                break
+            size += len(chunk)
+            cap = _upload_cap()
+            if size > cap:
+                raise _err(413, "TOO_LARGE", f"upload exceeds {max(cap // (1024*1024), 1)} MB cap")
+            h.update(chunk)
+            chunks.append(chunk)
+        sha = h.hexdigest()
+        dest_dir = os.path.join(_upload_root(), project_id, sha[:2])
+        os.makedirs(dest_dir, exist_ok=True)
+        dest_path = os.path.join(dest_dir, sha)
+        with open(dest_path, "wb") as f:
+            for c in chunks:
+                f.write(c)
+        a = m.Attachment(project_id=p.id, owner_kind=owner_kind, owner_id=str(owner_id),
+                         kind="upload", title=title, file_ref=dest_path,
+                         provider="local", mime=file.content_type, size_bytes=size, sha256=sha,
+                         note=note, created_by=user.name or user.email)
+        session.add(a); session.commit()
+        return {"attachment": _att_dict(a, project_id)}
+
+    @app.get("/api/projects/{project_id}/attachments/{att_id}/download")
+    def download_attachment(project_id: str, att_id: int, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.read")
+        p = _project(session, user, project_id)
+        a = session.query(m.Attachment).filter_by(project_id=p.id, id=att_id).first()
+        if not a:
+            raise _err(404, "NOT_FOUND", str(att_id))
+        if a.kind != "upload" or not a.file_ref or not os.path.exists(a.file_ref):
+            raise _err(404, "NO_PAYLOAD", "this attachment has no uploaded payload")
+        from fastapi.responses import FileResponse
+        return FileResponse(a.file_ref, media_type=a.mime or "application/octet-stream", filename=a.title)
+
+    @app.delete("/api/projects/{project_id}/attachments/{att_id}")
+    def delete_attachment(project_id: str, att_id: int, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        a = session.query(m.Attachment).filter_by(project_id=p.id, id=att_id).first()
+        if not a:
+            raise _err(404, "NOT_FOUND", str(att_id))
+        if a.kind == "upload" and a.file_ref and os.path.exists(a.file_ref):
+            try:
+                os.remove(a.file_ref)
+            except OSError:
+                pass
+        session.delete(a); session.commit()
+        return {"deleted": att_id}
 
     return app
 

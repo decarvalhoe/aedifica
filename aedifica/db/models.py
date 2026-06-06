@@ -389,6 +389,43 @@ class TaskDependency(Base):
 
 CAPTURE_KINDS = ("friction", "observation", "photo", "decision", "regulation")
 
+# W11.B: an Attachment is either an inline-uploaded blob (kind="upload") or a
+# pointer to a file hosted outside Aedifica (kind="link"). The doctrine is
+# explicit — the atelier already has Drive/OneDrive/Dropbox/intranet for the
+# heavy plans; Aedifica is the index + the rights + the trace, not a Dropbox
+# bis. Every domain object that holds documents (Document, BrsEntry,
+# ChecklistItem, Task, CaptureNote, Permit dossier item…) can carry an
+# attachment via the polymorphic (owner_kind, owner_id) pair.
+ATTACHMENT_KINDS = ("link", "upload")
+ATTACHMENT_PROVIDERS = ("local", "gdrive", "onedrive", "dropbox", "sharepoint", "icloud", "url", "other")
+ATTACHMENT_OWNERS = ("document", "brs", "checklist", "task", "capture", "permit")
+
+
+class Attachment(Base):
+    """A file the atelier wants to reach from inside Aedifica. Either uploaded
+    (`kind="upload"`, persisted at `file_ref` on the local volume) or linked
+    (`kind="link"`, just a URL in `url`). Polymorphic owner: a Document, a BRS
+    entry, a checklist step, a task, a capture, or a permit-dossier item all
+    reuse the same table — same UI component, same access rules, single point
+    of truth for *« où est ce fichier ? »*."""
+
+    __tablename__ = "attachment"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    owner_kind: Mapped[str] = mapped_column(String(20))  # document|brs|checklist|task|capture|permit
+    owner_id: Mapped[str] = mapped_column(String(120))  # int FK for the typed tables; string for permit items
+    kind: Mapped[str] = mapped_column(String(10))  # link|upload
+    title: Mapped[str] = mapped_column(String(300))
+    url: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    file_ref: Mapped[str | None] = mapped_column(String(500), nullable=True)  # local path under /data/attachments/...
+    provider: Mapped[str] = mapped_column(String(20), default="url")  # local|gdrive|onedrive|...
+    mime: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    size_bytes: Mapped[int | None] = mapped_column(nullable=True)
+    sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    created_at: Mapped[_dt.datetime] = _TS()
+
 
 class CaptureNote(Base):
     """A captured note — site friction/observation, a photo proof ('preuve à futur'),
