@@ -3,6 +3,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { api } from "@/lib/api";
 import { AttachField } from "./AttachField";
+import { GanttView } from "./GanttView";
+import { KanbanView } from "./KanbanView";
+import { PhaseTasks } from "./PhaseTasks";
 
 const REF_ID = "DEMO-LAUSANNE-PALUD";
 const REF = { name: "Place de la Palud", commune: "Lausanne" };
@@ -191,9 +194,14 @@ export default function App() {
   const [flash, setFlash] = useState<{ kind: "ok" | "warn"; text: string } | null>(null);
   const [users, setUsers] = useState<any[] | null>(null);
   const [atelier, setAtelier] = useState<any>(null);
+  const [atelierAlerts, setAtelierAlerts] = useState<any[]>([]);
   // W10: external (client / mandataire) user state. When set, the entire workspace is
   // replaced by the External scoped view.
   const [ext, setExt] = useState<any | null>(null);
+  // W11.C: deep-link bridge — Coordination on a project triggers a planning
+  // jump that lands on the Home AtelierPilotage with this project pre-filtered
+  // and the Gantt view active. Cleared by AtelierPilotage after it consumes it.
+  const [pendingPlanningFilter, setPendingPlanningFilter] = useState<string | null>(null);
 
   useEffect(() => {
     const t = typeof window !== "undefined" ? localStorage.getItem("aedifica_token") : null;
@@ -229,7 +237,33 @@ export default function App() {
     } catch (e: any) { setErr(e.message?.includes("INVITE_INVALID") || e.message?.includes("404") ? "Code d'invitation invalide ou déjà utilisé." : (e.message || "Activation impossible.")); }
     finally { setBusy(false); }
   }
-  async function loadAtelier(t: string) { try { setAtelier(await api<any>("/atelier/tasks", { token: t })); } catch { setAtelier(null); } }
+  async function loadAtelier(t: string) {
+    try {
+      const r = await api<any>("/atelier/tasks", { token: t });
+      setAtelier(r);
+      try { const al = await api<any>("/atelier/alerts", { token: t }); setAtelierAlerts(al.alerts || []); }
+      catch { setAtelierAlerts([]); }
+    } catch { setAtelier(null); setAtelierAlerts([]); }
+  }
+  // W11.C: cross-project handlers for the multi-project Kanban+Gantt drag actions.
+  // The PATCH is routed to the right project's task endpoint, then atelier tasks
+  // are refreshed so collisions/load follow.
+  async function patchAtelierTask(pid: string, tid: number, body: any) {
+    await api(`/projects/${pid}/tasks/${tid}`, { method: "PATCH", token: token!, body });
+    await loadAtelier(token!);
+    if (active && active.project_id === pid) await refreshTasks();
+  }
+  async function delAtelierTask(pid: string, tid: number) {
+    await api(`/projects/${pid}/tasks/${tid}`, { method: "DELETE", token: token! });
+    await loadAtelier(token!);
+    if (active && active.project_id === pid) await refreshTasks();
+  }
+  // Coordination → Planning Atelier deep-link. Closes the project, sets the
+  // pending filter, returns to Home where AtelierPilotage consumes it.
+  function openAtelierPlanning(pid: string) {
+    setPendingPlanningFilter(pid);
+    setActive(null); setD({}); setFlash(null);
+  }
   async function loadProjects(t: string): Promise<Project[]> {
     const ids = (await api<any>("/projects", { token: t })).projects as string[];
     const sums = await Promise.all(ids.map((id) => api<any>(`/projects/${id}`, { token: t }).then((r) => r.project as Project)));
@@ -414,7 +448,7 @@ export default function App() {
   if (!ready) return <div className="center"><span className="spin">Chargement…</span></div>;
   if (!token) return <Login busy={busy} err={err} onRegister={register} onLogin={login} onJoin={joinWithKey} onAcceptInvite={acceptInvite} />;
   if (ext) return <ExternalView ext={ext} onTick={tickExternal} onSignOut={signOut} />;
-  if (!active) return <Home projects={projects} users={users} atelier={atelier} flashKey={flashKey} busy={busy} err={err} onOpen={openProject} onCreate={createProject} onSignOut={signOut} onSearch={homeSearch} dismissFlash={() => setFlashKey(null)} />;
+  if (!active) return <Home projects={projects} users={users} atelier={atelier} atelierAlerts={atelierAlerts} flashKey={flashKey} busy={busy} err={err} pendingPlanningFilter={pendingPlanningFilter} onClearPendingPlanning={() => setPendingPlanningFilter(null)} onPatchAtelierTask={patchAtelierTask} onDelAtelierTask={delAtelierTask} onOpen={openProject} onCreate={createProject} onSignOut={signOut} onSearch={homeSearch} dismissFlash={() => setFlashKey(null)} />;
 
   const cur = NAV.find((n) => n.id === view)!;
   const j = active.jurisdiction;
@@ -474,21 +508,21 @@ export default function App() {
         </div>
         <div className="ws__view">
           {flash && <div className={`banner ${flash.kind}`} style={{ display: "flex", alignItems: "center", gap: 12 }}><span style={{ flex: 1 }}>{flash.text}</span><button className="toggle" onClick={() => setFlash(null)}>Compris</button></div>}
-          {view === "dashboard" && <Dashboard d={d} project={active} go={setView} />}
+          {view === "dashboard" && <Dashboard d={d} project={active} go={setView} alerts={atelierAlerts} onOpenAtelierPlanning={openAtelierPlanning} />}
           {view === "taches" && <Taches data={d.tasks} token={token!} pid={active.project_id} onAdd={addTask} onPatch={patchTask} onDel={delTask} onAddDep={addDep} onDelDep={delDep} onPredict={predictTask} />}
           {view === "checklist" && <Checklist data={d.checklist} entryPhase={active.phase_code} token={token!} pid={active.project_id} onSeed={seedChecklist} onPatch={patchChecklist} onAdd={addChecklistItem} onDel={delChecklistItem} />}
           {view === "terrain" && <Terrain claims={d.claims} mode={d.intakeMode} support={d.support} commune={j.commune} initialQuery={d.pendingQuery} regAlerts={d.captures?.regulation_alerts} onLookup={lookup} onRequest={requestCommune} />}
-          {view === "coordination" && <Coordination data={d.coord} onRefresh={refreshCoord} go={setView} />}
+          {view === "coordination" && <Coordination data={d.coord} onRefresh={refreshCoord} go={setView} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
           {view === "intervenants" && <Intervenants data={d.intervenants} onAddGroup={addGroup} onDelGroup={delGroup} onAdd={addIntervenant} onPatch={patchIntervenant} onDel={delIntervenant} onInvite={inviteIntervenant} />}
           {view === "documents" && <Documents docs={d.documents} summary={d.docSummary} intervenants={d.intervenants} token={token!} pid={active.project_id} onAdd={addDocument} onValidate={validateDocument} onPatch={patchDocument} onDel={delDocument} onGrant={addGrant} onRevoke={revokeGrant} />}
           {view === "brs" && <Brs data={d.brs} intervenants={d.intervenants} token={token!} pid={active.project_id} onAdd={addBrs} onPatch={patchBrs} onDel={delBrs} />}
-          {view === "permis" && <Permis d={d.permit} onSubmit={submitPermit} />}
+          {view === "permis" && <Permis d={d.permit} onSubmit={submitPermit} tasks={d.tasks?.tasks || []} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
           {view === "opposition" && <Opposition d={d.opposition} canonicalDocs={(d.documents || []).filter((x: any) => x.validation_level === "canonical").length} />}
-          {view === "conformite" && <Conformite d={d.compliance} />}
+          {view === "conformite" && <Conformite d={d.compliance} tasks={d.tasks?.tasks || []} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
           {view === "copilote" && <Copilote token={token} pid={active.project_id} ledger={d.ledger} onChange={refreshLedger} />}
           {view === "memoire" && <Memoire unknowns={d.unknowns} ledger={d.ledger} captures={d.captures} token={token!} pid={active.project_id} onAddCapture={addCapture} onDelCapture={delCapture} />}
-          {view === "couts" && <Couts d={d.cost} onFee={feeEstimate} />}
-          {view === "chantier" && <Chantier d={d.site} />}
+          {view === "couts" && <Couts d={d.cost} onFee={feeEstimate} tasks={d.tasks?.tasks || []} projectPhase={active.phase_code} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
+          {view === "chantier" && <Chantier d={d.site} tasks={d.tasks?.tasks || []} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
           {view === "equipe" && <Team users={users} onAdd={addUser} onSetRole={setUserRole} />}
         </div>
       </main>
@@ -565,29 +599,74 @@ function Login({ busy, err, onRegister, onLogin, onJoin, onAcceptInvite }: { bus
 }
 
 /* ===================== HOME ===================== */
-/* ===================== ATELIER · PILOTAGE MULTI-PROJET (W9 #225/#227) ===================== */
-function AtelierPilotage({ atelier, onOpen, projects }: any) {
-  const open: any[] = (atelier.tasks || []).filter((t: any) => t.status !== "done");
+/* ===================== ATELIER · PILOTAGE MULTI-PROJET (W9 #225/#227 + W11.C) ===================== */
+// W11.C: the multi-project planning surface. Three intentional views over the
+// SAME pool of atelier tasks: List (priorities, the original W9 view), Kanban
+// (drag-and-drop by status), Gantt (timeline + collisions). A project filter
+// lets the user focus on one project's tasks while keeping the collision
+// detector at the atelier scope. Bridged from per-project Coordination via the
+// `pendingFilter` prop (clicked from a project, lands here pre-filtered).
+function AtelierPilotage({ atelier, onOpen, projects, pendingFilter, onClearPending, onPatchTask, onDelTask }: any) {
+  const allTasks: any[] = atelier.tasks || [];
+  const projectIds = Array.from(new Set(allTasks.map((t) => t.project_id)));
+  const [filter, setFilter] = useState<string>("");
+  useEffect(() => { if (pendingFilter) { setFilter(pendingFilter); onClearPending?.(); } }, [pendingFilter, onClearPending]);
+  const [view, setView] = useState<"list" | "kanban" | "gantt">(pendingFilter ? "gantt" : "list");
+  const scoped = filter ? allTasks.filter((t) => t.project_id === filter) : allTasks;
+  const open: any[] = scoped.filter((t: any) => t.status !== "done");
   const col = atelier.collision || {}; const load = atelier.load_by_assignee || {};
   const top = [...open].sort((a, b) => (a.priority > b.priority ? 1 : a.priority < b.priority ? -1 : 0)).slice(0, 6);
   const openProj = (pid: string) => { const p = (projects || []).find((x: any) => x.project_id === pid); if (p) onOpen(p); };
   return (
     <div className="home__sec">
-      <h2>Atelier · pilotage multi-projet ({atelier.projects} projet·s)</h2>
-      {(col.overloaded || []).length > 0 && <div className="banner bad" style={{ marginBottom: 12 }}><b>Collision de charge</b> — {col.overloaded.map((o: any) => `${o.week} : ${o.hours} h (+${o.over})`).join(" · ")} au-delà de {col.weekly_capacity} h/sem.</div>}
-      <div className="g2">
-        <div className="card"><h3>Tâches prioritaires (tous projets)</h3>{top.length === 0 && <p className="spin">Aucune tâche ouverte.</p>}{top.map((t: any) => { const [pc, pl] = PRIO[t.priority] || ["modere", t.priority]; return (
-          <div className="row-line" key={t.id}><span className={`lvl ${pc}`}>{pl}</span><span className="grow"><span className="ttl">{t.title}{t.is_blocked && <small style={{ display: "inline", color: "var(--ts-conflict)" }}> · bloquée</small>}</span><small>{[t.project_name, t.assignee ? "→ " + t.assignee : null, t.estimate_hours ? t.estimate_hours + " h" : null, t.due_date ? "éch. " + t.due_date : null].filter(Boolean).join(" · ")}</small></span><button className="toggle" onClick={() => openProj(t.project_id)}>Ouvrir →</button></div>
-        ); })}</div>
-        <div className="card"><h3>Charge par collaborateur</h3>{Object.keys(load).length === 0 && <p className="spin">—</p>}{Object.entries(load).map(([n, h]: any) => (<div className="row-line" key={n}><span className="grow"><span className="ttl">{n}</span></span><span className={`lvl ${h > 40 ? "eleve" : h > 20 ? "modere" : "faible"}`}>{h} h</span></div>))}
-          {Object.keys(col.by_week || {}).length > 0 && <div style={{ marginTop: 12 }}><div className="mono" style={{ fontSize: 10, margin: "0 0 6px", color: "var(--mut)" }}>CHARGE PAR SEMAINE</div>{Object.entries(col.by_week).map(([w, h]: any) => (<div className="row-line" key={w}><span className="grow"><span className="mono" style={{ fontSize: 12 }}>{w}</span></span><span className={`lvl ${h > col.weekly_capacity ? "eleve" : "faible"}`}>{h} h</span></div>))}</div>}
-        </div>
+      <div className="row" style={{ alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+        <h2 style={{ margin: 0 }}>Atelier · pilotage multi-projet ({atelier.projects} projet·s)</h2>
+        <span className="grow" />
+        <label className="mono" style={{ fontSize: 11, color: "var(--mut)", display: "flex", alignItems: "center", gap: 6 }}>
+          Projet
+          <select className="fld" style={{ margin: 0, padding: "4px 8px", width: "auto" }} value={filter} onChange={(e) => setFilter(e.target.value)}>
+            <option value="">Tous ({allTasks.length})</option>
+            {projectIds.map((pid) => {
+              const t0 = allTasks.find((t) => t.project_id === pid);
+              return <option key={pid} value={pid}>{t0?.project_name || pid} ({allTasks.filter((t) => t.project_id === pid).length})</option>;
+            })}
+          </select>
+        </label>
+        <span className="row" style={{ gap: 4 }}>
+          {([["list","Liste"],["kanban","Kanban"],["gantt","Gantt"]] as const).map(([v, lb]) => (
+            <button key={v} className={`toggle ${view === v ? "on" : ""}`} onClick={() => setView(v)}>{lb}</button>
+          ))}
+        </span>
       </div>
+      {(col.overloaded || []).length > 0 && <div className="banner bad" style={{ marginTop: 10, marginBottom: 12 }}><b>Collision de charge</b> — {col.overloaded.map((o: any) => `${o.week} : ${o.hours} h (+${o.over})`).join(" · ")} au-delà de {col.weekly_capacity} h/sem.</div>}
+
+      {view === "list" && (
+        <div className="g2" style={{ marginTop: 12 }}>
+          <div className="card"><h3>Tâches prioritaires{filter ? "" : " (tous projets)"}</h3>{top.length === 0 && <p className="spin">Aucune tâche ouverte.</p>}{top.map((t: any) => { const [pc, pl] = PRIO[t.priority] || ["modere", t.priority]; return (
+            <div className="row-line" key={`${t.project_id}-${t.id}`}><span className={`lvl ${pc}`}>{pl}</span><span className="grow"><span className="ttl">{t.title}{t.is_blocked && <small style={{ display: "inline", color: "var(--ts-conflict)" }}> · bloquée</small>}</span><small>{[t.project_name, t.assignee ? "→ " + t.assignee : null, t.estimate_hours ? t.estimate_hours + " h" : null, t.due_date ? "éch. " + t.due_date : null].filter(Boolean).join(" · ")}</small></span><button className="toggle" onClick={() => openProj(t.project_id)}>Ouvrir →</button></div>
+          ); })}</div>
+          <div className="card"><h3>Charge par collaborateur</h3>{Object.keys(load).length === 0 && <p className="spin">—</p>}{Object.entries(load).map(([n, h]: any) => (<div className="row-line" key={n}><span className="grow"><span className="ttl">{n}</span></span><span className={`lvl ${h > 40 ? "eleve" : h > 20 ? "modere" : "faible"}`}>{h} h</span></div>))}
+            {Object.keys(col.by_week || {}).length > 0 && <div style={{ marginTop: 12 }}><div className="mono" style={{ fontSize: 10, margin: "0 0 6px", color: "var(--mut)" }}>CHARGE PAR SEMAINE</div>{Object.entries(col.by_week).map(([w, h]: any) => (<div className="row-line" key={w}><span className="grow"><span className="mono" style={{ fontSize: 12 }}>{w}</span></span><span className={`lvl ${h > col.weekly_capacity ? "eleve" : "faible"}`}>{h} h</span></div>))}</div>}
+          </div>
+        </div>
+      )}
+
+      {view === "kanban" && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <KanbanView tasks={scoped} onPatch={onPatchTask} onDel={onDelTask} />
+        </div>
+      )}
+
+      {view === "gantt" && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <GanttView tasks={scoped} onPatch={onPatchTask} />
+        </div>
+      )}
     </div>
   );
 }
 
-function Home({ projects, users, atelier, flashKey, busy, err, onOpen, onCreate, onSignOut, onSearch, dismissFlash }: any) {
+function Home({ projects, users, atelier, atelierAlerts, flashKey, busy, err, pendingPlanningFilter, onClearPendingPlanning, onPatchAtelierTask, onDelAtelierTask, onOpen, onCreate, onSignOut, onSearch, dismissFlash }: any) {
   const [q, setQ] = useState(""); const [creating, setCreating] = useState(false);
   const [name, setName] = useState(""); const [commune, setCommune] = useState("Lausanne");
   return (
@@ -618,7 +697,12 @@ function Home({ projects, users, atelier, flashKey, busy, err, onOpen, onCreate,
 
         {flashKey && <div className="flash"><b>Atelier créé.</b> Conservez votre clé d&apos;accès pour vous reconnecter :<code>{flashKey}</code><button className="signout" style={{ padding: 0 }} onClick={dismissFlash}>J&apos;ai noté ma clé</button></div>}
 
-        {atelier && (atelier.tasks || []).length > 0 && <AtelierPilotage atelier={atelier} onOpen={onOpen} projects={projects} />}
+        {atelier && (atelier.tasks || []).length > 0 && (
+          <AtelierPilotage atelier={atelier} onOpen={onOpen} projects={projects}
+                           pendingFilter={pendingPlanningFilter}
+                           onClearPending={onClearPendingPlanning}
+                           onPatchTask={onPatchAtelierTask} onDelTask={onDelAtelierTask} />
+        )}
 
         <div className="home__sec">
           <h2>Vos projets ({(projects || []).length})</h2>
@@ -656,7 +740,7 @@ function Home({ projects, users, atelier, flashKey, busy, err, onOpen, onCreate,
 }
 
 /* ===================== DASHBOARD (phase-aware) ===================== */
-function Dashboard({ d, project, go }: { d: any; project: Project; go: (v: View) => void }) {
+function Dashboard({ d, project, go, alerts, onOpenAtelierPlanning }: { d: any; project: Project; go: (v: View) => void; alerts: any[]; onOpenAtelierPlanning: (pid: string) => void }) {
   if (!d.claims) return <p className="spin">Chargement…</p>;
   const sourced = d.claims.filter((c: any) => c.state === "sourced" || c.state === "computed").length;
   const verify = d.claims.filter((c: any) => c.state === "unknown" || c.state === "assumption").length;
@@ -670,6 +754,31 @@ function Dashboard({ d, project, go }: { d: any; project: Project; go: (v: View)
           ? <p>Projet à cadrer — basculez en <b>Phase 11 · Définition des objectifs</b> via la barre du haut pour démarrer la séquence SIA. Tant que la phase n&apos;est pas définie, le Prochain pas reste sur les actions d&apos;initialisation.</p>
           : <p>L&apos;état du projet en un coup d&apos;œil : ce qui est fiable, ce qu&apos;il faut traiter ensuite, et les quick-wins de cette phase.</p>}
       </div>
+      {(alerts || []).length > 0 && (
+        <div className="card" style={{ marginBottom: 14, borderLeft: "3px solid var(--ts-conflict)" }}>
+          <div className="row" style={{ alignItems: "baseline" }}>
+            <h3 style={{ margin: 0 }}>Alertes Atelier</h3>
+            <small style={{ color: "var(--mut)" }}>{(alerts || []).length} alerte{(alerts || []).length > 1 ? "s" : ""} dérivée{(alerts || []).length > 1 ? "s" : ""} du planning (Gantt + collisions)</small>
+            <span className="grow" />
+            <button className="toggle" onClick={() => onOpenAtelierPlanning(project.project_id)}>Voir le planning Atelier →</button>
+          </div>
+          <div style={{ marginTop: 8 }}>
+            {(alerts || []).slice(0, 6).map((a: any, i: number) => {
+              const sev = a.severity === "bad" ? "is-conflict" : a.severity === "warn" ? "is-assume" : "is-computed";
+              return (
+                <div className="row-line" key={i}>
+                  <span className={`ds-ts ${sev}`}><span className="dot" />{a.severity?.toUpperCase()}</span>
+                  <span className="grow"><span className="ttl">{a.title}</span><small>{a.detail}</small></span>
+                  {a.project_id && a.project_id !== project.project_id && (
+                    <button className="toggle" onClick={() => onOpenAtelierPlanning(a.project_id)} title="Ouvrir le planning Atelier filtré sur ce projet">→</button>
+                  )}
+                </div>
+              );
+            })}
+            {(alerts || []).length > 6 && <small style={{ color: "var(--mut)" }}>+{(alerts || []).length - 6} de plus dans le planning Atelier.</small>}
+          </div>
+        </div>
+      )}
       {d.toValidate && (d.toValidate.counts.documents + d.toValidate.counts.checklist_todo) > 0 && (
         <div className="banner warn" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <b>À valider</b>
@@ -726,7 +835,7 @@ function Terrain({ claims, mode, support, commune, onLookup, onRequest, initialQ
 }
 
 /* ===================== PERMIS ===================== */
-function Permis({ d, onSubmit }: any) {
+function Permis({ d, onSubmit, tasks, projectId, onOpenAtelierPlanning }: any) {
   const [busy, setBusy] = useState("");
   if (!d) return <p className="spin">Chargement…</p>;
   const toggle = async (id: string, present: boolean) => { setBusy(id); try { await onSubmit(id, present); } catch { } finally { setBusy(""); } };
@@ -742,6 +851,7 @@ function Permis({ d, onSubmit }: any) {
           ); })}
         </div>
       ))}
+      <PhaseTasks phase="33" tasks={tasks || []} projectId={projectId} onOpenAtelierPlanning={onOpenAtelierPlanning} label="phase 33 · autorisation / permis" />
     </>
   );
 }
@@ -763,7 +873,7 @@ function Opposition({ d, canonicalDocs }: any) {
 }
 
 /* ===================== CONFORMITE ===================== */
-function Conformite({ d }: any) {
+function Conformite({ d, tasks, projectId, onOpenAtelierPlanning }: any) {
   if (!d) return <p className="spin">Chargement…</p>;
   const gate = (g: any, i: number) => (
     <div className="row-line" key={i}><Trust state={g.status === "satisfied" ? "satisfied" : g.status === "unknown" ? "unknown" : "action_required"} /><span className="grow"><span className="ttl">{fr(g.title)} <small style={{ display: "inline", color: "var(--mut)" }}>({fr(g.domain)})</small></span>{g.next_action && <small>{g.next_action}</small>}</span></div>
@@ -774,6 +884,7 @@ function Conformite({ d }: any) {
       <div className="banner warn"><b>{d.summary.legal_blockers}</b> obligation(s) légale(s) à lever.</div>
       <div className="card" style={{ marginBottom: 14 }}><h3>Obligations légales</h3>{d.legal?.map(gate)}</div>
       <div className="card"><h3>Conventions contractuelles (BIM)</h3>{d.contractual?.map(gate)}</div>
+      <PhaseTasks phase="33" tasks={tasks || []} projectId={projectId} onOpenAtelierPlanning={onOpenAtelierPlanning} label="phase 33 · conformité énergie / incendie / accessibilité" />
     </>
   );
 }
@@ -818,7 +929,7 @@ function Copilote({ token, pid, ledger, onChange }: { token: string; pid: string
 }
 
 /* ===================== COUTS ===================== */
-function Couts({ d, onFee }: any) {
+function Couts({ d, onFee, tasks, projectPhase, projectId, onOpenAtelierPlanning }: any) {
   const [fi, setFi] = useState<any>({ cfc2: "", project_type: "villa", hourly_rate: "150", hours: "" });
   const [est, setEst] = useState<any>(null); const [busy, setBusy] = useState(false);
   const chf = (n: number) => "CHF " + Number(n).toLocaleString("fr-CH");
@@ -860,17 +971,38 @@ function Couts({ d, onFee }: any) {
         <div className="card"><h3>Prestations absorbées (non chiffrées)</h3>{c.absorbed_tasks.map((t: any, i: number) => (<div className="claim" key={i}><Trust state="assumption" label="absorbé" /><div><div className="ttl">{t.title}</div><small>{t.estimated_hours} h · {t.action}</small></div></div>))}</div>
         <div className="card"><h3>Hypothèses portées en soumission</h3>{d.tender_assumptions.map((a: any, i: number) => (<div className="claim" key={i}><Trust state="computed" label={a.kind} /><div><div className="ttl">{a.title}</div><small>colonne : {a.offer_comparison_column}</small></div></div>))}</div>
       </div>
+      <PhaseTasks phase={projectPhase && projectPhase !== "0" ? projectPhase : "32"} tasks={tasks || []} projectId={projectId} onOpenAtelierPlanning={onOpenAtelierPlanning} />
+      <div className="card" style={{ marginTop: 12 }}>
+        <h3>Heures réellement engagées (toutes phases)</h3>
+        <p style={{ color: "var(--mut)" }}>Somme des estimations des tâches du projet. À rapprocher des honoraires estimés ci-dessus pour calibrer votre tarif horaire.</p>
+        {(() => {
+          const total = (tasks || []).reduce((s: number, t: any) => s + (t.estimate_hours || 0), 0);
+          const done = (tasks || []).filter((t: any) => t.status === "done").reduce((s: number, t: any) => s + (t.actual_hours || t.estimate_hours || 0), 0);
+          return (
+            <div className="kpis" style={{ marginTop: 8 }}>
+              <div className="kpi"><div className="lab">Estimé total</div><div className="num">{total} h</div></div>
+              <div className="kpi"><div className="lab">Engagé sur tâches faites</div><div className="num">{done} h</div></div>
+              <div className="kpi"><div className="lab">Reste à engager</div><div className="num">{Math.max(0, total - done)} h</div></div>
+            </div>
+          );
+        })()}
+      </div>
     </>
   );
 }
 
 /* ===================== CHANTIER ===================== */
-function Chantier({ d }: any) {
+function Chantier({ d, tasks, projectId, onOpenAtelierPlanning }: any) {
   if (!d) return <p className="spin">Chargement…</p>;
   const map = (s: string) => (s === "closed" ? "satisfied" : s === "blocked" ? "conflict" : s === "open" ? "unknown" : "assumption");
   const lbl: Record<string, string> = { open: "ouvert", closed: "clos", blocked: "bloqué" };
   const head = <div className="vh"><h2>Chantier &amp; remise</h2><p>Suivi d&apos;exécution : réserves / défauts et check-list de remise, avec responsable et échéance.</p></div>;
-  if (d.data_basis === "empty") return (<>{head}<div className="placeholder"><h4>Aucun suivi de chantier</h4><p>Les réserves et la remise apparaîtront en phase exécution.</p></div></>);
+  if (d.data_basis === "empty") return (
+    <>{head}
+      <div className="placeholder"><h4>Aucun suivi de chantier</h4><p>Les réserves et la remise apparaîtront en phase exécution.</p></div>
+      <PhaseTasks phase={["52", "53"]} tasks={tasks || []} projectId={projectId} onOpenAtelierPlanning={onOpenAtelierPlanning} label="phases 52/53 · chantier et mise en service" />
+    </>
+  );
   return (
     <>{head}
       <div className="banner warn"><b>{d.summary.handover_blocked}</b> remise bloquée · <b>{d.summary.defects_open}</b> défaut(s) ouvert(s).</div>
@@ -878,6 +1010,7 @@ function Chantier({ d }: any) {
         <div className="card"><h3>Check-list de remise</h3>{d.handover.map((i: any, k: number) => (<div className="claim" key={k}><Trust state={map(i.status)} label={lbl[i.status] || i.status} /><div><div className="ttl">{i.title}</div><small>{i.responsible_party} · échéance {i.due_at}</small></div></div>))}</div>
         <div className="card"><h3>Réserves &amp; défauts</h3>{d.defects.map((x: any, k: number) => (<div className="claim" key={k}><span className={`lvl ${lvlClass(x.severity)}`}>{x.severity}</span><div><div className="ttl">{x.title}</div><small>{x.responsible_party} · {x.status} · échéance {x.target_resolution}</small></div></div>))}</div>
       </div>
+      <PhaseTasks phase={["52", "53"]} tasks={tasks || []} projectId={projectId} onOpenAtelierPlanning={onOpenAtelierPlanning} label="phases 52/53 · chantier et mise en service" />
     </>
   );
 }
@@ -1148,7 +1281,7 @@ function Checklist({ data, entryPhase, token, pid, onSeed, onPatch }: any) {
 }
 
 /* ===================== COORDINATION — single point of truth (W10) ===================== */
-function Coordination({ data, onRefresh, go }: { data: any; onRefresh: () => void; go: (v: View) => void }) {
+function Coordination({ data, onRefresh, go, projectId, onOpenAtelierPlanning }: { data: any; onRefresh: () => void; go: (v: View) => void; projectId: string; onOpenAtelierPlanning: (pid: string) => void }) {
   useEffect(() => { if (!data) onRefresh(); }, []);
   if (!data) return <p className="spin">Chargement de la coordination…</p>;
   const owes = data.who_owes_what || {};
@@ -1158,7 +1291,13 @@ function Coordination({ data, onRefresh, go }: { data: any; onRefresh: () => voi
   return (
     <>
       <div className="vh">
-        <div className="row"><h2>Coordination</h2><span className="badge live"><span className="d" />Point unique</span></div>
+        <div className="row">
+          <h2>Coordination</h2><span className="badge live"><span className="d" />Point unique</span>
+          <span className="grow" />
+          <button className="toggle" onClick={() => onOpenAtelierPlanning(projectId)} title="Ouvrir le planning Atelier filtré sur ce projet (Kanban + Gantt + collisions multi-projet)">
+            Planning Atelier →
+          </button>
+        </div>
         <p>Une seule vue pour : <b>qui doit quoi</b> · <b>où ça bloque</b> · <b>les documents</b> · <b>ce qu&apos;il vous reste à valider</b>. Source : la feuille SIA Vaud, projetée par acteur.</p>
       </div>
       {/* (1) Qui doit quoi — by actor */}
@@ -1337,7 +1476,7 @@ function Taches({ data, token, pid, onAdd, onPatch, onDel, onAddDep, onPredict }
   const ordered = [...tasks].sort((a, b) => (a.priority > b.priority ? 1 : a.priority < b.priority ? -1 : 0) || ((a.status === "done" ? 1 : 0) - (b.status === "done" ? 1 : 0)));
   return (
     <>
-      <div className="vh"><div className="row"><h2>Tâches &amp; priorités</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>On navigue par <b>priorité</b> (P0 / P1 / P2) et par <b>ce qui bloque</b>, pas par agenda. Estimez la durée, liez les dépendances, assignez aux collaborateurs.</p></div>
+      <div className="vh"><div className="row"><h2>Tâches &amp; priorités</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>On navigue par <b>priorité</b> (P0 / P1 / P2) et par <b>ce qui bloque</b>, pas par agenda. Le <b>planning Atelier</b> (multi-projet, Kanban + Gantt + collisions) vit dans <i>« Tous les projets »</i> — pour voir cette tâche dans le contexte de l&apos;atelier complet, repassez par là.</p></div>
       <div className="kpis">
         <div className="kpi"><div className="lab">P0 · bloquant</div><div className="num">{s.by_priority?.p0 || 0}</div></div>
         <div className="kpi"><div className="lab">Bloquées</div><div className="num">{s.blocked || 0}</div></div>

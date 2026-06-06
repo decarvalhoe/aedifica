@@ -986,6 +986,90 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
             by_assignee[key] = round(by_assignee.get(key, 0.0) + float(t.estimate_hours or 0), 1)
         return {"tasks": items, "projects": len(projects), "collision": col, "load_by_assignee": by_assignee}
 
+    # W11.C: atelier-wide alerts derived from the task pool — pushed to the
+    # Dashboard so the architect doesn't need to read the Gantt to know what's
+    # *about* to bite. Each alert is a small structured dict:
+    #   {severity: "info"|"warn"|"bad", kind: "...", title, detail, project_id?, task_id?, week?}
+    # Categories: (a) upcoming P0 within 7 days, (b) overdue undone tasks, (c)
+    # weeks overloaded against capacity, (d) collaborators carrying >40h open
+    # work, (e) bloquant chains (>=2 levels deep), (f) quick wins so they get
+    # done while waiting on something else.
+    @app.get("/api/atelier/alerts")
+    def atelier_alerts(user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.read")
+        projects = {p.id: p for p in session.query(m.Project).filter_by(org_id=user.org_id).all()}
+        if not projects:
+            return {"alerts": []}
+        names = {u.id: u.name for u in session.query(m.User).filter_by(org_id=user.org_id).all()}
+        all_tasks = session.query(m.Task).filter(m.Task.project_id.in_(list(projects))).all()
+        from datetime import date, datetime, timedelta
+        today = date.today()
+        alerts = []
+        # (a) P0 dans 7 jours, (b) en retard
+        for t in all_tasks:
+            if t.status == "done":
+                continue
+            if not t.due_date:
+                continue
+            try:
+                due = datetime.fromisoformat(t.due_date).date()
+            except (TypeError, ValueError):
+                continue
+            pid = projects[t.project_id].project_id
+            if due < today:
+                alerts.append({"severity": "bad", "kind": "overdue",
+                               "title": f"Tâche en retard : {t.title}",
+                               "detail": f"Échéance {t.due_date} dépassée ({(today - due).days} j) — projet {projects[t.project_id].name}.",
+                               "project_id": pid, "task_id": t.id})
+            elif t.priority == "p0" and (due - today).days <= 7:
+                alerts.append({"severity": "warn", "kind": "p0_soon",
+                               "title": f"P0 dans {(due - today).days} jour(s) : {t.title}",
+                               "detail": f"Échéance {t.due_date} — projet {projects[t.project_id].name}.",
+                               "project_id": pid, "task_id": t.id})
+        # (c) semaines surchargées (vient déjà de pilotage.collisions)
+        from . import pilotage
+        col = pilotage.collisions([{"status": t.status, "due_date": t.due_date, "estimate_hours": t.estimate_hours} for t in all_tasks])
+        for o in col.get("overloaded", []) or []:
+            alerts.append({"severity": "warn", "kind": "overloaded_week",
+                           "title": f"Semaine surchargée — {o.get('week')}",
+                           "detail": f"{o.get('hours')} h estimées (+{o.get('over')} h au-delà de {col.get('weekly_capacity')} h/sem).",
+                           "week": o.get("week")})
+        # (d) collaborateurs > 40 h ouvertes
+        load: dict = {}
+        for t in all_tasks:
+            if t.status == "done":
+                continue
+            k = names.get(t.assignee_user_id) or "non assigné"
+            load[k] = round(load.get(k, 0.0) + float(t.estimate_hours or 0), 1)
+        for who, h in load.items():
+            if h > 40 and who != "non assigné":
+                alerts.append({"severity": "warn", "kind": "overloaded_assignee",
+                               "title": f"{who} en surcharge",
+                               "detail": f"{h} h ouvertes — au-delà du seuil hebdo de 40 h."})
+        # (e) chaînes de dépendances bloquantes — toute tâche bloquée par une autre elle-même bloquée
+        deps = _deps_for(session, [t.id for t in all_tasks])
+        done = {t.id for t in all_tasks if t.status == "done"}
+        for t in all_tasks:
+            if t.status == "done":
+                continue
+            blockers = [d for d in deps.get(t.id, []) if d not in done]
+            for b in blockers:
+                bdeps = [d for d in deps.get(b, []) if d not in done]
+                if bdeps:  # 2-level chain
+                    bt = next((x for x in all_tasks if x.id == b), None)
+                    alerts.append({"severity": "warn", "kind": "deep_block",
+                                   "title": f"Chaîne de bloquants : {t.title}",
+                                   "detail": f"Dépend de « {bt.title if bt else '?'} » qui dépend elle-même d'autres tâches non terminées.",
+                                   "project_id": projects[t.project_id].project_id, "task_id": t.id})
+                    break
+        # (f) quick wins ouverts
+        qw_count = sum(1 for t in all_tasks if t.status != "done" and t.is_quick_win)
+        if qw_count > 0:
+            alerts.append({"severity": "info", "kind": "quick_wins_available",
+                           "title": f"{qw_count} quick win{'s' if qw_count > 1 else ''} ouvert{'s' if qw_count > 1 else ''}",
+                           "detail": "Tâches courtes que vous pouvez tacler pendant qu'autre chose bloque."})
+        return {"alerts": alerts[:24]}
+
     # ---- capture notes: friction / photos / decisions / regulation watch (#231 #232) -- #
     def _cap_dict(c: m.CaptureNote) -> dict:
         return {"id": c.id, "kind": c.kind, "content": c.content, "author": c.author,
