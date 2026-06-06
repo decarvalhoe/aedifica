@@ -411,8 +411,8 @@ export default function App() {
   return (
     <div className="ws">
       <aside className="ws__side">
-        <div className="ws__brand" style={{ display: "flex", alignItems: "center" }}>
-          <Wordmark height={28} />
+        <div className="ws__brand" style={{ display: "flex", alignItems: "center", padding: "4px 0" }}>
+          <Wordmark height={48} />
         </div>
         <button className="back" onClick={() => { setActive(null); setD({}); loadAtelier(token!); }}>← Tous les projets</button>
         <div className="psw"><div className="k">Projet</div><div className="nm">{active.name}</div><div className="me">{j.commune} · {j.canton} · {phaseLabel(active.phase_code)}</div></div>
@@ -487,7 +487,7 @@ function Login({ busy, err, onRegister, onLogin, onJoin, onAcceptInvite }: { bus
   return (
     <div className="center">
       <div className="login__box">
-        <Wordmark height={44} />
+        <Wordmark height={84} />
         <span className="eyebrow">ArchiOS Suisse · l&apos;assistant de l&apos;architecte</span>
         <h2>{titles[mode]}</h2>
         {mode !== "join" && (
@@ -574,7 +574,7 @@ function Home({ projects, users, atelier, flashKey, busy, err, onOpen, onCreate,
   return (
     <div className="app">
       <div className="home__bar">
-        <Wordmark height={32} />
+        <Wordmark height={56} />
         <span className="eyebrow">ArchiOS Suisse</span>
         <span className="sp" /><button className="acct" onClick={onSignOut}>Se déconnecter</button>
       </div>
@@ -1200,7 +1200,7 @@ function ExternalView({ ext, onTick, onSignOut }: { ext: any; onTick: (id: numbe
     <div className="ws" style={{ gridTemplateColumns: "1fr" }}>
       <main className="ws__main" style={{ maxWidth: 900, margin: "0 auto", padding: 24 }}>
         <div className="vh" style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Wordmark height={28} />
+          <Wordmark height={48} />
           <span className="grow" />
           <small className="mono">{me.user?.email}</small>
           <button className="signout" onClick={onSignOut}>Déconnexion</button>
