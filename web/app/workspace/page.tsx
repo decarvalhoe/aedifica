@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { api } from "@/lib/api";
+import { api, apiUpload } from "@/lib/api";
 import { AttachField } from "./AttachField";
 import { GanttView } from "./GanttView";
 import { KanbanView } from "./KanbanView";
@@ -536,11 +536,11 @@ export default function App() {
               {view === "terrain" && <Terrain claims={d.claims} mode={d.intakeMode} support={d.support} commune={active.jurisdiction.commune} initialQuery={d.pendingQuery} regAlerts={d.captures?.regulation_alerts} onLookup={lookup} onRequest={requestCommune} />}
               {view === "coordination" && <Coordination data={d.coord} onRefresh={refreshCoord} go={setView} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
               {view === "intervenants" && <Intervenants data={d.intervenants} token={token!} projectId={active.project_id} onAddGroup={addGroup} onDelGroup={delGroup} onAdd={addIntervenant} onPatch={patchIntervenant} onDel={delIntervenant} onInvite={inviteIntervenant} />}
-              {view === "documents" && <Documents docs={d.documents} summary={d.docSummary} intervenants={d.intervenants} token={token!} pid={active.project_id} onAdd={addDocument} onValidate={validateDocument} onPatch={patchDocument} onDel={delDocument} onGrant={addGrant} onRevoke={revokeGrant} />}
+              {view === "documents" && <Documents docs={d.documents} summary={d.docSummary} intervenants={d.intervenants} token={token!} pid={active.project_id} onAdd={addDocument} onRefresh={refreshDocs} onValidate={validateDocument} onPatch={patchDocument} onDel={delDocument} onGrant={addGrant} onRevoke={revokeGrant} />}
               {view === "brs" && <Brs data={d.brs} intervenants={d.intervenants} token={token!} pid={active.project_id} onAdd={addBrs} onPatch={patchBrs} onDel={delBrs} />}
-              {view === "permis" && <Permis d={d.permit} onSubmit={submitPermit} tasks={d.tasks?.tasks || []} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
+              {view === "permis" && <Permis d={d.permit} onSubmit={submitPermit} tasks={d.tasks?.tasks || []} projectId={active.project_id} token={token!} onOpenAtelierPlanning={openAtelierPlanning} />}
               {view === "opposition" && <Opposition d={d.opposition} canonicalDocs={(d.documents || []).filter((x: any) => x.validation_level === "canonical").length} />}
-              {view === "conformite" && <Conformite d={d.compliance} tasks={d.tasks?.tasks || []} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
+              {view === "conformite" && <Conformite d={d.compliance} tasks={d.tasks?.tasks || []} projectId={active.project_id} token={token!} onOpenAtelierPlanning={openAtelierPlanning} />}
               {view === "copilote" && <Copilote token={token} pid={active.project_id} ledger={d.ledger} onChange={refreshLedger} />}
               {view === "memoire" && <Memoire unknowns={d.unknowns} ledger={d.ledger} captures={d.captures} token={token!} pid={active.project_id} onAddCapture={addCapture} onDelCapture={delCapture} />}
               {view === "couts" && <Couts d={d.cost} onFee={feeEstimate} tasks={d.tasks?.tasks || []} projectPhase={active.phase_code} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
@@ -939,20 +939,49 @@ function Terrain({ claims, mode, support, commune, onLookup, onRequest, initialQ
 }
 
 /* ===================== PERMIS ===================== */
-function Permis({ d, onSubmit, tasks, projectId, onOpenAtelierPlanning }: any) {
+function Permis({ d, onSubmit, tasks, projectId, token, onOpenAtelierPlanning }: any) {
   const [busy, setBusy] = useState("");
   if (!d) return <p className="spin">Chargement…</p>;
   const toggle = async (id: string, present: boolean) => { setBusy(id); try { await onSubmit(id, present); } catch { } finally { setBusy(""); } };
   return (
     <>
-      <div className="vh"><h2>Dossier de permis</h2><p>Complétude pièce par pièce, par intervenant. Marquez chaque pièce comme fournie au fur et à mesure.</p></div>
-      <div className="banner" style={{ borderLeftColor: d.ready_for_review ? "var(--ts-sourced)" : "var(--ts-assume)" }}>{d.ready_for_review ? <b>Dossier prêt à déposer.</b> : <><b>Pas encore prêt — {d.summary.required_blockers} pièce(s) requise(s) manquante(s).</b></>}</div>
+      <div className="vh">
+        <h2>Dossier de permis</h2>
+        <p>
+          Complétude pièce par pièce, par intervenant. Pour chaque pièce : <b>joignez le document réel</b> (lien Drive / OneDrive / SharePoint, ou upload direct), puis marquez-la comme fournie. Le statut « Fournir » seul ne suffit pas — il faut une trace vérifiable.
+        </p>
+      </div>
+      <div className="banner" style={{ borderLeftColor: d.ready_for_review ? "var(--ts-sourced)" : "var(--ts-assume)" }}>
+        {d.ready_for_review ? <b>Dossier prêt à déposer.</b> : <><b>Pas encore prêt — {d.summary.required_blockers} pièce(s) requise(s) manquante(s).</b></>}
+      </div>
       {d.groups?.map((g: any, i: number) => (
-        <div className="card" key={i} style={{ marginBottom: 14 }}><h3>{fr(g.actor)} · {fr(g.category)}</h3>
-          {g.items.map((it: any, j: number) => { const present = it.status === "present"; return (
-            <div className="row-line" key={j}><Trust state={it.status} /><span className="grow"><span className="ttl">{fr(it.title)}</span>{it.missing_message && (it.status === "missing" || it.status === "assumption") && <small>{it.missing_message}</small>}</span>
-              <button className={`toggle ${present ? "" : "fill"}`} disabled={busy === it.item_id} onClick={() => toggle(it.item_id, !present)}>{busy === it.item_id ? "…" : present ? "Retirer" : "Fournir"}</button></div>
-          ); })}
+        <div className="card" key={i} style={{ marginBottom: 14 }}>
+          <h3>{fr(g.actor)} · {fr(g.category)}</h3>
+          {g.items.map((it: any, j: number) => {
+            const present = it.status === "present";
+            return (
+              // W14.B — each dossier piece carries an AttachField. The "Fournir"
+              // toggle records the *declared* status; the attached link/upload
+              // records the *evidence*. Both live on the same row.
+              <div key={j} style={{ borderTop: j === 0 ? "none" : "1px solid var(--line)", paddingTop: j === 0 ? 0 : 12, paddingBottom: 6 }}>
+                <div className="row-line" style={{ borderBottom: "none", paddingBottom: 0 }}>
+                  <Trust state={it.status} />
+                  <span className="grow">
+                    <span className="ttl">{fr(it.title)}</span>
+                    {it.missing_message && (it.status === "missing" || it.status === "assumption") && <small>{it.missing_message}</small>}
+                  </span>
+                  <button className={`toggle ${present ? "" : "fill"}`} disabled={busy === it.item_id} onClick={() => toggle(it.item_id, !present)}>
+                    {busy === it.item_id ? "…" : present ? "Retirer" : "Fournir"}
+                  </button>
+                </div>
+                {token && projectId && (
+                  <div style={{ paddingLeft: 32 }}>
+                    <AttachField token={token} projectId={projectId} ownerKind="permit" ownerId={it.item_id} label="Pièce officielle" />
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       ))}
       <PhaseTasks phase="33" tasks={tasks || []} projectId={projectId} onOpenAtelierPlanning={onOpenAtelierPlanning} label="phase 33 · autorisation / permis" />
@@ -963,7 +992,28 @@ function Permis({ d, onSubmit, tasks, projectId, onOpenAtelierPlanning }: any) {
 /* ===================== OPPOSITION ===================== */
 function Opposition({ d, canonicalDocs }: any) {
   if (!d) return <p className="spin">Chargement…</p>;
-  if (!d.overall) return (<><div className="vh"><h2>Risque d&apos;opposition</h2></div><div className="placeholder"><h4>Aucune analyse de parcelle</h4><p>Lancez une recherche d&apos;adresse dans Terrain &amp; zonage.</p></div></>);
+  // W14.B — honest empty-state: explain WHAT this surface needs to populate,
+  // and which surface to go fill first.
+  if (!d.overall) return (<>
+    <div className="vh">
+      <h2>Risque d&apos;opposition</h2>
+      <p>
+        Évaluation des motifs d&apos;opposition les plus probables, basée sur les <b>faits sourcés du dossier</b> (contraintes parcelle + documents canoniques validés). À utiliser avant l&apos;enquête publique pour cibler ce qu&apos;il faut désamorcer.
+      </p>
+    </div>
+    <div className="card" style={{ borderLeft: "3px solid var(--ts-assume)" }}>
+      <h3>Pas encore d&apos;évaluation</h3>
+      <p>
+        Pour qu&apos;une analyse de risque émerge, Aedifica a besoin de :
+      </p>
+      <ul style={{ margin: "4px 0 8px 18px", padding: 0 }}>
+        <li>Une <b>parcelle analysée</b> dans <i>Terrain &amp; zonage</i> (contraintes sourcées de la commune)</li>
+        <li>Au moins un <b>document canonique validé</b> dans <i>Documents &amp; sources</i> (plans, notice d&apos;impact…)</li>
+        <li>Idéalement, une commune <b>exploitable</b> (cf. ingestion sur Terrain) pour que les motifs cantonaux soient connus</li>
+      </ul>
+      <p className="note" style={{ color: "var(--mut)" }}>Aucune analyse n&apos;est inventée — tant que ces bases ne sont pas posées, la surface reste explicitement vide.</p>
+    </div>
+  </>);
   return (
     <>
       <div className="vh"><h2>Risque d&apos;opposition</h2><p>Les motifs d&apos;opposition les plus probables, évalués <b>sur les faits du dossier</b> — pour cibler précisément ce qu&apos;il faut désamorcer avant l&apos;enquête.</p></div>
@@ -977,17 +1027,78 @@ function Opposition({ d, canonicalDocs }: any) {
 }
 
 /* ===================== CONFORMITE ===================== */
-function Conformite({ d, tasks, projectId, onOpenAtelierPlanning }: any) {
+// W14.B — Conformité: official-text references per domain. The architect can
+// add a public URL pointing to the canonical règlement (NCCR, AEAI, MINERGIE,
+// SIA 380/1, etc.) and link the filled attestation via an AttachField on the
+// gate itself. The list is the atelier's vetted set of references; we never
+// fabricate them.
+const CONFORMITE_OFFICIAL_REFS: Record<string, { title: string; url: string }[]> = {
+  legal: [
+    { title: "Loi vaudoise sur l'aménagement du territoire (LATC)", url: "https://prestations.vd.ch/pub/blv-publication/actes/consolide/700.11" },
+    { title: "Règlement vaudois sur les normes de protection incendie (AEAI)", url: "https://www.bsvonline.ch/fr/regelwerk/" },
+    { title: "MoPEC 2014 — modèle d'ordonnance sur l'énergie", url: "https://www.endk.ch/fr/politique-energetique/mopec" },
+    { title: "Loi vaudoise sur l'énergie (LVLEne)", url: "https://prestations.vd.ch/pub/blv-publication/actes/consolide/730.01" },
+    { title: "Norme SIA 500 — accessibilité aux constructions", url: "https://www.sia.ch/fr/services-info/normes-de-la-sia/" },
+  ],
+  contractual: [
+    { title: "Norme SIA 102 — prestations et honoraires architecte", url: "https://www.sia.ch/fr/services-info/normes-de-la-sia/" },
+    { title: "SIA 2046 — Conventions BIM (IPB)", url: "https://www.sia.ch/fr/services-info/normes-de-la-sia/" },
+  ],
+};
+
+function Conformite({ d, tasks, projectId, token, onOpenAtelierPlanning }: any) {
   if (!d) return <p className="spin">Chargement…</p>;
-  const gate = (g: any, i: number) => (
-    <div className="row-line" key={i}><Trust state={g.status === "satisfied" ? "satisfied" : g.status === "unknown" ? "unknown" : "action_required"} /><span className="grow"><span className="ttl">{fr(g.title)} <small style={{ display: "inline", color: "var(--mut)" }}>({fr(g.domain)})</small></span>{g.next_action && <small>{g.next_action}</small>}</span></div>
+  const Gate = ({ g, i, domain }: any) => {
+    const state = g.status === "satisfied" ? "satisfied" : g.status === "unknown" ? "unknown" : "action_required";
+    return (
+      <div key={i} style={{ borderTop: i === 0 ? "none" : "1px solid var(--line)", paddingTop: i === 0 ? 0 : 12, paddingBottom: 6 }}>
+        <div className="row-line" style={{ borderBottom: "none", paddingBottom: 0 }}>
+          <Trust state={state} />
+          <span className="grow">
+            <span className="ttl">{fr(g.title)} <small style={{ display: "inline", color: "var(--mut)" }}>({fr(g.domain)})</small></span>
+            {g.next_action && <small>{g.next_action}</small>}
+          </span>
+        </div>
+        {token && projectId && g.id && (
+          <div style={{ paddingLeft: 32 }}>
+            <AttachField token={token} projectId={projectId} ownerKind="permit" ownerId={"compliance-" + g.id} label="Attestation / pièce remplie" />
+          </div>
+        )}
+      </div>
+    );
+  };
+  const refs = (kind: "legal" | "contractual") => (
+    <div style={{ marginTop: 8, padding: "8px 0 0", borderTop: "1px dashed var(--line)" }}>
+      <div className="mono" style={{ fontSize: 10, color: "var(--mut)", letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 6 }}>
+        Textes officiels de référence
+      </div>
+      {CONFORMITE_OFFICIAL_REFS[kind].map((r, i) => (
+        <div key={i} style={{ marginBottom: 4 }}>
+          <a href={r.url} target="_blank" rel="noreferrer" className="mono" style={{ fontSize: 11, color: "var(--ink)", textDecoration: "underline" }}>{r.title}</a>
+        </div>
+      ))}
+      <small style={{ color: "var(--mut)" }}>Liens vers la documentation officielle. Confirmez la version applicable à votre commune (la jurisprudence cantonale prime).</small>
+    </div>
   );
   return (
     <>
-      <div className="vh"><h2>Conformité</h2><p>Obligations légales et conventions à lever avant le dépôt — contraignant vs contractuel.</p></div>
+      <div className="vh">
+        <h2>Conformité</h2>
+        <p>
+          Obligations légales et conventions à lever avant le dépôt — contraignant vs contractuel. Pour chaque obligation, <b>joignez la pièce remplie</b> (rapport énergie, concept incendie, attestation accessibilité…) ; les liens vers les textes officiels apparaissent sous chaque section.
+        </p>
+      </div>
       <div className="banner warn"><b>{d.summary.legal_blockers}</b> obligation(s) légale(s) à lever.</div>
-      <div className="card" style={{ marginBottom: 14 }}><h3>Obligations légales</h3>{d.legal?.map(gate)}</div>
-      <div className="card"><h3>Conventions contractuelles (BIM)</h3>{d.contractual?.map(gate)}</div>
+      <div className="card" style={{ marginBottom: 14 }}>
+        <h3>Obligations légales</h3>
+        {d.legal?.map((g: any, i: number) => <Gate key={i} g={g} i={i} domain="legal" />)}
+        {refs("legal")}
+      </div>
+      <div className="card">
+        <h3>Conventions contractuelles (BIM)</h3>
+        {d.contractual?.map((g: any, i: number) => <Gate key={i} g={g} i={i} domain="contractual" />)}
+        {refs("contractual")}
+      </div>
       <PhaseTasks phase="33" tasks={tasks || []} projectId={projectId} onOpenAtelierPlanning={onOpenAtelierPlanning} label="phase 33 · conformité énergie / incendie / accessibilité" />
     </>
   );
@@ -1033,7 +1144,23 @@ function Copilote({ token, pid, ledger, onChange }: { token: string; pid: string
     <>
       <div className="vh"><div className="row"><h2>Copilote IA · maquette Archicad</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>L&apos;IA prépare une modification, vous la validez, elle l&apos;applique — tracé et réversible. <b>Rien ne change sans votre accord.</b></p></div>
       {!hasEndpoint && (
-        <div className="banner warn"><b>Aucun endpoint Archicad connecté.</b> Renseignez l&apos;URL du <i>JSON bridge</i> Archicad ci-dessous (vide ⇒ mode <i>replay</i> sur le modèle de fixture seulement — utile pour comprendre le flux, pas pour modifier votre vraie maquette).</div>
+        // W14.B — the previous "Aucun endpoint Archicad" banner was opaque:
+        // the architect had no idea what an "endpoint Archicad" was nor where
+        // to find one. This card explains the prerequisite + the alternative
+        // (replay mode for understanding the flow), in plain language.
+        <div className="card" style={{ marginBottom: 14, borderLeft: "3px solid var(--ts-assume)" }}>
+          <h3 style={{ margin: 0 }}>Branchement Archicad — pas encore configuré</h3>
+          <p style={{ marginTop: 8 }}>
+            Pour qu&apos;Aedifica modifie réellement votre maquette, il faut un <b>JSON-bridge Archicad</b> : une petite passerelle exposée sur votre poste (ou serveur atelier) qui reçoit les opérations de l&apos;IA et les applique dans Archicad via l&apos;API officielle. Tant que cette passerelle n&apos;est pas connectée :
+          </p>
+          <ul style={{ margin: "6px 0 10px 18px", padding: 0 }}>
+            <li><b>Mode <i>replay</i></b> : l&apos;IA exécute l&apos;opération sur un modèle de fixture (pour comprendre le flux + valider l&apos;UX). Aucune mutation sur votre vraie maquette.</li>
+            <li><b>Mode <i>live</i></b> : disponible dès qu&apos;une URL est renseignée ci-dessous (ex. <code className="mono">http://localhost:19723/aedifica</code>).</li>
+          </ul>
+          <p style={{ marginTop: 0 }}>
+            Le bridge n&apos;est pas encore distribué publiquement — c&apos;est un add-on que l&apos;atelier installe sur la machine qui héberge Archicad. Vous pouvez explorer le flux complet sans bridge, sur le modèle replay.
+          </p>
+        </div>
       )}
       <div className="searchrow"><input value={endpoint} onChange={(e) => setEndpoint(e.target.value)} placeholder="Endpoint Archicad JSON — http://127.0.0.1:19723 (vide = replay)" /><button onClick={dryRun} disabled={!target.trim() || !propAfter.trim()}>Connecter &amp; aperçu</button></div>
       <div className="card" style={{ marginTop: 8, marginBottom: 12 }}>
@@ -1153,9 +1280,25 @@ function Chantier({ d, tasks, projectId, onOpenAtelierPlanning }: any) {
   const map = (s: string) => (s === "closed" ? "satisfied" : s === "blocked" ? "conflict" : s === "open" ? "unknown" : "assumption");
   const lbl: Record<string, string> = { open: "ouvert", closed: "clos", blocked: "bloqué" };
   const head = <div className="vh"><div className="row" style={{ gap: 10, alignItems: "center" }}><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" style={{ color: "var(--ink-60)" }}><use href="/assets/functional-icons.svg#ic-datum-dimension" /></svg><h2 style={{ margin: 0 }}>Chantier &amp; remise</h2></div><p>Suivi d&apos;exécution : réserves / défauts et check-list de remise, avec responsable et échéance — la phase où l&apos;on mesure ce qui a vraiment été réalisé.</p></div>;
+  // W14.B — explicit empty-state: the surface populates from phase 52
+  // onwards. Until then we say so plainly + show what kind of evidence
+  // will live here.
   if (d.data_basis === "empty") return (
     <>{head}
-      <div className="placeholder"><h4>Aucun suivi de chantier</h4><p>Les réserves et la remise apparaîtront en phase exécution.</p></div>
+      <div className="card" style={{ borderLeft: "3px solid var(--ts-assume)" }}>
+        <h3>Pas encore de suivi de chantier</h3>
+        <p>
+          Cette surface devient active à partir de la <b>phase 52 — réalisation</b>. Y vivront :
+        </p>
+        <ul style={{ margin: "4px 0 8px 18px", padding: 0 }}>
+          <li><b>Check-list de remise</b> — état des prestations, responsable, échéance</li>
+          <li><b>Réserves &amp; défauts</b> — relevés contradictoires, gravité, résolution attendue</li>
+          <li><b>Pièces signées</b> — PV de réception, attestations, levées de réserve (à joindre par item)</li>
+        </ul>
+        <p className="note" style={{ color: "var(--mut)" }}>
+          Si vous êtes déjà sur un chantier, basculez le projet en phase 52 ou 53 depuis la barre du haut pour activer la surface.
+        </p>
+      </div>
       <PhaseTasks phase={["52", "53"]} tasks={tasks || []} projectId={projectId} onOpenAtelierPlanning={onOpenAtelierPlanning} label="phases 52/53 · chantier et mise en service" />
     </>
   );
@@ -1190,7 +1333,20 @@ function Memoire({ unknowns, ledger, captures, token, pid, onAddCapture, onDelCa
   const ledRev = [...(ledger || [])].reverse();
   return (
     <>
-      <div className="vh"><h2>Mémoire du projet</h2><p>Le <b>journal automatique</b> du projet : ce qu&apos;il sait, ce qu&apos;il ignore, ce qu&apos;il a décidé, et les alertes de règlement à l&apos;étude — alimenté par l&apos;activité (sources, validations, copilote). La capture manuelle existe en complément pour les choses qui n&apos;ont pas d&apos;autre place (un coup de fil, une photo chantier).</p></div>
+      <div className="vh">
+        <h2>Mémoire du projet</h2>
+        <p>
+          <b>Un journal automatique, pas un bloc-notes.</b> Aedifica écrit ici toute seule, au fur et à mesure que vous travaillez ailleurs dans le projet :
+        </p>
+        <ul style={{ margin: "4px 0 8px 18px", padding: 0 }}>
+          <li><b>Inconnues</b> — chaque claim non sourcé / non décidé apparaît tant qu&apos;il n&apos;est pas levé ; cliquer permet d&apos;atteindre la surface qui le résout.</li>
+          <li><b>Activité récente</b> — les écritures du ledger (validations de documents, approbations Copilote, ingestions, changements de phase…) horodatées et signées.</li>
+          <li><b>Règlement à l&apos;étude</b> — les captures de type <i>regulation</i> que vous avez signalées comme modifications en cours.</li>
+        </ul>
+        <p>
+          Le bouton <b>+ Capter</b> en bas est <b>secondaire</b> : il sert UNIQUEMENT à ranger ce qui n&apos;a aucune autre place (un coup de fil avec le client, une photo chantier, une friction non liée à un document). 95 % du temps vous n&apos;y touchez pas — la mémoire se construit toute seule via les actions sur les autres surfaces.
+        </p>
+      </div>
 
       <div className="g2">
         <div className="card">
@@ -1408,11 +1564,48 @@ function Intervenants({ data, token, projectId, onAddGroup, onDelGroup, onAdd, o
 
 /* ===================== DOCUMENTS & SOURCES (W9) ===================== */
 const VLEVEL: Record<string, [string, string]> = { canonical: ["is-sourced", "Canonique"], indicative: ["is-computed", "Indicatif"], refused: ["is-conflict", "Refusé"], pending: ["is-unknown", "À valider"] };
-function Documents({ docs, summary, intervenants, token, pid, onAdd, onValidate, onPatch, onDel, onGrant, onRevoke }: any) {
+function Documents({ docs, summary, intervenants, token, pid, onAdd, onRefresh, onValidate, onPatch, onDel, onGrant, onRevoke }: any) {
   const [f, setF] = useState<any>({ official_name: "", category: "general", source: "manual", confidential: false });
   const [busy, setBusy] = useState("");
   const [grantFor, setGrantFor] = useState<number | null>(null);
   const [grantSel, setGrantSel] = useState("");
+  // W14.B — bulk import: pick multiple files; we POST a Document row per file
+  // and attach the file as an upload to that document via /attachments/upload.
+  const [bulkFiles, setBulkFiles] = useState<File[]>([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
+  const [bulkErr, setBulkErr] = useState<string | null>(null);
+  async function bulkImport() {
+    if (bulkFiles.length === 0) return;
+    setBulkBusy(true); setBulkErr(null); setBulkProgress({ done: 0, total: bulkFiles.length });
+    try {
+      for (let i = 0; i < bulkFiles.length; i++) {
+        const file = bulkFiles[i];
+        // 1) Create the Document row (default category, source=manual, not LPD).
+        const r = await api<any>(`/projects/${pid}/documents`, {
+          method: "POST", token,
+          body: { official_name: file.name.replace(/\.[^.]+$/, ""), category: "general", source: "manual", confidential: false },
+        });
+        const docId = r?.document?.id;
+        if (!docId) continue;
+        // 2) Attach the actual file as an upload.
+        const fd = new FormData();
+        fd.append("owner_kind", "document");
+        fd.append("owner_id", String(docId));
+        fd.append("title", file.name);
+        fd.append("file", file);
+        await apiUpload(`/projects/${pid}/attachments/upload`, fd, token!);
+        setBulkProgress({ done: i + 1, total: bulkFiles.length });
+      }
+      setBulkFiles([]);
+      // Refresh the parent's docs list so the new rows appear.
+      await onRefresh?.();
+    } catch (e: any) {
+      setBulkErr(e?.message || "Échec d'import en lot");
+    } finally {
+      setBulkBusy(false);
+    }
+  }
   if (!docs) return <p className="spin">Chargement…</p>;
   const groups: any[] = intervenants?.groups || []; const people: any[] = intervenants?.people || [];
   const gName = (id: number) => groups.find((g) => g.id === id)?.name || `groupe ${id}`;
@@ -1425,6 +1618,26 @@ function Documents({ docs, summary, intervenants, token, pid, onAdd, onValidate,
     <>
       <div className="vh"><div className="row"><h2>Documents &amp; sources</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>La curation des sources du projet : import + versioning, validation par l&apos;architecte (canonique / indicatif / refusé), marquage confidentiel (LPD) et accès par intervenant. « Sourcé ou inconnu — jamais inventé. »</p></div>
       {s.pending > 0 && <div className="banner warn"><b>{s.pending}</b> document(s) à valider.</div>}
+      {/* W14.B — bulk import: drag/select several files at once. One Document
+          row is created per file, with the file attached as an upload. */}
+      <div className="card" style={{ marginBottom: 14 }}>
+        <h3>Import en lot</h3>
+        <p style={{ marginTop: 4, color: "var(--mut)" }}>
+          Sélectionnez plusieurs fichiers à la fois : Aedifica crée un document par fichier, attache le fichier comme upload, et laisse les niveaux de validation à « en attente » pour que vous les revoyiez.
+        </p>
+        <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
+          <input type="file" multiple disabled={bulkBusy} onChange={(e) => setBulkFiles(Array.from(e.target.files || []))} />
+          <span className="grow" />
+          {bulkFiles.length > 0 && !bulkBusy && (
+            <small style={{ color: "var(--mut)" }}>{bulkFiles.length} fichier{bulkFiles.length > 1 ? "s" : ""} sélectionné{bulkFiles.length > 1 ? "s" : ""}</small>
+          )}
+          {bulkBusy && (
+            <small className="mono" style={{ color: "var(--mut)" }}>{bulkProgress.done}/{bulkProgress.total} traités…</small>
+          )}
+          <button className="ds-btn" disabled={bulkBusy || bulkFiles.length === 0} onClick={bulkImport}>{bulkBusy ? "…" : "Importer en lot"}</button>
+        </div>
+        {bulkErr && <small style={{ color: "var(--ts-conflict)", display: "block", marginTop: 6 }}>{bulkErr}</small>}
+      </div>
       <div className="card" style={{ marginBottom: 14 }}>
         <h3>Ajouter / injecter une source</h3>
         <div className="g2">
