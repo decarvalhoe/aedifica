@@ -1,0 +1,12 @@
+# Default: let Git decide per-file (binary detection).
+* text=auto
+
+# Shell scripts MUST stay LF — Linux kernels read the shebang as bytes,
+# CRLF would make `/bin/bash\r` not found at boot (Fly entrypoint, seed-*.sh).
+*.sh text eol=lf
+scripts/* text eol=lf
+
+# Dockerfiles + compose: LF too (built on Linux).
+Dockerfile* text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
