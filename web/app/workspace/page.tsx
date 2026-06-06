@@ -123,10 +123,23 @@ function Icon({ n }: { n: string }) {
   );
 }
 
-// W11 P0: the official Æ monogram from the DS, used in the brand area + login header.
-function Monogram({ size = 28 }: { size?: number }) {
+// W11 P1: the OFFICIAL wordmark — `logo-aedifica-horizontal.svg` (ÆDIFICA in the
+// Datum typeface + the +13.50 datum stamp + the red datum rule). Used everywhere
+// the brand appears. Height drives the rendered size; the SVG's intrinsic 480×150
+// ratio (≈ 3.2:1) determines the width. No more inline `.wordmark` typo + custom Æ.
+function Wordmark({ height = 32, alt = "Aedifica" }: { height?: number; alt?: string }) {
+  const width = Math.round(height * (480 / 150));
   return (
-    <img src="/assets/logo-aedifica-monogram.svg" alt="Aedifica" width={size} height={size}
+    <img src="/assets/logo-aedifica-horizontal.svg" alt={alt} width={width} height={height}
+         style={{ display: "inline-block", verticalAlign: "middle" }} />
+  );
+}
+
+// The compact Æ monogram — used for the favicon and small UI affordances (avatar
+// slot, narrow chrome). NOT used next to the wordmark.
+function Monogram({ size = 28, alt = "Aedifica" }: { size?: number; alt?: string }) {
+  return (
+    <img src="/assets/logo-aedifica-monogram.svg" alt={alt} width={size} height={size}
          style={{ display: "inline-block", verticalAlign: "middle" }} />
   );
 }
@@ -377,9 +390,8 @@ export default function App() {
   return (
     <div className="ws">
       <aside className="ws__side">
-        <div className="ws__brand" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Monogram size={26} />
-          <span className="wordmark"><span className="ae">Æ</span>DIFICA</span>
+        <div className="ws__brand" style={{ display: "flex", alignItems: "center" }}>
+          <Wordmark height={28} />
         </div>
         <button className="back" onClick={() => { setActive(null); setD({}); loadAtelier(token!); }}>← Tous les projets</button>
         <div className="psw"><div className="k">Projet</div><div className="nm">{active.name}</div><div className="me">{j.commune} · {j.canton} · {phaseLabel(active.phase_code)}</div></div>
@@ -454,7 +466,7 @@ function Login({ busy, err, onRegister, onLogin, onJoin, onAcceptInvite }: { bus
   return (
     <div className="center">
       <div className="login__box">
-        <span className="wordmark"><span className="ae">Æ</span>DIFICA</span>
+        <Wordmark height={44} />
         <span className="eyebrow">ArchiOS Suisse · l&apos;assistant de l&apos;architecte</span>
         <h2>{titles[mode]}</h2>
         {mode !== "join" && (
@@ -541,7 +553,8 @@ function Home({ projects, users, atelier, flashKey, busy, err, onOpen, onCreate,
   return (
     <div className="app">
       <div className="home__bar">
-        <span className="wordmark"><span className="ae">Æ</span>DIFICA</span><span className="eyebrow">ArchiOS Suisse</span>
+        <Wordmark height={32} />
+        <span className="eyebrow">ArchiOS Suisse</span>
         <span className="sp" /><button className="acct" onClick={onSignOut}>Se déconnecter</button>
       </div>
       <div className="home__wrap">
@@ -1165,8 +1178,8 @@ function ExternalView({ ext, onTick, onSignOut }: { ext: any; onTick: (id: numbe
   return (
     <div className="ws" style={{ gridTemplateColumns: "1fr" }}>
       <main className="ws__main" style={{ maxWidth: 900, margin: "0 auto", padding: 24 }}>
-        <div className="vh" style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-          <span className="wordmark"><span className="ae">Æ</span>DIFICA</span>
+        <div className="vh" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <Wordmark height={28} />
           <span className="grow" />
           <small className="mono">{me.user?.email}</small>
           <button className="signout" onClick={onSignOut}>Déconnexion</button>
