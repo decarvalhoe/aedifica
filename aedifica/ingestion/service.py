@@ -89,8 +89,35 @@ def promote(session, pack_id: int) -> m.CommunePack | None:
 def support_state(session, commune: str, canton: str) -> dict:
     packs = session.query(m.CommunePack).filter_by(commune=commune, canton=canton).all()
     if not packs:
-        return {"commune": commune, "canton": canton, "state": "unsupported", "usable": False, "pack_id": None}
+        return {"commune": commune, "canton": canton, "state": "unsupported",
+                "usable": False, "pack_id": None,
+                "required_inputs": list(REQUIRED_INPUTS),
+                "job": None}
     best = max(packs, key=lambda p: STATUS_RANK.get(p.status, 0))
+    # W14.A — surface honest job state: when did the request land, how old
+    # is it, and what's actually needed before this commune becomes usable.
+    job = (session.query(m.IngestionJob)
+           .filter_by(commune_pack_id=best.id)
+           .order_by(m.IngestionJob.id.desc()).first())
+    job_dict = None
+    if job:
+        ts = getattr(job, "requested_at", None)
+        created_iso = ts.isoformat() if ts else None
+        age_days = None
+        if ts:
+            # SQLite can hand back naive datetimes — normalise both sides to
+            # UTC-aware before subtracting so we always get a real int.
+            try:
+                if ts.tzinfo is None:
+                    ts_aware = ts.replace(tzinfo=_dt.timezone.utc)
+                else:
+                    ts_aware = ts
+                age_days = (_dt.datetime.now(_dt.timezone.utc) - ts_aware).days
+            except Exception:
+                age_days = None
+        job_dict = {"id": job.id, "status": job.status,
+                    "requested_at": created_iso, "age_days": age_days,
+                    "notes": job.notes}
     return {
         "commune": commune,
         "canton": canton,
@@ -98,6 +125,8 @@ def support_state(session, commune: str, canton: str) -> dict:
         "usable": best.status == "supported",
         "pack_id": best.id,
         "version": best.version,
+        "required_inputs": list(REQUIRED_INPUTS) if best.status != "supported" else [],
+        "job": job_dict,
     }
 
 

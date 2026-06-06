@@ -26,10 +26,18 @@ type Proposal = {
 
 type Comparable = { project_id: number; label: string; score: number; reasons: string[] };
 
+type Thresholds = {
+  duration_adjust?: { rule?: string; need_per_phase: number; explanation?: string;
+                     samples_by_phase: Record<string, { have: number; need: number; ready: boolean }> };
+  cost_factor?: { rule?: string; have: number; need: number; ready: boolean; explanation?: string };
+  risk_alert?: { rule?: string; explanation?: string };
+};
+
 type FS = {
   proposals: Proposal[];
   summary: { predictions: number; risks: number; suggestions: number; confidence_avg: number };
   comparables: Comparable[];
+  thresholds?: Thresholds;
   freshness: string | null;
 };
 
@@ -57,6 +65,56 @@ function confidencePill(c: number): string {
   if (c >= 0.7) return "is-sourced";
   if (c >= 0.4) return "is-computed";
   return "is-assume";
+}
+
+// W14.A — when no prediction fires, show CONCRETELY what's missing.
+// "Pas assez de comparables" → "Il vous faut 5 tâches comparables, vous en avez 2".
+function ThresholdHint({ thresholds: t }: { thresholds: Thresholds }) {
+  const dur = t.duration_adjust;
+  const cost = t.cost_factor;
+  const phases = dur ? Object.entries(dur.samples_by_phase || {}) : [];
+  const phasesReady = phases.filter(([_, s]) => s.ready).length;
+  return (
+    <div style={{ background: "var(--surface-2)", padding: 12, borderLeft: "3px solid var(--ts-assume)" }}>
+      <div className="mono" style={{ fontSize: 10, color: "var(--mut)", marginBottom: 8 }}>SEUILS DE DÉCLENCHEMENT</div>
+      <p style={{ margin: 0 }}>
+        <b>Aedifica reste silencieuse</b> plutôt que d&apos;inventer un chiffre. Voici ce qu&apos;il manque pour qu&apos;une prédiction puisse émerger :
+      </p>
+      {dur && (
+        <div style={{ marginTop: 10 }}>
+          <div className="ttl" style={{ fontSize: 13 }}>Prédiction durée par phase</div>
+          <small style={{ color: "var(--mut)" }}>{dur.explanation}</small>
+          {phases.length === 0 ? (
+            <p className="note" style={{ marginTop: 6 }}>Aucune tâche close avec heures réelles renseignées sur tout l&apos;atelier — la prédiction durée se déverrouille dès la <b>{dur.need_per_phase}<sup>e</sup> tâche close</b> d&apos;une même phase.</p>
+          ) : (
+            <ul style={{ margin: "6px 0 0 18px", padding: 0 }}>
+              {phases.map(([ph, s]) => (
+                <li key={ph} style={{ marginBottom: 2 }}>
+                  Phase <b>{ph}</b> : <span className={s.ready ? "" : "mono"}>{s.have}/{s.need}</span>
+                  {s.ready ? <small style={{ color: "var(--ts-sourced)", marginLeft: 6 }}>✓ seuil atteint</small> : null}
+                </li>
+              ))}
+            </ul>
+          )}
+          {phasesReady > 0 && phases.some(([_, s]) => !s.ready) && (
+            <small style={{ color: "var(--mut)", marginTop: 4, display: "block" }}>
+              {phasesReady} phase{phasesReady > 1 ? "s ont" : " a"} atteint le seuil mais aucune tâche ouverte n&apos;y est rattachée à re-estimer.
+            </small>
+          )}
+        </div>
+      )}
+      {cost && (
+        <div style={{ marginTop: 12 }}>
+          <div className="ttl" style={{ fontSize: 13 }}>Coefficient atelier de coût</div>
+          <small style={{ color: "var(--mut)" }}>{cost.explanation}</small>
+          <p className="note" style={{ marginTop: 6 }}>
+            Projets clos avec coût final + estimation SIA renseignés : <b>{cost.have}/{cost.need}</b>
+            {cost.ready ? <small style={{ color: "var(--ts-sourced)", marginLeft: 6 }}>✓ seuil atteint</small> : null}
+          </p>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function ProposalCard({ p, onDecide }: { p: Proposal; onDecide: (id: number, decision: string, basis?: string) => Promise<void> }) {
@@ -175,7 +233,9 @@ export function Foresight({ token, pid }: { token: string; pid: string }) {
       <div className="g2">
         <div className="card">
           <h3>Prédictions ({predictions.length})</h3>
-          {predictions.length === 0 && <p className="spin">Pas assez de comparables pour prédire. Aedifica reste silencieuse plutôt que d&apos;inventer un chiffre.</p>}
+          {predictions.length === 0 && data?.thresholds && (
+            <ThresholdHint thresholds={data.thresholds} />
+          )}
           {predictions.map(p => <ProposalCard key={p.id} p={p} onDecide={decide} />)}
         </div>
         <div className="card">

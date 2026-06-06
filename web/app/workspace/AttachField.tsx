@@ -96,10 +96,14 @@ export function AttachField({
 
   const list = rows || [];
   return (
-    <div style={{ marginTop: 8 }}>
+    // W14.A — spacing fix: give the field room to breathe (16 top, 8 bottom)
+    // and put the label on its own line so the chips and the "+ joindre"
+    // button stop feeling glued to the row above (Permis pieces, BRS rows,
+    // checklist items, etc.).
+    <div style={{ marginTop: 16, marginBottom: 8 }}>
+      <div className="mono" style={{ fontSize: 10, color: "var(--mut)", marginBottom: 6, letterSpacing: ".08em", textTransform: "uppercase" }}>{label}</div>
       <div className="row" style={{ gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-        <span className="mono" style={{ fontSize: 10, color: "var(--mut)" }}>{label} :</span>
-        {list.length === 0 && !open && <span className="mono" style={{ fontSize: 10, color: "var(--mut)" }}>aucune</span>}
+        {list.length === 0 && !open && <span className="mono" style={{ fontSize: 11, color: "var(--mut)" }}>aucune</span>}
         {list.map((a) => (
           <span key={a.id} className="chip" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
             <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true" style={{ verticalAlign: "middle", marginRight: 4 }}>

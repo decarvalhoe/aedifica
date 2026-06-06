@@ -514,6 +514,51 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         people = session.query(m.Intervenant).filter_by(project_id=p.id).order_by(m.Intervenant.id).all()
         return {"groups": [_group_dict(g) for g in groups], "people": [_interv_dict(i) for i in people]}
 
+    # W14.A — atelier-wide directory of intervenants (org scope), exposed so the
+    # architect can re-use a contact already entered on another project rather
+    # than retyping it. De-duplicated on (name, email) when both are present;
+    # falls back to (name, organization) otherwise. Excludes intervenants
+    # already on the current project so the UI offers ONLY net-new imports.
+    @app.get("/api/orgs/intervenants-directory")
+    def directory_intervenants(project_id: str | None = None,
+                               user: m.User = Depends(current_user),
+                               session: Session = Depends(get_session)):
+        require(user, "project.read")
+        org_projects = session.query(m.Project).filter_by(org_id=user.org_id).all()
+        if not org_projects:
+            return {"contacts": [], "total": 0}
+        pids = {p.id for p in org_projects}
+        cur_project = None
+        if project_id:
+            cur_project = next((p for p in org_projects if p.project_id == project_id), None)
+        all_rows = (session.query(m.Intervenant)
+                    .filter(m.Intervenant.project_id.in_(pids)).all())
+        # Group by (name + email) to merge duplicates across projects.
+        index: dict[tuple, dict] = {}
+        for r in all_rows:
+            key = (r.name.strip().lower(), (r.email or "").strip().lower(),
+                   (r.organization or "").strip().lower())
+            slot = index.get(key)
+            if slot is None:
+                slot = {"name": r.name, "role": r.role, "organization": r.organization,
+                        "email": r.email, "phone": r.phone,
+                        "seen_in_projects": [], "_project_ids": set()}
+                index[key] = slot
+            p_label = next((x.name or x.project_id for x in org_projects if x.id == r.project_id), str(r.project_id))
+            if r.project_id not in slot["_project_ids"]:
+                slot["_project_ids"].add(r.project_id)
+                slot["seen_in_projects"].append({"project_id": next(x.project_id for x in org_projects if x.id == r.project_id), "name": p_label})
+        # If a current project is provided, exclude contacts already living on it.
+        out = []
+        for slot in index.values():
+            if cur_project and cur_project.id in slot.pop("_project_ids"):
+                continue
+            else:
+                slot.pop("_project_ids", None)
+            out.append(slot)
+        out.sort(key=lambda s: (s["name"] or "").lower())
+        return {"contacts": out, "total": len(out)}
+
     @app.post("/api/projects/{project_id}/intervenant-groups", status_code=201)
     def create_group(project_id: str, body: GroupIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
@@ -716,7 +761,8 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         as the architect's decision history."""
         require(user, "project.read")
         p = _project(session, user, project_id)
-        from ..foresight import compute_proposals
+        from ..foresight import compute_proposals, thresholds
+        thr = thresholds(session, p)  # W14.A — always exposed, even with no proposals.
         if refresh:
             rows, summary = compute_proposals(session, p)
             session.commit()
@@ -727,6 +773,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
                 "summary": {"predictions": summary.predictions, "risks": summary.risks,
                             "suggestions": summary.suggestions, "confidence_avg": summary.confidence_avg},
                 "comparables": comparables,
+                "thresholds": thr,
                 "freshness": summary.freshness.isoformat(),
             }
         rows = (session.query(m.Proposal).filter_by(project_id=p.id, decision="pending")
@@ -738,6 +785,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
                         "suggestions": sum(1 for r in rows if r.kind in ("reuse_brs", "reuse_checklist", "rebalance")),
                         "confidence_avg": round(sum(r.confidence for r in rows) / len(rows), 2) if rows else 0.0},
             "comparables": [],
+            "thresholds": thr,
             "freshness": None,
         }
 

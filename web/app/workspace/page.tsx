@@ -535,7 +535,7 @@ export default function App() {
               {view === "checklist" && <Checklist data={d.checklist} entryPhase={active.phase_code} token={token!} pid={active.project_id} onSeed={seedChecklist} onPatch={patchChecklist} onAdd={addChecklistItem} onDel={delChecklistItem} />}
               {view === "terrain" && <Terrain claims={d.claims} mode={d.intakeMode} support={d.support} commune={active.jurisdiction.commune} initialQuery={d.pendingQuery} regAlerts={d.captures?.regulation_alerts} onLookup={lookup} onRequest={requestCommune} />}
               {view === "coordination" && <Coordination data={d.coord} onRefresh={refreshCoord} go={setView} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
-              {view === "intervenants" && <Intervenants data={d.intervenants} onAddGroup={addGroup} onDelGroup={delGroup} onAdd={addIntervenant} onPatch={patchIntervenant} onDel={delIntervenant} onInvite={inviteIntervenant} />}
+              {view === "intervenants" && <Intervenants data={d.intervenants} token={token!} projectId={active.project_id} onAddGroup={addGroup} onDelGroup={delGroup} onAdd={addIntervenant} onPatch={patchIntervenant} onDel={delIntervenant} onInvite={inviteIntervenant} />}
               {view === "documents" && <Documents docs={d.documents} summary={d.docSummary} intervenants={d.intervenants} token={token!} pid={active.project_id} onAdd={addDocument} onValidate={validateDocument} onPatch={patchDocument} onDel={delDocument} onGrant={addGrant} onRevoke={revokeGrant} />}
               {view === "brs" && <Brs data={d.brs} intervenants={d.intervenants} token={token!} pid={active.project_id} onAdd={addBrs} onPatch={patchBrs} onDel={delBrs} />}
               {view === "permis" && <Permis d={d.permit} onSubmit={submitPermit} tasks={d.tasks?.tasks || []} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
@@ -872,6 +872,49 @@ function Dashboard({ d, project, go, alerts, onOpenAtelierPlanning }: { d: any; 
 }
 
 /* ===================== TERRAIN ===================== */
+// W14.A — honest ingestion panel. Replaces the misleading "en queue" banner.
+// When a commune is not yet usable, the architect sees:
+// - The actual status of the IngestionJob (seed | requested + age in days)
+// - The list of REAL inputs that must be captured for the commune to become
+//   usable (PGA, RPGA, geoportal layer, in-force date).
+// - A truthful explanation that this requires an operator (not a worker).
+function IngestionPanel({ commune, support, onRequest }: { commune: string; support: any; onRequest: () => void }) {
+  const job = support?.job;
+  const required = support?.required_inputs || [];
+  const hasJob = !!job;
+  return (
+    <div className="card" style={{ borderLeft: "3px solid var(--ts-assume)", marginBottom: 14 }}>
+      <div className="row" style={{ alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+        <h3 style={{ margin: 0 }}>Commune <i>{commune}</i> pas encore exploitable</h3>
+        <span className="grow" />
+        {!hasJob && <button className="ds-btn" onClick={onRequest}>Consigner la demande</button>}
+      </div>
+      {hasJob ? (
+        <p className="note" style={{ marginTop: 8 }}>
+          Demande consignée le <b>{(job.requested_at || "").slice(0, 10)}</b>
+          {typeof job.age_days === "number" && job.age_days >= 0 ? ` (il y a ${job.age_days} jour${job.age_days > 1 ? "s" : ""})` : ""} —
+          statut <b>{job.status}</b>.
+        </p>
+      ) : (
+        <p className="note" style={{ marginTop: 8 }}>
+          Aucune demande consignée. En consigner une enregistre l&apos;intention dans l&apos;atelier ; <b>la capture du règlement reste un acte manuel</b>.
+        </p>
+      )}
+      <p style={{ marginTop: 4 }}>
+        Aedifica ne fabrique pas de zones. Pour rendre la commune exploitable, un opérateur (vous ou votre équipe) doit capturer ces sources officielles, puis les charger via l&apos;outil d&apos;ingestion :
+      </p>
+      <ul style={{ margin: "6px 0 0 18px", padding: 0 }}>
+        {required.map((s: string, i: number) => (
+          <li key={i} style={{ marginBottom: 4 }}><span className="mono" style={{ fontSize: 11 }}>{s}</span></li>
+        ))}
+      </ul>
+      <p className="note" style={{ marginTop: 12, color: "var(--mut)" }}>
+        Tant que la commune reste à l&apos;état <i>seed</i>, le Terrain reste honnêtement vide — aucune valeur inventée.
+      </p>
+    </div>
+  );
+}
+
 function Terrain({ claims, mode, support, commune, onLookup, onRequest, initialQuery, regAlerts }: any) {
   const [q, setQ] = useState(initialQuery || ""); const [b, setB] = useState("");
   if (!claims) return <p className="spin">Chargement…</p>;
@@ -881,7 +924,7 @@ function Terrain({ claims, mode, support, commune, onLookup, onRequest, initialQ
     <>
       <div className="vh"><div className="row" style={{ gap: 10, alignItems: "center" }}><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" style={{ color: "var(--ink-60)" }}><use href="/assets/functional-icons.svg#ic-datum-north" /></svg><h2 style={{ margin: 0 }}>Terrain &amp; zonage</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>Ce que la parcelle autorise — sourcé sur une base officielle, ou marqué « à vérifier ». Le datum géographique du projet : tout part d&apos;ici.</p></div>
       {(regAlerts || []).map((r: any) => <div className="banner bad" key={r.id} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style={{ flex: "0 0 16px", marginTop: 2 }}><use href="/assets/functional-icons.svg#ic-warning" /></svg><div><b>Règlement à l&apos;étude</b> — {r.content}{r.source_ref ? ` (${r.source_ref})` : ""}. Les règles (hauteurs, densités) peuvent changer en cours de projet.</div></div>)}
-      {support && !usable && <div className="banner warn">Commune <b>{commune}</b> pas encore prise en charge. <button className="toggle" onClick={onRequest}>Demander l&apos;ingestion</button></div>}
+      {support && !usable && <IngestionPanel commune={commune} support={support} onRequest={onRequest} />}
       <div className="searchrow"><input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && lookup()} placeholder="Adresse ou parcelle — ex. Place de la Palud, Lausanne" /><button onClick={lookup}>{b ? "…" : "Rechercher (live)"}</button></div>
       {mode === "offline" && <p className="note" style={{ marginBottom: 12 }}>Recherche live indisponible — données de référence affichées.</p>}
       {claims.length === 0 ? (
@@ -1227,13 +1270,37 @@ function Memoire({ unknowns, ledger, captures, token, pid, onAddCapture, onDelCa
 
 /* ===================== INTERVENANTS (W9) ===================== */
 const GROUP_KINDS: Record<string, string> = { company: "Entreprise", discipline: "Discipline", group: "Groupe" };
-function Intervenants({ data, onAddGroup, onDelGroup, onAdd, onDel, onInvite }: any) {
+function Intervenants({ data, token, projectId, onAddGroup, onDelGroup, onAdd, onDel, onInvite }: any) {
   const [gName, setGName] = useState(""); const [gKind, setGKind] = useState("discipline"); const [showG, setShowG] = useState(false);
   const [f, setF] = useState<any>({ name: "", role: "", organization: "", email: "", phone: "", is_responsible: false, group_id: "" });
   const [busy, setBusy] = useState(false);
   const [inviting, setInviting] = useState<number | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
   const [issued, setIssued] = useState<{ id: number; email: string; token: string } | null>(null);
+  // W14.A — atelier-wide directory: contacts already entered on other projects,
+  // available for one-click import here. De-duplicated server-side.
+  const [showDir, setShowDir] = useState(false);
+  const [dir, setDir] = useState<any[] | null>(null);
+  const [dirBusy, setDirBusy] = useState(false);
+  async function loadDir() {
+    if (!token || !projectId) return;
+    setDirBusy(true);
+    try {
+      const r = await api<any>(`/orgs/intervenants-directory?project_id=${projectId}`, { token });
+      setDir(r.contacts || []);
+    } catch { setDir([]); }
+    finally { setDirBusy(false); }
+  }
+  async function importContact(c: any) {
+    setBusy(true);
+    try {
+      await onAdd({ name: c.name, role: c.role || "", organization: c.organization || "",
+                    email: c.email || "", phone: c.phone || "", is_responsible: false,
+                    group_id: null });
+      // Refresh directory to remove the imported one from the suggestions.
+      await loadDir();
+    } catch {} finally { setBusy(false); }
+  }
   if (!data) return <p className="spin">Chargement…</p>;
   const groups: any[] = data.groups || []; const people: any[] = data.people || [];
   const inGroup = (gid: number | null) => people.filter((p) => (p.group_id ?? null) === gid);
@@ -1261,7 +1328,7 @@ function Intervenants({ data, onAddGroup, onDelGroup, onAdd, onDel, onInvite }: 
   );
   return (
     <>
-      <div className="vh"><div className="row"><h2>Intervenants</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>L&apos;arborescence des acteurs du projet — groupes, sous-groupes, personnes — avec contacts sourcés. Chaque intervenant peut être <b>invité sur la plateforme</b> (accès scoping) : il y verra ses documents et ses devoirs.</p></div>
+      <div className="vh"><div className="row"><h2>Intervenants du projet</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>Les <b>acteurs de CE projet</b> — groupes, sous-groupes, personnes — avec contacts sourcés. Chaque intervenant peut être <b>invité sur la plateforme</b> (accès scoping) : il y verra ses documents et ses devoirs. <i>Différent de Équipe atelier</i>, qui liste les membres de votre atelier avec un compte Aedifica.</p></div>
       {issued && (
         <div className="banner ok" style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
           <span style={{ flex: 1 }}>Invitation émise pour <b>{issued.email}</b>. Transmettez ce code à l&apos;intervenant pour qu&apos;il définisse son mot de passe : <code className="mono" style={{ background: "var(--surface)", padding: "2px 6px", borderRadius: 4 }}>{issued.token}</code></span>
@@ -1269,6 +1336,41 @@ function Intervenants({ data, onAddGroup, onDelGroup, onAdd, onDel, onInvite }: 
           <button className="toggle" onClick={() => setIssued(null)}>OK</button>
         </div>
       )}
+      {/* W14.A — Atelier directory: contacts saisis sur d'autres projets,
+          réimportables en un click ici (déduplication serveur). */}
+      <div className="card" style={{ marginBottom: 14 }}>
+        <div className="row" style={{ alignItems: "baseline" }}>
+          <h3 style={{ margin: 0 }}>Annuaire atelier</h3>
+          <small style={{ color: "var(--mut)", marginLeft: 8 }}>
+            Contacts saisis sur d&apos;autres projets de votre atelier.
+          </small>
+          <span className="grow" />
+          <button className="toggle" disabled={dirBusy} onClick={() => { setShowDir(v => !v); if (!showDir && !dir) loadDir(); }}>
+            {showDir ? "Masquer" : dirBusy ? "…" : "Voir l'annuaire"}
+          </button>
+        </div>
+        {showDir && (
+          dir === null ? <p className="spin" style={{ marginTop: 8 }}>Chargement…</p>
+          : dir.length === 0 ? <p className="spin" style={{ marginTop: 8 }}>
+              Aucun contact réutilisable depuis un autre projet de l&apos;atelier.
+            </p>
+          : <div style={{ marginTop: 8 }}>
+              {dir.map((c, i) => (
+                <div className="row-line" key={i}>
+                  <span className="grow">
+                    <span className="ttl">{c.name}</span>
+                    <small>{[c.role, c.organization, c.email].filter(Boolean).join(" · ")}</small>
+                    <small style={{ color: "var(--mut)" }}>
+                      Déjà vu dans : {(c.seen_in_projects || []).map((p: any) => p.name).join(", ")}
+                    </small>
+                  </span>
+                  <button className="toggle" disabled={busy} onClick={() => importContact(c)}>Importer</button>
+                </div>
+              ))}
+            </div>
+        )}
+      </div>
+
       <div className="card" style={{ marginBottom: 14 }}>
         <h3>Ajouter un intervenant</h3>
         <div className="g2">
@@ -1702,7 +1804,15 @@ function Team({ users, onAdd, onSetRole, hideTitle }: { users: any[] | null; onA
   const add = async () => { if (!onAdd) return; setBusy(true); try { const k = await onAdd(email, email, role); setNewKey(k); setEmail(""); setInv(false); } catch { } finally { setBusy(false); } };
   return (
     <div style={{ marginTop: hideTitle ? 24 : 0 }}>
-      {!hideTitle && <div className="vh"><h2>Équipe</h2><p>Gérez votre atelier : membres, rôles, invitations.</p></div>}
+      {!hideTitle && (
+        <div className="vh">
+          <h2>Équipe de l&apos;atelier</h2>
+          <p>
+            Les <b>membres de votre atelier</b> avec un compte Aedifica (owner/member/viewer).
+            {" "}<b>Pas les intervenants d&apos;un projet</b> (architectes externes, mandataires, entreprises) — ceux-ci se gèrent dans <i>Intervenants</i> à l&apos;intérieur de chaque projet, et peuvent y être invités en tant qu&apos;externes scopés.
+          </p>
+        </div>
+      )}
       <div className="card">
         {hideTitle && <h3>Équipe ({users.length})</h3>}
         {users.map((u: any) => (
