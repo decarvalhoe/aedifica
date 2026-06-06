@@ -22,23 +22,26 @@ const phaseLabel = (code?: string) => { const c = norm(code); return `Phase ${c}
 const COST_PRECISION: Record<string, string> = { "31": "± 15 %", "32": "± 10 %", "33": "± 10 %", "41": "ferme", "51": "ferme", "52": "ferme" };
 
 type View = "dashboard" | "taches" | "terrain" | "checklist" | "coordination" | "intervenants" | "documents" | "brs" | "permis" | "opposition" | "conformite" | "copilote" | "memoire" | "couts" | "chantier" | "equipe";
+// W11 P0: every NAV icon references the official Datum sprite by symbol id —
+// `web/public/assets/functional-icons.svg#ic-*` — no more inline custom SVG.
+// Closest semantic match per surface, taken from the DS iconography page §05.
 const NAV: { id: View; lb: string; ico: string; ph?: string; grp: string }[] = [
-  { id: "dashboard", lb: "Tableau de bord", ico: "grid", grp: "Pilotage" },
-  { id: "taches", lb: "Tâches & priorités", ico: "check", grp: "Pilotage" },
-  { id: "checklist", lb: "Checklist SIA", ico: "check", grp: "Pilotage" },
-  { id: "terrain", lb: "Terrain & zonage", ico: "pin", ph: "0–11", grp: "Pilotage" },
-  { id: "copilote", lb: "Copilote · maquette", ico: "spark", ph: "32", grp: "Pilotage" },
-  { id: "memoire", lb: "Mémoire", ico: "clock", ph: "6", grp: "Pilotage" },
-  { id: "coordination", lb: "Coordination", ico: "grid", grp: "Coordination" },
-  { id: "intervenants", lb: "Intervenants", ico: "users", ph: "0", grp: "Coordination" },
-  { id: "documents", lb: "Documents & sources", ico: "doc", ph: "0–33", grp: "Coordination" },
-  { id: "brs", lb: "Exigences (BRS)", ico: "shield", grp: "Coordination" },
-  { id: "permis", lb: "Dossier de permis", ico: "doc", ph: "33", grp: "Dossier réglementaire" },
-  { id: "opposition", lb: "Risque d'opposition", ico: "shield", ph: "33", grp: "Dossier réglementaire" },
-  { id: "conformite", lb: "Conformité", ico: "check", ph: "33", grp: "Dossier réglementaire" },
-  { id: "couts", lb: "Coûts & soumissions", ico: "coin", ph: "41", grp: "Économie & chantier" },
-  { id: "chantier", lb: "Chantier & remise", ico: "cone", ph: "52", grp: "Économie & chantier" },
-  { id: "equipe", lb: "Équipe", ico: "users", grp: "Atelier" },
+  { id: "dashboard", lb: "Tableau de bord", ico: "ic-portfolio", grp: "Pilotage" },
+  { id: "taches", lb: "Tâches & priorités", ico: "ic-claims", grp: "Pilotage" },
+  { id: "checklist", lb: "Checklist SIA", ico: "ic-check", grp: "Pilotage" },
+  { id: "terrain", lb: "Terrain & zonage", ico: "ic-map-pin", ph: "0–11", grp: "Pilotage" },
+  { id: "copilote", lb: "Copilote · maquette", ico: "ic-datum-target", ph: "32", grp: "Pilotage" },
+  { id: "memoire", lb: "Mémoire", ico: "ic-ledger", ph: "6", grp: "Pilotage" },
+  { id: "coordination", lb: "Coordination", ico: "ic-layers", grp: "Coordination" },
+  { id: "intervenants", lb: "Intervenants", ico: "ic-claims", ph: "0", grp: "Coordination" },
+  { id: "documents", lb: "Documents & sources", ico: "ic-source", ph: "0–33", grp: "Coordination" },
+  { id: "brs", lb: "Exigences (BRS)", ico: "ic-decisions", grp: "Coordination" },
+  { id: "permis", lb: "Dossier de permis", ico: "ic-permit", ph: "33", grp: "Dossier réglementaire" },
+  { id: "opposition", lb: "Risque d'opposition", ico: "ic-opposition", ph: "33", grp: "Dossier réglementaire" },
+  { id: "conformite", lb: "Conformité", ico: "ic-check", ph: "33", grp: "Dossier réglementaire" },
+  { id: "couts", lb: "Coûts & soumissions", ico: "ic-report", ph: "41", grp: "Économie & chantier" },
+  { id: "chantier", lb: "Chantier & remise", ico: "ic-datum-dimension", ph: "52", grp: "Économie & chantier" },
+  { id: "equipe", lb: "Équipe", ico: "ic-claims", grp: "Atelier" },
 ];
 const GROUPS = ["Pilotage", "Coordination", "Dossier réglementaire", "Économie & chantier", "Atelier"];
 
@@ -108,21 +111,24 @@ const projIdFrom = (s: string) => noAccent(s).toUpperCase().replace(/[^A-Z0-9]+/
 // matching it opens that populated dossier rather than an empty duplicate.
 const isReferenceParcel = (commune: string, label: string) => commune.toLowerCase() === "lausanne" && /palud/i.test(label);
 
+// W11 P0: ALL icons come from the official Datum sprite (web/public/assets/functional-icons.svg).
+// The DS rule is one proprietary sprite, no external icon library; 24px grid, 1.5 stroke, currentColor.
+// `n` is the symbol id minus the `ic-` prefix (backwards-compatibility) or the full id.
 function Icon({ n }: { n: string }) {
-  const p: Record<string, ReactNode> = {
-    grid: <><rect x="2" y="2" width="5" height="5" /><rect x="9" y="2" width="5" height="5" /><rect x="2" y="9" width="5" height="5" /><rect x="9" y="9" width="5" height="5" /></>,
-    pin: <><path d="M8 14s5-4.2 5-8A5 5 0 1 0 3 6c0 3.8 5 8 5 8Z" /><circle cx="8" cy="6" r="1.6" /></>,
-    doc: <><path d="M4 1.5h5L12.5 5v9.5h-9Z" /><path d="M6 8.5h4M6 11h4" /></>,
-    shield: <><path d="M8 1.5 13 3.5v4c0 3.5-2.4 6-5 7-2.6-1-5-3.5-5-7v-4Z" /></>,
-    check: <><path d="M2.5 8.5 6 12l7.5-8.5" /></>,
-    spark: <><path d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3M3.5 3.5l2 2M10.5 10.5l2 2M12.5 3.5l-2 2M5.5 10.5l-2 2" /></>,
-    clock: <><circle cx="8" cy="8" r="6.2" /><path d="M8 4.5V8l2.5 1.6" /></>,
-    coin: <><circle cx="8" cy="8" r="6.2" /><path d="M8 4.3v7.4M6.2 6.3h3M6.2 8.3h3" /></>,
-    cone: <><path d="M8 2.2 12 13H4Z" /><path d="M6 8.5h4M3 13h10" /></>,
-    users: <><circle cx="6" cy="6" r="2.4" /><path d="M2 13c0-2.2 1.8-3.6 4-3.6S10 10.8 10 13" /><path d="M11 5.4a2.2 2.2 0 0 1 0 4.2M14 13c0-1.8-1-3-2.6-3.4" /></>,
-    search: <><circle cx="7" cy="7" r="4.6" /><path d="M10.5 10.5 14 14" /></>,
-  };
-  return <svg className="i" width="16" height="16" viewBox="0 0 16 16">{p[n]}</svg>;
+  const id = n.startsWith("ic-") ? n : `ic-${n}`;
+  return (
+    <svg className="i" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+      <use href={`/assets/functional-icons.svg#${id}`} />
+    </svg>
+  );
+}
+
+// W11 P0: the official Æ monogram from the DS, used in the brand area + login header.
+function Monogram({ size = 28 }: { size?: number }) {
+  return (
+    <img src="/assets/logo-aedifica-monogram.svg" alt="Aedifica" width={size} height={size}
+         style={{ display: "inline-block", verticalAlign: "middle" }} />
+  );
 }
 
 type Project = { project_id: string; name: string; phase_code: string; jurisdiction: { commune: string; canton: string; country: string }; claims: number; ledger_entries: number; reports: number };
@@ -231,6 +237,17 @@ export default function App() {
   }
   async function refreshCoord() { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/coordination`, { token: token! }); setD((x) => ({ ...x, coord: r })); }
   async function inviteIntervenant(id: number, email: string, name: string | null) { const r = await api2(`/intervenants/${id}/invite`, { email, name }); await refreshInterv(); return r; }
+  // W11 P0: switch the project to a different SIA sub-phase from the top phase rail.
+  // Re-fetches the summary so subsequent loadAll/coordination reflect the new phase.
+  async function setProjectPhase(code: string) {
+    if (!active) return;
+    const r = await api<any>(`/projects/${active.project_id}`, { method: "PATCH", token: token!, body: { phase_code: code } });
+    const p = r.project as Project;
+    setActive(p);
+    setProjects((xs) => (xs ? xs.map((q) => (q.project_id === p.project_id ? p : q)) : xs));
+    await loadAll(p, token!);
+    setFlash({ kind: "ok", text: `Projet basculé en phase ${code} · ${SIA_PHASE_FR[code] || code}` });
+  }
   async function refreshCaptures() { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/captures`, { token: token! }); setD((x) => ({ ...x, captures: r })); }
   async function addCapture(b: any) { await api2("/captures", b); await refreshCaptures(); }
   async function delCapture(id: number) { await api2(`/captures/${id}`, undefined, "DELETE"); await refreshCaptures(); }
@@ -277,7 +294,19 @@ export default function App() {
     await loadAll(active, token!);
     setD((x) => ({ ...x, intakeMode: r.mode }));
   }
-  async function requestCommune() { if (!active) return; await api("/communes", { method: "POST", token: token!, body: { commune: active.jurisdiction.commune, canton: active.jurisdiction.canton } }); await loadAll(active, token!); }
+  // W11 P0: ingestion request gets explicit success/failure feedback.
+  // The endpoint returns the queued pack; show the user it's been registered.
+  async function requestCommune() {
+    if (!active) return;
+    try {
+      const r = await api<any>("/communes", { method: "POST", token: token!, body: { commune: active.jurisdiction.commune, canton: active.jurisdiction.canton } });
+      await loadAll(active, token!);
+      const status = r?.pack?.status || r?.status || "queued";
+      setFlash({ kind: "ok", text: `Demande d'ingestion enregistrée pour ${active.jurisdiction.commune} (${active.jurisdiction.canton}) — statut : ${status}. Le pack apparaîtra sur le tableau atelier dès qu'il sera produit.` });
+    } catch (e: any) {
+      setFlash({ kind: "warn", text: `Échec de la demande d'ingestion : ${e?.message || "erreur inconnue"}. Réessayez ou contactez l'opérateur.` });
+    }
+  }
   async function submitPermit(itemId: string, present: boolean) { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/permit/dossier`, { method: "POST", token: token!, body: { item_id: itemId, present } }); setD((x) => ({ ...x, permit: r.permit })); }
   async function addUser(email: string, name: string, role: string): Promise<string> { const r = await api<any>("/orgs/users", { method: "POST", token: token!, body: { email, name, role } }); await loadUsers(token!); return r.token; }
   async function setUserRole(id: number, role: string) { await api(`/orgs/users/${id}`, { method: "PATCH", token: token!, body: { role } }); await loadUsers(token!); }
@@ -348,7 +377,10 @@ export default function App() {
   return (
     <div className="ws">
       <aside className="ws__side">
-        <div className="ws__brand"><span className="wordmark"><span className="ae">Æ</span>DIFICA</span></div>
+        <div className="ws__brand" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <Monogram size={26} />
+          <span className="wordmark"><span className="ae">Æ</span>DIFICA</span>
+        </div>
         <button className="back" onClick={() => { setActive(null); setD({}); loadAtelier(token!); }}>← Tous les projets</button>
         <div className="psw"><div className="k">Projet</div><div className="nm">{active.name}</div><div className="me">{j.commune} · {j.canton} · {phaseLabel(active.phase_code)}</div></div>
         <nav className="tnav">
@@ -374,7 +406,9 @@ export default function App() {
           </div>
           <div className="phases">
             {PHASES.map(([code, lb], i) => (
-              <button key={code} className={`phase ${i < curIdx ? "done" : ""} ${i === curIdx ? "now" : ""}`} title={`Phase ${code}`}>
+              <button key={code} className={`phase ${i < curIdx ? "done" : ""} ${i === curIdx ? "now" : ""}`}
+                      title={`Basculer le projet en ${SIA_PHASE_FR[code] || ("Phase " + code)}`}
+                      onClick={() => setProjectPhase(code).catch((e: any) => setErr(e?.message || "Échec du changement de phase"))}>
                 <span className="pt">{i < curIdx ? "✓" : code}</span><span className="pl">{code} {lb}</span>
               </button>
             ))}
@@ -940,10 +974,10 @@ function Documents({ docs, summary, intervenants, onAdd, onValidate, onPatch, on
               <span className={`ds-ts ${c}`}><span className="dot" />{l}</span>
               <span className="grow"><span className="ttl">{dd.official_name}{dd.confidential && <small style={{ display: "inline", color: "var(--ts-conflict)" }}> · confidentiel</small>}</span><small>{[dd.category, dd.latest, dd.validated_by ? `validé par ${dd.validated_by}` : null].filter(Boolean).join(" · ")}</small></span>
               <span className="row" style={{ gap: 6 }}>
-                <button className="toggle" disabled={busy === `v${dd.id}`} onClick={() => act(onValidate(dd.id, "canonical"), `v${dd.id}`)}>Canonique</button>
-                <button className="toggle" onClick={() => act(onValidate(dd.id, "indicative"), `v${dd.id}`)}>Indicatif</button>
-                <button className="toggle" onClick={() => act(onValidate(dd.id, "refused"), `v${dd.id}`)}>Refusé</button>
-                <button className="toggle" onClick={() => act(onPatch(dd.id, { confidential: !dd.confidential }), `c${dd.id}`)}>{dd.confidential ? "Rendre public" : "Confidentiel"}</button>
+                <button className={`toggle ${dd.validation_level === "canonical" ? "on" : ""}`} disabled={busy === `v${dd.id}`} onClick={() => act(onValidate(dd.id, "canonical"), `v${dd.id}`)}>Canonique</button>
+                <button className={`toggle ${dd.validation_level === "indicative" ? "on" : ""}`} disabled={busy === `v${dd.id}`} onClick={() => act(onValidate(dd.id, "indicative"), `v${dd.id}`)}>Indicatif</button>
+                <button className={`toggle ${dd.validation_level === "refused" ? "on" : ""}`} disabled={busy === `v${dd.id}`} onClick={() => act(onValidate(dd.id, "refused"), `v${dd.id}`)}>Refusé</button>
+                <button className={`toggle ${dd.confidential ? "on" : ""}`} onClick={() => act(onPatch(dd.id, { confidential: !dd.confidential }), `c${dd.id}`)}>{dd.confidential ? "Confidentiel (LPD)" : "Rendre confidentiel"}</button>
                 <button className="signout" style={{ padding: 0 }} onClick={() => act(onDel(dd.id), `x${dd.id}`)}>✕</button>
               </span>
             </div>
@@ -984,6 +1018,7 @@ function Checklist({ data, entryPhase, onSeed, onPatch }: any) {
   const [phase, setPhase] = useState(valid.test(entryPhase || "") ? entryPhase : "11");
   const [busy, setBusy] = useState("");
   const [actorFilter, setActorFilter] = useState<string>("");  // "" = all
+  const [hideDone, setHideDone] = useState<boolean>(false);
   if (!data) return <p className="spin">Chargement…</p>;
   const items: any[] = data.items || []; const s = data.summary || {};
   const byActor = s.by_actor || {};
@@ -1003,19 +1038,26 @@ function Checklist({ data, entryPhase, onSeed, onPatch }: any) {
     );
   }
   const done = (s.by_status?.done) || 0;
-  const filtered = actorFilter ? items.filter((i) => i.actor === actorFilter) : items;
+  let filtered = actorFilter ? items.filter((i) => i.actor === actorFilter) : items;
+  if (hideDone) filtered = filtered.filter((i) => i.status !== "done" && i.status !== "skipped");
   const phases = filtered.map((i) => i.phase_code).filter((v, idx, a) => a.indexOf(v) === idx);
   return (
     <>
       <div className="vh"><div className="row"><h2>Checklist SIA</h2><span className="badge live"><span className="d" />{done}/{s.total} fait</span></div><p>Steps réels du projet, <b>par phase et par acteur</b>.{s.retroactive > 0 && <> <b>{s.retroactive} step(s) rétroactif(s)</b> à reconstituer.</>}{s.external_blockers > 0 && <> <span className="ds-ts is-conflict"><span className="dot" />{s.external_blockers} bloquant(s) externe(s)</span></>}</p></div>
-      <div className="actbar" style={{ marginBottom: 12 }}>
-        <span className="row" style={{ gap: 6, flexWrap: "wrap" }}>
-          <button className={`toggle ${actorFilter === "" ? "on" : ""}`} onClick={() => setActorFilter("")}>Tous ({s.total || 0})</button>
-          {Object.entries(ACTOR_FR).map(([k, lb]) => {
-            const slot = byActor[k] || { total: 0, todo: 0 };
-            return <button key={k} className={`toggle ${actorFilter === k ? "on" : ""}`} onClick={() => setActorFilter(k)}>{lb} ({slot.total || 0}{slot.todo ? ` · ${slot.todo} à faire` : ""})</button>;
-          })}
-        </span>
+      <div className="actbar" style={{ marginBottom: 12, gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+        <label className="mono" style={{ fontSize: 11, color: "var(--mut, #6A6F73)", display: "flex", alignItems: "center", gap: 8 }}>
+          Acteur
+          <select className="fld" style={{ margin: 0, padding: "6px 10px", width: "auto", minWidth: 220 }} value={actorFilter} onChange={(e) => setActorFilter(e.target.value)}>
+            <option value="">Tous les acteurs ({s.total || 0})</option>
+            {Object.entries(ACTOR_FR).map(([k, lb]) => {
+              const slot = byActor[k] || { total: 0, todo: 0, done: 0 };
+              return <option key={k} value={k}>{lb} — {slot.total || 0} step{slot.total > 1 ? "s" : ""}{slot.todo ? ` · ${slot.todo} à faire` : ""}</option>;
+            })}
+          </select>
+        </label>
+        <label className="mono" style={{ fontSize: 11, color: "var(--mut, #6A6F73)", display: "flex", alignItems: "center", gap: 8 }}>
+          <input type="checkbox" checked={hideDone} onChange={(e) => setHideDone(e.target.checked)} /> Masquer les étapes terminées / inutiles
+        </label>
       </div>
       {phases.map((ph) => (
         <div className="card" key={ph} style={{ marginBottom: 12 }}>
@@ -1026,10 +1068,10 @@ function Checklist({ data, entryPhase, onSeed, onPatch }: any) {
               <span className={`ds-ts ${ac}`} title="Acteur responsable"><span className="dot" />{ACTOR_FR[it.actor] || it.actor}{it.responsible_name ? ` · ${it.responsible_name}` : ""}</span>
               <span className="grow"><span className="ttl">{it.title}{it.is_retroactive && <small style={{ display: "inline", color: "var(--ts-assume)" }}> · rétroactif</small>}{it.is_external && it.status === "todo" && <small style={{ display: "inline", color: "var(--ts-conflict)" }}> · en attente de l&apos;extérieur</small>}</span></span>
               <span className="row" style={{ gap: 6 }}>
-                <button className="toggle" disabled={busy === `i${it.id}`} onClick={() => set(it.id, "done")}>Fait</button>
-                <button className="toggle" onClick={() => set(it.id, "todo")}>À faire</button>
-                <button className="toggle" onClick={() => set(it.id, "deferred")}>Plus tard</button>
-                <button className="toggle" onClick={() => set(it.id, "skipped")}>Inutile</button>
+                <button className={`toggle ${it.status === "done" ? "on" : ""}`} disabled={busy === `i${it.id}`} onClick={() => set(it.id, "done")}>Fait</button>
+                <button className={`toggle ${it.status === "todo" ? "on" : ""}`} disabled={busy === `i${it.id}`} onClick={() => set(it.id, "todo")}>À faire</button>
+                <button className={`toggle ${it.status === "deferred" ? "on" : ""}`} disabled={busy === `i${it.id}`} onClick={() => set(it.id, "deferred")}>Plus tard</button>
+                <button className={`toggle ${it.status === "skipped" ? "on" : ""}`} disabled={busy === `i${it.id}`} onClick={() => set(it.id, "skipped")}>Inutile</button>
               </span>
             </div>
           ); })}

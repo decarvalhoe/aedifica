@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="AEDIFICA favicon">
+  
+  <rect width="64" height="64" fill="#16171A"></rect>
+  <text class="wm" x="32" y="44" font-size="42" font-weight="500" text-anchor="middle" fill="#F3F1EC">Æ</text>
+  <path d="M12 53 H30 V50 H52" fill="none" stroke="#C0392B" stroke-width="2.5"></path>
+</svg>
