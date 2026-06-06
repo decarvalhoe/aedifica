@@ -201,6 +201,12 @@ svg.i { fill:none; stroke:currentColor; stroke-width:1.4; stroke-linejoin:round;
 .banner.ok { border-left-color:var(--ts-sourced); } .banner.warn { border-left-color:var(--ts-assume); } .banner.bad { border-left-color:var(--ts-conflict); }
 .toggle { font-family:var(--font-mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase; border:1px solid var(--ink); background:transparent; color:var(--ink); padding:6px 12px; cursor:pointer; white-space:nowrap; }
 .toggle.fill { background:var(--ink); color:var(--surface); }
+/* W11 P0: explicit active state — when an action button reflects the current
+   value (checklist status, validation level), the matching button is filled
+   in datum red so the user gets a real signal that their click took effect. */
+.toggle.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+.toggle.on:hover { filter:brightness(1.05); }
+.toggle:disabled { opacity:0.45; cursor:default; }
 .actbar { display:flex; gap:10px; margin:14px 0; flex-wrap:wrap; }
 .stepper { display:flex; margin:6px 0 16px; }
 .step { flex:1; border:1px solid var(--line-2); border-right:0; padding:13px 15px; }

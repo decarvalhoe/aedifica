@@ -396,6 +396,22 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         require(user, "project.read")
         return {"project": repository.project_summary(session, _project(session, user, project_id))}
 
+    # W11 P0: navigate the project across SIA sub-phases (the top phase rail).
+    # The frontend phase rail PATCHes here to set `phase_code` to a valid SIA code
+    # (11/21/22/31/32/33/41/51/52/53/61). Other fields are ignored for now.
+    @app.patch("/api/projects/{project_id}")
+    def patch_project(project_id: str, body: dict, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        if "phase_code" in body:
+            from . import sia_checklist as _sia
+            code = str(body["phase_code"]).strip()
+            if code and code not in _sia.PHASE_ORDER:
+                raise _err(400, "BAD_PHASE", f"phase_code must be one of {_sia.PHASE_ORDER}")
+            p.phase_code = code or "0"
+        session.commit()
+        return {"project": repository.project_summary(session, p)}
+
     # ---- W9 operating layer: intervenants, documents, access ---------------- #
     def _interv_dict(i: m.Intervenant) -> dict:
         return {"id": i.id, "name": i.name, "role": i.role, "organization": i.organization, "email": i.email,
