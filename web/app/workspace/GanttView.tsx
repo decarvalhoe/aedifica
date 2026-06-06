@@ -67,10 +67,16 @@ export function GanttView({ tasks, onPatch }: {
   const ref = useRef<HTMLDivElement>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const styleRef = useRef<HTMLStyleElement | null>(null);
+  // W15 — `onPatch` is a fresh closure on every parent render. If we put it
+  // in the mount-effect deps, the Gantt remounts every render → setInterval
+  // races to reset scrollLeft to 0 forever. We keep a stable ref to it and
+  // call ref.current(...) inside the frappe-gantt callbacks.
+  const onPatchRef = useRef(onPatch);
+  useEffect(() => { onPatchRef.current = onPatch; }, [onPatch]);
   const [viewMode, setViewMode] = useState<ViewMode | "auto">("auto");
 
-  const plotted = tasks.filter((t) => !!t.due_date);
-  const skipped = tasks.filter((t) => !t.due_date);
+  const plotted = useMemo(() => tasks.filter((t) => !!t.due_date), [tasks]);
+  const skipped = useMemo(() => tasks.filter((t) => !t.due_date), [tasks]);
 
   // Group projects so we can stamp per-project CSS rules into the doc head.
   const palette: Record<string, string> = useMemo(() => {
@@ -142,7 +148,7 @@ export function GanttView({ tasks, onPatch }: {
           const tid = parseInt(tidRaw, 10);
           if (!pid || isNaN(tid)) return;
           const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
-          try { await onPatch(pid, tid, { due_date: toISODate(end), estimate_hours: days * 8 }); }
+          try { await onPatchRef.current(pid, tid, { due_date: toISODate(end), estimate_hours: days * 8 }); }
           catch { /* surfaced by parent */ }
         },
         on_progress_change: async (task: any, progress: number) => {
@@ -150,7 +156,7 @@ export function GanttView({ tasks, onPatch }: {
           const tid = parseInt(tidRaw, 10);
           if (!pid || isNaN(tid)) return;
           const status = progress >= 100 ? "done" : progress >= 70 ? "blocked" : progress > 0 ? "doing" : "todo";
-          try { await onPatch(pid, tid, { status }); }
+          try { await onPatchRef.current(pid, tid, { status }); }
           catch { }
         },
       });
@@ -186,7 +192,11 @@ export function GanttView({ tasks, onPatch }: {
       }, 80);
     })();
     return () => { cancelled = true; };
-  }, [rows, effectiveMode, onPatch]);
+    // W15 — onPatch deliberately NOT in deps: we use onPatchRef so the
+    // mount effect doesn't tear-down + re-mount the Gantt (and reset
+    // scrollLeft to 0) every time the parent re-renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, effectiveMode]);
 
   if (rows.length === 0) {
     return (
