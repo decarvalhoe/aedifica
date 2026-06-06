@@ -78,6 +78,71 @@ def _phase_window(project_phase: str | None, look_ahead: int = 1) -> set[str]:
     return set(SIA_PHASE_ORDER[idx: idx + 1 + look_ahead])
 
 
+def _downstream_impact(session, project) -> dict:
+    """W12.D: build a task-dependency DAG and compute, for every open task,
+    the number of OPEN descendants (transitive closure). Returns dicts:
+      task_id → count
+      checklist_item_id → cumulated count over all tasks linked to it
+    Used to rank `steps` by how much work each one would unblock.
+    """
+    from collections import defaultdict, deque
+
+    open_tasks = {t.id: t for t in session.query(m.Task)
+                  .filter(m.Task.project_id == project.id,
+                          m.Task.status != "done").all()}
+    deps = session.query(m.TaskDependency).all()
+    # parent (blocker) -> list of dependent task ids
+    children = defaultdict(list)
+    for d in deps:
+        if d.blocked_by_id in open_tasks and d.task_id in open_tasks:
+            children[d.blocked_by_id].append(d.task_id)
+
+    descendants_open = {}
+    for tid in open_tasks:
+        seen = set()
+        q = deque(children.get(tid, []))
+        while q:
+            cid = q.popleft()
+            if cid in seen:
+                continue
+            seen.add(cid)
+            for nxt in children.get(cid, []):
+                if nxt not in seen:
+                    q.append(nxt)
+        descendants_open[tid] = len(seen)
+
+    # checklist_item_id → sum of descendants_open of the linked open tasks
+    by_checklist = defaultdict(int)
+    for t in open_tasks.values():
+        if t.checklist_item_id:
+            by_checklist[t.checklist_item_id] += 1 + descendants_open.get(t.id, 0)
+
+    return {"task": descendants_open, "checklist": dict(by_checklist),
+            "open_task_count": len(open_tasks)}
+
+
+def _step_impact_score(step: dict, impact: dict) -> int:
+    """W12.D: derive an impact score per raw step:
+    - checklist step → cumulated downstream of linked open tasks
+    - permit_blocker → 5 (categorical: a missing required piece blocks a deposit)
+    - compliance unknown → 4 (legal blocker)
+    - resolve_unknown → 3 (cascades into permit/compliance if late)
+    - commune-ingestion-needed → 5 (blocks the regulatory base for the whole project)
+    - other → 0
+    The number stays explainable: "débloque X tâches" or rule-priority."""
+    if step["kind"] == "checklist" and step.get("checklist_item_id"):
+        return impact["checklist"].get(step["checklist_item_id"], 0)
+    if step["kind"] == "permit_blocker":
+        return 5
+    if step["kind"] == "compliance":
+        return 4
+    if step["kind"] == "commune":
+        return 5
+    if step["kind"] == "resolve_unknown":
+        return 3
+    return 0
+
+
 def next_step(session, project, phase: str | None = None) -> dict:
     """W11.A: return next steps grounded in the project's current SIA phase.
     Three buckets are walked: unresolved unknowns (any phase), missing permit
@@ -85,7 +150,13 @@ def next_step(session, project, phase: str | None = None) -> dict:
     SIA *checklist* — the per-actor steps the workspace seeded — which is the
     authoritative source of "what's next per phase". By default only the
     current + next phases are returned (anything later is pushed to
-    ``upcoming``)."""
+    ``upcoming``).
+
+    W12.D: each step now carries an ``impact_score`` (how many downstream
+    items it would unblock) and a ``rationale`` (why the engine ranked it).
+    The list is sorted by impact desc; the top-ranked step is also returned
+    as ``top_pick`` with a human-readable basis line.
+    """
     window = _phase_window(project.phase_code) if not phase else {phase}
     # Fallback phase for steps that have no natural phase tied to them (project-wide
     # unknowns, the commune-not-supported warning…). Anchor them to the project's
@@ -126,18 +197,55 @@ def next_step(session, project, phase: str | None = None) -> dict:
             continue
         raw_steps.append({"kind": "checklist", "phase": it.phase_code, "state": "todo",
                           "title": it.title, "actor": it.actor,
+                          "checklist_item_id": it.id,
                           "is_retroactive": bool(it.is_retroactive),
                           "action": ("Étape rétroactive à reconstituer." if it.is_retroactive
                                      else "Avancer cette étape dans la phase courante.")})
 
-    steps = [s for s in raw_steps if s.get("phase") in window]
+    # W12.D: rank by downstream impact.
+    impact = _downstream_impact(session, project)
+    for s in raw_steps:
+        score = _step_impact_score(s, impact)
+        s["impact_score"] = score
+        if s["kind"] == "checklist":
+            n = impact["checklist"].get(s.get("checklist_item_id"), 0)
+            s["rationale"] = (f"Débloque {n} tâche(s) aval." if n
+                              else "Étape SIA prête à avancer.")
+        elif s["kind"] == "permit_blocker":
+            s["rationale"] = "Pièce requise manquante — bloque le dépôt."
+        elif s["kind"] == "compliance":
+            s["rationale"] = "Obligation légale non résolue."
+        elif s["kind"] == "commune":
+            s["rationale"] = "Sans règlement communal, l'enveloppe ne peut pas être fiabilisée."
+        elif s["kind"] == "resolve_unknown":
+            s["rationale"] = "Inconnue à cadrer — peut cascader vers permis/conformité."
+        else:
+            s["rationale"] = ""
+
+    # Stable sort: primary = phase in window first, secondary = impact desc.
+    in_window = [s for s in raw_steps if s.get("phase") in window]
+    in_window.sort(key=lambda s: -s.get("impact_score", 0))
     upcoming = [s for s in raw_steps if s.get("phase") not in window]
+    upcoming.sort(key=lambda s: -s.get("impact_score", 0))
+
+    top_pick = None
+    if in_window:
+        best = in_window[0]
+        top_pick = {
+            "title": best["title"], "action": best.get("action"),
+            "kind": best["kind"], "phase": best.get("phase"),
+            "impact_score": best.get("impact_score", 0),
+            "rationale": best.get("rationale", ""),
+        }
+
     return {
         "project_id": project.project_id,
         "phase": phase or project.phase_code or "",
         "window": sorted(window),
         "claims_prediction": False,
         "note": "Recommandations sourcées; jamais une décision d'autorité.",
-        "steps": steps,
+        "steps": in_window,
         "upcoming": upcoming,
+        "top_pick": top_pick,
+        "open_tasks_total": impact["open_task_count"],
     }
