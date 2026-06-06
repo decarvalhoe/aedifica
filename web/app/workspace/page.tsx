@@ -12,12 +12,22 @@ const PHASES: [string, string][] = [
   ["32", "Projet"], ["33", "Permis"], ["41", "Appel d'offres"], ["51", "Exécution"],
   ["52", "Chantier"], ["53", "Service"], ["61", "Exploit."],
 ];
-// legacy/short codes from older projects → official sub-phase
-const PHASE_ALIAS: Record<string, string> = { "0": "11", "5x": "51", "6": "61" };
-const norm = (c?: string) => (c && PHASE_ALIAS[c]) || c || "11";
+// W11.A: a fresh project carries phase_code = "0" by default — this used to
+// silently get coerced to "11" by norm(), which made every UI element (project
+// card, phase rail, dashboard title, prochain pas) lie that the project was in
+// phase 11. Now norm() preserves the unset state, and phase{Index,Label} return
+// explicit "not started" signals that the UI handles distinctly.
+const PHASE_ALIAS: Record<string, string> = { "5x": "51", "6": "61" };
+const isPhaseUnset = (c?: string) => !c || c === "0" || c.trim() === "";
+const norm = (c?: string) => (c && PHASE_ALIAS[c]) || c || "";
 const PHASE_LABEL_FR: Record<string, string> = { "11": "Définition des objectifs", "21": "Études préliminaires", "22": "Choix des mandataires", "31": "Avant-projet", "32": "Projet de l'ouvrage", "33": "Autorisation / permis", "41": "Appel d'offres", "51": "Projet d'exécution", "52": "Exécution / chantier", "53": "Mise en service", "61": "Exploitation" };
-const phaseIndex = (code?: string) => { const i = PHASES.findIndex((p) => p[0] === norm(code)); return i < 0 ? 0 : i; };
-const phaseLabel = (code?: string) => { const c = norm(code); return `Phase ${c} · ${PHASE_LABEL_FR[c] || ""}`.trim(); };
+const phaseIndex = (code?: string) => (isPhaseUnset(code) ? -1 : PHASES.findIndex((p) => p[0] === norm(code)));
+const phaseLabel = (code?: string) => {
+  if (isPhaseUnset(code)) return "Phase à cadrer";
+  const c = norm(code);
+  const lb = PHASE_LABEL_FR[c];
+  return lb ? `Phase ${c} · ${lb}` : `Phase ${c}`;
+};
 // SIA cost-precision convergence per phase (from the SIA Vaud chart)
 const COST_PRECISION: Record<string, string> = { "31": "± 15 %", "32": "± 10 %", "33": "± 10 %", "41": "ferme", "51": "ferme", "52": "ferme" };
 
@@ -433,18 +443,26 @@ export default function App() {
 
       <main className="ws__main">
         <div className="phaserail">
-          <div className="cap"><span className="t">Parcours SIA du projet</span><span className="now">● {phaseLabel(active.phase_code)}</span>
-            {COST_PRECISION[norm(active.phase_code)] && <span className="chip">Précision coût {COST_PRECISION[norm(active.phase_code)]}</span>}
+          <div className="cap">
+            <span className="t">Parcours SIA du projet</span>
+            {curIdx >= 0
+              ? <span className="now">● {phaseLabel(active.phase_code)}</span>
+              : <span className="now" style={{ color: "var(--mut)" }}>○ Phase à cadrer — cliquez une phase pour démarrer</span>}
+            {curIdx >= 0 && COST_PRECISION[norm(active.phase_code)] && <span className="chip">Précision coût {COST_PRECISION[norm(active.phase_code)]}</span>}
             {d.intervenants && (d.intervenants.people || []).length > 0 && <span className="chip">{(d.intervenants.people || []).length} intervenant·e·s</span>}
           </div>
           <div className="phases">
-            {PHASES.map(([code, lb], i) => (
-              <button key={code} className={`phase ${i < curIdx ? "done" : ""} ${i === curIdx ? "now" : ""}`}
-                      title={`Basculer le projet en ${SIA_PHASE_FR[code] || ("Phase " + code)}`}
-                      onClick={() => setProjectPhase(code).catch((e: any) => setErr(e?.message || "Échec du changement de phase"))}>
-                <span className="pt">{i < curIdx ? "✓" : code}</span><span className="pl">{code} {lb}</span>
-              </button>
-            ))}
+            {PHASES.map(([code, lb], i) => {
+              const isDone = curIdx >= 0 && i < curIdx;
+              const isNow = curIdx >= 0 && i === curIdx;
+              return (
+                <button key={code} className={`phase ${isDone ? "done" : ""} ${isNow ? "now" : ""}`}
+                        title={`Basculer le projet en ${SIA_PHASE_FR[code] || ("Phase " + code)}`}
+                        onClick={() => setProjectPhase(code).catch((e: any) => setErr(e?.message || "Échec du changement de phase"))}>
+                  <span className="pt">{isDone ? "✓" : code}</span><span className="pl">{code} {lb}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
         <div className="ws__top">
@@ -606,12 +624,13 @@ function Home({ projects, users, atelier, flashKey, busy, err, onOpen, onCreate,
           <div className="plist">
             {(projects || []).map((p: Project) => {
               const ci = phaseIndex(p.phase_code);
+              const unset = ci < 0;
               return (
                 <button className="pcard" key={p.project_id} onClick={() => onOpen(p)}>
                   <div><div className="nm">{p.name}</div><div className="me">{p.jurisdiction.commune} · {p.jurisdiction.canton}</div></div>
                   <div>
-                    <div className="siabar">{PHASES.map(([c], i) => <span key={c} className={`ph ${i < ci ? "done" : ""} ${i === ci ? "now" : ""}`} />)}</div>
-                    <span className="lab">{phaseLabel(p.phase_code)}</span>
+                    <div className="siabar">{PHASES.map(([c], i) => <span key={c} className={`ph ${(!unset && i < ci) ? "done" : ""} ${(!unset && i === ci) ? "now" : ""}`} />)}</div>
+                    <span className="lab" style={unset ? { color: "var(--mut)" } : undefined}>{phaseLabel(p.phase_code)}</span>
                   </div>
                   <div className="foot"><span>{p.claims ?? 0} contraintes</span><span>Ouvrir →</span></div>
                 </button>
@@ -646,7 +665,10 @@ function Dashboard({ d, project, go }: { d: any; project: Project; go: (v: View)
   return (
     <>
       <div className="vh"><div className="row"><h2>{phaseLabel(project.phase_code)}</h2><span className="badge live"><span className="d" />Opérationnel</span></div>
-        <p>L&apos;état du projet en un coup d&apos;œil : ce qui est fiable, ce qu&apos;il faut traiter ensuite, et les quick-wins de cette phase.</p></div>
+        {isPhaseUnset(project.phase_code)
+          ? <p>Projet à cadrer — basculez en <b>Phase 11 · Définition des objectifs</b> via la barre du haut pour démarrer la séquence SIA. Tant que la phase n&apos;est pas définie, le Prochain pas reste sur les actions d&apos;initialisation.</p>
+          : <p>L&apos;état du projet en un coup d&apos;œil : ce qui est fiable, ce qu&apos;il faut traiter ensuite, et les quick-wins de cette phase.</p>}
+      </div>
       {d.toValidate && (d.toValidate.counts.documents + d.toValidate.counts.checklist_todo) > 0 && (
         <div className="banner warn" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <b>À valider</b>
