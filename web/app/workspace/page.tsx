@@ -144,14 +144,26 @@ function Icon({ n }: { n: string }) {
 // DIFICA, 400 on the Æ ligature, 2px datum rule stepping up at x=300.
 const WORDMARK_FONT = '"Space Grotesk", Helvetica, Arial, sans-serif';
 const MONO_FONT_FAMILY = '"IBM Plex Mono", ui-monospace, monospace';
-function Wordmark({ height = 32, dark = false }: { height?: number; dark?: boolean }) {
+// W15 fix — fluid wordmark. When `fluid` is true (shell brand slot), the
+// SVG fills 100% of the container width while preserving the 480/150 aspect
+// ratio via viewBox + preserveAspectRatio. No height prop is imposed so it
+// auto-derives. When fluid=false (login page), the legacy fixed-height
+// behavior stays so the typography pile-up still works on the auth screen.
+function Wordmark({ height = 32, dark = false, fluid = false }: { height?: number; dark?: boolean; fluid?: boolean }) {
   const W = 480, H = 150;
-  const width = Math.round(height * (W / H));
   const ink = dark ? "#F3F1EC" : "#16171A";
   const mute = dark ? "#908E85" : "#87867D";
+  const sizing: any = fluid
+    ? { width: "100%", height: "auto", display: "block" }
+    : { display: "inline-block", verticalAlign: "middle" };
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="ÆDIFICA"
-         style={{ display: "inline-block", verticalAlign: "middle" }}>
+    <svg
+      width={fluid ? "100%" : Math.round(height * (W / H))}
+      height={fluid ? "auto" : height}
+      viewBox={`0 0 ${W} ${H}`}
+      role="img" aria-label="ÆDIFICA"
+      preserveAspectRatio="xMidYMid meet"
+      style={sizing}>
       <text x={452} y={36} textAnchor="end" fontFamily={MONO_FONT_FAMILY} fontSize={11} letterSpacing={1.6} fill={mute}>DATUM +13.50</text>
       <text x={26} y={92} fontFamily={WORDMARK_FONT} fontSize={68} fontWeight={300} letterSpacing={2} fill={ink}>
         <tspan fontWeight={400}>Æ</tspan>DIFICA
@@ -445,8 +457,8 @@ export default function App() {
   return (
     <div className="ws">
       <aside className={`ws__side ${sideOpen ? "open" : ""}`}>
-        <div className="ws__brand" style={{ display: "flex", alignItems: "center", padding: "4px 0" }}>
-          <Wordmark height={48} />
+        <div className="ws__brand">
+          <Wordmark fluid />
         </div>
         <ProjectSwitcher active={active} projects={projects} onOpen={openProject} onCreate={createProject} busy={busy} />
         <nav className="tnav">
