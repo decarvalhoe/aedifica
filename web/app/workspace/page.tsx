@@ -21,7 +21,7 @@ const phaseLabel = (code?: string) => { const c = norm(code); return `Phase ${c}
 // SIA cost-precision convergence per phase (from the SIA Vaud chart)
 const COST_PRECISION: Record<string, string> = { "31": "± 15 %", "32": "± 10 %", "33": "± 10 %", "41": "ferme", "51": "ferme", "52": "ferme" };
 
-type View = "dashboard" | "taches" | "terrain" | "checklist" | "intervenants" | "documents" | "brs" | "permis" | "opposition" | "conformite" | "copilote" | "memoire" | "couts" | "chantier" | "equipe";
+type View = "dashboard" | "taches" | "terrain" | "checklist" | "coordination" | "intervenants" | "documents" | "brs" | "permis" | "opposition" | "conformite" | "copilote" | "memoire" | "couts" | "chantier" | "equipe";
 const NAV: { id: View; lb: string; ico: string; ph?: string; grp: string }[] = [
   { id: "dashboard", lb: "Tableau de bord", ico: "grid", grp: "Pilotage" },
   { id: "taches", lb: "Tâches & priorités", ico: "check", grp: "Pilotage" },
@@ -29,6 +29,7 @@ const NAV: { id: View; lb: string; ico: string; ph?: string; grp: string }[] = [
   { id: "terrain", lb: "Terrain & zonage", ico: "pin", ph: "0–11", grp: "Pilotage" },
   { id: "copilote", lb: "Copilote · maquette", ico: "spark", ph: "32", grp: "Pilotage" },
   { id: "memoire", lb: "Mémoire", ico: "clock", ph: "6", grp: "Pilotage" },
+  { id: "coordination", lb: "Coordination", ico: "grid", grp: "Coordination" },
   { id: "intervenants", lb: "Intervenants", ico: "users", ph: "0", grp: "Coordination" },
   { id: "documents", lb: "Documents & sources", ico: "doc", ph: "0–33", grp: "Coordination" },
   { id: "brs", lb: "Exigences (BRS)", ico: "shield", grp: "Coordination" },
@@ -139,14 +140,43 @@ export default function App() {
   const [flash, setFlash] = useState<{ kind: "ok" | "warn"; text: string } | null>(null);
   const [users, setUsers] = useState<any[] | null>(null);
   const [atelier, setAtelier] = useState<any>(null);
+  // W10: external (client / mandataire) user state. When set, the entire workspace is
+  // replaced by the External scoped view.
+  const [ext, setExt] = useState<any | null>(null);
 
   useEffect(() => {
     const t = typeof window !== "undefined" ? localStorage.getItem("aedifica_token") : null;
     if (t) verify(t); else setReady(true);
   }, []);
   async function verify(t: string) {
+    // Try the external scope first — if 200, the token belongs to an external user.
+    try { const me = await api<any>("/external/me", { token: t }); await loadExternal(t, me); setToken(t); setReady(true); return; } catch { /* not external */ }
     try { await loadProjects(t); await loadUsers(t); loadAtelier(t); setToken(t); }
     catch { localStorage.removeItem("aedifica_token"); } finally { setReady(true); }
+  }
+  async function loadExternal(t: string, me?: any) {
+    const meR = me || await api<any>("/external/me", { token: t });
+    const [cl, dx] = await Promise.all([
+      api<any>("/external/me/checklist", { token: t }),
+      api<any>("/external/me/documents", { token: t }),
+    ]);
+    setExt({ me: meR, checklist: cl, documents: dx });
+  }
+  async function tickExternal(id: number, status: string) {
+    if (!token) return;
+    await api(`/external/me/checklist/${id}`, { method: "PATCH", token: token, body: { status } });
+    await loadExternal(token);
+  }
+  async function acceptInvite(token_: string, password: string, name: string) {
+    setBusy(true); setErr("");
+    try {
+      const r = await api<any>("/auth/accept-invite", { method: "POST", body: { token: token_, password, name } });
+      const tk = r.token as string;
+      localStorage.setItem("aedifica_token", tk);
+      await loadExternal(tk);
+      setToken(tk);
+    } catch (e: any) { setErr(e.message?.includes("INVITE_INVALID") || e.message?.includes("404") ? "Code d'invitation invalide ou déjà utilisé." : (e.message || "Activation impossible.")); }
+    finally { setBusy(false); }
   }
   async function loadAtelier(t: string) { try { setAtelier(await api<any>("/atelier/tasks", { token: t })); } catch { setAtelier(null); } }
   async function loadProjects(t: string): Promise<Project[]> {
@@ -171,8 +201,10 @@ export default function App() {
   }
   async function login(email: string, password: string) {
     setBusy(true); setErr("");
-    try { const t = (await api<any>("/auth/login", { method: "POST", body: { email, password } })).token as string;
-      localStorage.setItem("aedifica_token", t); await loadProjects(t); await loadUsers(t); loadAtelier(t); setToken(t);
+    try { const r = await api<any>("/auth/login", { method: "POST", body: { email, password } });
+      const t = r.token as string; localStorage.setItem("aedifica_token", t);
+      if (r.role === "external") { await loadExternal(t); setToken(t); }
+      else { await loadProjects(t); await loadUsers(t); loadAtelier(t); setToken(t); }
     } catch (e: any) { setErr(e.message?.includes("incorrect") ? "E-mail ou mot de passe incorrect." : (e.message || "Connexion impossible.")); } finally { setBusy(false); }
   }
   async function joinWithKey(key: string) {
@@ -180,7 +212,7 @@ export default function App() {
     try { await loadProjects(key); await loadUsers(key); localStorage.setItem("aedifica_token", key); setToken(key); }
     catch { setErr("Clé d'invitation invalide."); } finally { setBusy(false); }
   }
-  function signOut() { localStorage.removeItem("aedifica_token"); setToken(null); setProjects(null); setActive(null); setD({}); setFlashKey(null); setFlash(null); setUsers(null); }
+  function signOut() { localStorage.removeItem("aedifica_token"); setToken(null); setProjects(null); setActive(null); setD({}); setFlashKey(null); setFlash(null); setUsers(null); setExt(null); }
 
   async function createProject(name: string, commune: string) {
     const id = (name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40)) || `PROJ-${(projects?.length ?? 0) + 1}`;
@@ -192,11 +224,13 @@ export default function App() {
   async function loadAll(p: Project, t: string) {
     const pid = p.project_id; const g = (path: string) => api<any>(`/projects/${pid}${path}`, { token: t });
     const sup = api<any>(`/communes/${p.jurisdiction.commune}/${p.jurisdiction.canton}/support`, { token: t }).then((r) => r.support).catch(() => null);
-    const [claims, permit, opposition, compliance, cost, site, ledger, next, unknowns, support, interv, docs, checklist, brs, toval, tasks, captures] = await Promise.all([
-      g("/claims"), g("/permit"), g("/opposition"), g("/compliance"), g("/cost"), g("/site"), g("/ledger"), g("/next-step"), g("/memory/unknowns"), sup, g("/intervenants"), g("/documents"), g("/checklist"), g("/brs"), g("/to-validate"), g("/tasks"), g("/captures"),
+    const [claims, permit, opposition, compliance, cost, site, ledger, next, unknowns, support, interv, docs, checklist, brs, toval, tasks, captures, coord] = await Promise.all([
+      g("/claims"), g("/permit"), g("/opposition"), g("/compliance"), g("/cost"), g("/site"), g("/ledger"), g("/next-step"), g("/memory/unknowns"), sup, g("/intervenants"), g("/documents"), g("/checklist"), g("/brs"), g("/to-validate"), g("/tasks"), g("/captures"), g("/coordination").catch(() => null),
     ]);
-    setD({ claims: claims.claims, permit: permit.permit, opposition: opposition.opposition, compliance: compliance.compliance, cost: cost.cost, site: site.site, ledger: ledger.ledger, next: next.steps, unknowns: unknowns.unknowns, support, intervenants: interv, documents: docs.documents, docSummary: docs.summary, checklist, brs, toValidate: toval, tasks, captures });
+    setD({ claims: claims.claims, permit: permit.permit, opposition: opposition.opposition, compliance: compliance.compliance, cost: cost.cost, site: site.site, ledger: ledger.ledger, next: next.steps, unknowns: unknowns.unknowns, support, intervenants: interv, documents: docs.documents, docSummary: docs.summary, checklist, brs, toValidate: toval, tasks, captures, coord });
   }
+  async function refreshCoord() { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/coordination`, { token: token! }); setD((x) => ({ ...x, coord: r })); }
+  async function inviteIntervenant(id: number, email: string, name: string | null) { const r = await api2(`/intervenants/${id}/invite`, { email, name }); await refreshInterv(); return r; }
   async function refreshCaptures() { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/captures`, { token: token! }); setD((x) => ({ ...x, captures: r })); }
   async function addCapture(b: any) { await api2("/captures", b); await refreshCaptures(); }
   async function delCapture(id: number) { await api2(`/captures/${id}`, undefined, "DELETE"); await refreshCaptures(); }
@@ -304,7 +338,8 @@ export default function App() {
   }
 
   if (!ready) return <div className="center"><span className="spin">Chargement…</span></div>;
-  if (!token) return <Login busy={busy} err={err} onRegister={register} onLogin={login} onJoin={joinWithKey} />;
+  if (!token) return <Login busy={busy} err={err} onRegister={register} onLogin={login} onJoin={joinWithKey} onAcceptInvite={acceptInvite} />;
+  if (ext) return <ExternalView ext={ext} onTick={tickExternal} onSignOut={signOut} />;
   if (!active) return <Home projects={projects} users={users} atelier={atelier} flashKey={flashKey} busy={busy} err={err} onOpen={openProject} onCreate={createProject} onSignOut={signOut} onSearch={homeSearch} dismissFlash={() => setFlashKey(null)} />;
 
   const cur = NAV.find((n) => n.id === view)!;
@@ -357,7 +392,8 @@ export default function App() {
           {view === "taches" && <Taches data={d.tasks} onAdd={addTask} onPatch={patchTask} onDel={delTask} onAddDep={addDep} onDelDep={delDep} onPredict={predictTask} />}
           {view === "checklist" && <Checklist data={d.checklist} entryPhase={active.phase_code} onSeed={seedChecklist} onPatch={patchChecklist} onAdd={addChecklistItem} onDel={delChecklistItem} />}
           {view === "terrain" && <Terrain claims={d.claims} mode={d.intakeMode} support={d.support} commune={j.commune} initialQuery={d.pendingQuery} regAlerts={d.captures?.regulation_alerts} onLookup={lookup} onRequest={requestCommune} />}
-          {view === "intervenants" && <Intervenants data={d.intervenants} onAddGroup={addGroup} onDelGroup={delGroup} onAdd={addIntervenant} onPatch={patchIntervenant} onDel={delIntervenant} />}
+          {view === "coordination" && <Coordination data={d.coord} onRefresh={refreshCoord} go={setView} />}
+          {view === "intervenants" && <Intervenants data={d.intervenants} onAddGroup={addGroup} onDelGroup={delGroup} onAdd={addIntervenant} onPatch={patchIntervenant} onDel={delIntervenant} onInvite={inviteIntervenant} />}
           {view === "documents" && <Documents docs={d.documents} summary={d.docSummary} intervenants={d.intervenants} onAdd={addDocument} onValidate={validateDocument} onPatch={patchDocument} onDel={delDocument} onGrant={addGrant} onRevoke={revokeGrant} />}
           {view === "brs" && <Brs data={d.brs} intervenants={d.intervenants} onAdd={addBrs} onPatch={patchBrs} onDel={delBrs} />}
           {view === "permis" && <Permis d={d.permit} onSubmit={submitPermit} />}
@@ -375,10 +411,11 @@ export default function App() {
 }
 
 /* ===================== LOGIN ===================== */
-function Login({ busy, err, onRegister, onLogin, onJoin }: { busy: boolean; err: string; onRegister: (o: string, e: string, p: string) => void; onLogin: (e: string, p: string) => void; onJoin: (k: string) => void }) {
-  const [mode, setMode] = useState<"login" | "register" | "join">("login");
+function Login({ busy, err, onRegister, onLogin, onJoin, onAcceptInvite }: { busy: boolean; err: string; onRegister: (o: string, e: string, p: string) => void; onLogin: (e: string, p: string) => void; onJoin: (k: string) => void; onAcceptInvite: (token: string, password: string, name: string) => void }) {
+  const [mode, setMode] = useState<"login" | "register" | "join" | "invite">("login");
   const [org, setOrg] = useState(""); const [email, setEmail] = useState(""); const [pw, setPw] = useState(""); const [key, setKey] = useState("");
-  const titles: Record<string, string> = { login: "Connexion", register: "Créer un atelier", join: "Rejoindre un atelier" };
+  const [invToken, setInvToken] = useState(""); const [invName, setInvName] = useState("");
+  const titles: Record<string, string> = { login: "Connexion", register: "Créer un atelier", join: "Rejoindre un atelier", invite: "Activer mon invitation" };
   const canReg = !!org && !!email && pw.length >= 6;
   return (
     <div className="center">
@@ -411,7 +448,7 @@ function Login({ busy, err, onRegister, onLogin, onJoin }: { busy: boolean; err:
             <label className="lbl">Mot de passe</label>
             <input className="fld" type="password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => e.key === "Enter" && email && pw && onLogin(email, pw)} placeholder="votre mot de passe" />
             <button className="ds-btn full" disabled={busy || !email || !pw} onClick={() => onLogin(email, pw)}>{busy ? "Connexion…" : "Se connecter"}</button>
-            <p className="login__alt"><a onClick={() => setMode("join")}>Rejoindre avec une clé d&apos;invitation</a></p>
+            <p className="login__alt"><a onClick={() => setMode("invite")}>J&apos;ai reçu un code d&apos;invitation</a> · <a onClick={() => setMode("join")}>Clé atelier</a></p>
           </>
         )}
         {mode === "join" && (
@@ -419,6 +456,19 @@ function Login({ busy, err, onRegister, onLogin, onJoin }: { busy: boolean; err:
             <label className="lbl">Clé d&apos;invitation</label>
             <input className="fld" value={key} onChange={(e) => setKey(e.target.value)} onKeyDown={(e) => e.key === "Enter" && key && onJoin(key.trim())} placeholder="collez la clé reçue" />
             <button className="ds-btn full" disabled={busy || !key} onClick={() => onJoin(key.trim())}>{busy ? "Connexion…" : "Rejoindre"}</button>
+            <p className="login__alt"><a onClick={() => setMode("login")}>← Retour à la connexion</a></p>
+          </>
+        )}
+        {mode === "invite" && (
+          <>
+            <p className="note" style={{ marginBottom: 12 }}>L&apos;architecte vous a transmis un code d&apos;invitation. Définissez votre mot de passe pour accéder à votre espace.</p>
+            <label className="lbl">Code d&apos;invitation</label>
+            <input className="fld" value={invToken} onChange={(e) => setInvToken(e.target.value)} placeholder="collez le code reçu" />
+            <label className="lbl">Votre nom</label>
+            <input className="fld" value={invName} onChange={(e) => setInvName(e.target.value)} placeholder="Prénom Nom" />
+            <label className="lbl">Mot de passe</label>
+            <input className="fld" type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => e.key === "Enter" && invToken && pw.length >= 6 && onAcceptInvite(invToken.trim(), pw, invName)} placeholder="6 caractères minimum" />
+            <button className="ds-btn full" disabled={busy || !invToken || pw.length < 6} onClick={() => onAcceptInvite(invToken.trim(), pw, invName)}>{busy ? "…" : "Activer mon accès"}</button>
             <p className="login__alt"><a onClick={() => setMode("login")}>← Retour à la connexion</a></p>
           </>
         )}
@@ -773,21 +823,48 @@ function Memoire({ unknowns, ledger, captures, onAddCapture, onDelCapture }: any
 
 /* ===================== INTERVENANTS (W9) ===================== */
 const GROUP_KINDS: Record<string, string> = { company: "Entreprise", discipline: "Discipline", group: "Groupe" };
-function Intervenants({ data, onAddGroup, onDelGroup, onAdd, onDel }: any) {
+function Intervenants({ data, onAddGroup, onDelGroup, onAdd, onDel, onInvite }: any) {
   const [gName, setGName] = useState(""); const [gKind, setGKind] = useState("discipline"); const [showG, setShowG] = useState(false);
   const [f, setF] = useState<any>({ name: "", role: "", organization: "", email: "", phone: "", is_responsible: false, group_id: "" });
   const [busy, setBusy] = useState(false);
+  const [inviting, setInviting] = useState<number | null>(null);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [issued, setIssued] = useState<{ id: number; email: string; token: string } | null>(null);
   if (!data) return <p className="spin">Chargement…</p>;
   const groups: any[] = data.groups || []; const people: any[] = data.people || [];
   const inGroup = (gid: number | null) => people.filter((p) => (p.group_id ?? null) === gid);
   const submit = async () => { if (!f.name.trim()) return; setBusy(true); try { await onAdd({ ...f, group_id: f.group_id ? Number(f.group_id) : null }); setF({ name: "", role: "", organization: "", email: "", phone: "", is_responsible: false, group_id: f.group_id }); } catch { } finally { setBusy(false); } };
   const addG = async () => { if (!gName.trim()) return; await onAddGroup(gName, gKind); setGName(""); setShowG(false); };
+  const invite = async (p: any) => {
+    if (!onInvite) return; const em = inviteEmail.trim() || p.email; if (!em) return;
+    try { const r = await onInvite(p.id, em, p.name); setIssued({ id: p.id, email: em, token: r.invite_token }); setInviting(null); setInviteEmail(""); } catch { }
+  };
   const Person = ({ p }: any) => (
-    <div className="member"><span className="grow"><span className="nm">{p.name}{p.is_responsible && <small style={{ display: "inline", color: "var(--accent)" }}> · responsable</small>}</span><span className="em">{[p.role, p.organization, p.email, p.phone].filter(Boolean).join(" · ") || "—"}</span></span><button className="signout" style={{ padding: 0 }} onClick={() => onDel(p.id)}>Retirer</button></div>
+    <div className="member">
+      <span className="grow">
+        <span className="nm">{p.name}{p.is_responsible && <small style={{ display: "inline", color: "var(--accent)" }}> · responsable</small>}</span>
+        <span className="em">{[p.role, p.organization, p.email, p.phone].filter(Boolean).join(" · ") || "—"}</span>
+      </span>
+      {onInvite && (inviting === p.id ? (
+        <span className="row" style={{ gap: 6 }}>
+          <input className="fld" style={{ margin: 0, padding: "4px 8px", width: 180 }} placeholder={p.email || "e-mail"} value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} />
+          <button className="toggle" onClick={() => invite(p)}>Inviter</button>
+          <button className="signout" style={{ padding: 0 }} onClick={() => { setInviting(null); setInviteEmail(""); }}>×</button>
+        </span>
+      ) : <button className="toggle" style={{ marginRight: 8 }} onClick={() => { setInviting(p.id); setInviteEmail(p.email || ""); }}>Inviter sur la plateforme</button>)}
+      <button className="signout" style={{ padding: 0 }} onClick={() => onDel(p.id)}>Retirer</button>
+    </div>
   );
   return (
     <>
-      <div className="vh"><div className="row"><h2>Intervenants</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>L&apos;arborescence des acteurs du projet — groupes, sous-groupes, personnes — avec contacts sourcés. Socle de l&apos;accès documentaire et de l&apos;annuaire d&apos;atelier.</p></div>
+      <div className="vh"><div className="row"><h2>Intervenants</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>L&apos;arborescence des acteurs du projet — groupes, sous-groupes, personnes — avec contacts sourcés. Chaque intervenant peut être <b>invité sur la plateforme</b> (accès scoping) : il y verra ses documents et ses devoirs.</p></div>
+      {issued && (
+        <div className="banner ok" style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+          <span style={{ flex: 1 }}>Invitation émise pour <b>{issued.email}</b>. Transmettez ce code à l&apos;intervenant pour qu&apos;il définisse son mot de passe : <code className="mono" style={{ background: "var(--surface)", padding: "2px 6px", borderRadius: 4 }}>{issued.token}</code></span>
+          <button className="toggle" onClick={() => navigator.clipboard?.writeText(issued.token).catch(() => {})}>Copier</button>
+          <button className="toggle" onClick={() => setIssued(null)}>OK</button>
+        </div>
+      )}
       <div className="card" style={{ marginBottom: 14 }}>
         <h3>Ajouter un intervenant</h3>
         <div className="g2">
@@ -898,18 +975,24 @@ function Documents({ docs, summary, intervenants, onAdd, onValidate, onPatch, on
 /* ===================== CHECKLIST SIA (W9 #221) ===================== */
 const SIA_PHASE_FR: Record<string, string> = { "11": "1 · Définition des objectifs", "21": "2 · Études préliminaires", "22": "2 · Choix des mandataires", "31": "3.31 · Avant-projet", "32": "3.32 · Projet de l'ouvrage", "33": "3.33 · Autorisation / enquête", "41": "4.41 · Appel d'offres", "51": "5.51 · Projet d'exécution", "52": "5.52 · Chantier", "53": "5.53 · Mise en service", "61": "6 · Exploitation" };
 const CSTATUS: Record<string, [string, string]> = { done: ["is-sourced", "Fait"], todo: ["is-unknown", "À faire"], deferred: ["is-assume", "Plus tard"], skipped: ["is-computed", "Inutile"] };
+/* W10: short labels for the four actor categories — also surfaced by the API. */
+const ACTOR_FR: Record<string, string> = { mo: "Maître d'ouvrage", architecte: "Atelier", mandataire: "Mandataire", entreprise: "Entreprise" };
+const ACTOR_CHIP: Record<string, string> = { mo: "is-decision", architecte: "is-sourced", mandataire: "is-computed", entreprise: "is-assume" };
+
 function Checklist({ data, entryPhase, onSeed, onPatch }: any) {
   const valid = /^(11|21|22|31|32|33|41|51|52|53|61)$/;
   const [phase, setPhase] = useState(valid.test(entryPhase || "") ? entryPhase : "11");
   const [busy, setBusy] = useState("");
+  const [actorFilter, setActorFilter] = useState<string>("");  // "" = all
   if (!data) return <p className="spin">Chargement…</p>;
   const items: any[] = data.items || []; const s = data.summary || {};
+  const byActor = s.by_actor || {};
   const seed = async () => { setBusy("seed"); try { await onSeed(phase); } catch { } finally { setBusy(""); } };
   const set = async (id: number, status: string) => { setBusy("i" + id); try { await onPatch(id, status); } catch { } finally { setBusy(""); } };
   if (!s.seeded) {
     return (
       <>
-        <div className="vh"><h2>Checklist SIA</h2><p>Les steps du mandat, dérivés de la norme SIA — déjà classés dans l&apos;ordre. Vous les activez / différez / désactivez selon le projet (pas de step imposé).</p></div>
+        <div className="vh"><h2>Checklist SIA</h2><p>Les steps du mandat, dérivés de la norme SIA — par phase <b>et par acteur</b> (maître d&apos;ouvrage, atelier, mandataire, entreprise). Déjà classés dans l&apos;ordre ; vous activez / différez / désactivez selon le projet.</p></div>
         <div className="placeholder"><h4>Checklist non initialisée</h4><p>Initialisez la checklist depuis le gabarit SIA. Choisissez la <b>phase d&apos;entrée</b> du projet : les steps des phases antérieures seront marqués « rétroactif » (à reconstituer pour un projet repris en cours).</p>
           <div className="actbar" style={{ justifyContent: "center", marginTop: 14 }}>
             <select className="fld" style={{ margin: 0, width: "auto" }} value={phase} onChange={(e) => setPhase(e.target.value)}>{Object.entries(SIA_PHASE_FR).map(([v, lb]) => <option key={v} value={v}>{lb}</option>)}</select>
@@ -920,17 +1003,28 @@ function Checklist({ data, entryPhase, onSeed, onPatch }: any) {
     );
   }
   const done = (s.by_status?.done) || 0;
-  const phases = items.map((i) => i.phase_code).filter((v, idx, a) => a.indexOf(v) === idx);
+  const filtered = actorFilter ? items.filter((i) => i.actor === actorFilter) : items;
+  const phases = filtered.map((i) => i.phase_code).filter((v, idx, a) => a.indexOf(v) === idx);
   return (
     <>
-      <div className="vh"><div className="row"><h2>Checklist SIA</h2><span className="badge live"><span className="d" />{done}/{s.total} fait</span></div><p>Les steps réels du projet.{s.retroactive > 0 && <> <b>{s.retroactive} step(s) rétroactif(s)</b> à reconstituer (projet repris en cours).</>}</p></div>
+      <div className="vh"><div className="row"><h2>Checklist SIA</h2><span className="badge live"><span className="d" />{done}/{s.total} fait</span></div><p>Steps réels du projet, <b>par phase et par acteur</b>.{s.retroactive > 0 && <> <b>{s.retroactive} step(s) rétroactif(s)</b> à reconstituer.</>}{s.external_blockers > 0 && <> <span className="ds-ts is-conflict"><span className="dot" />{s.external_blockers} bloquant(s) externe(s)</span></>}</p></div>
+      <div className="actbar" style={{ marginBottom: 12 }}>
+        <span className="row" style={{ gap: 6, flexWrap: "wrap" }}>
+          <button className={`toggle ${actorFilter === "" ? "on" : ""}`} onClick={() => setActorFilter("")}>Tous ({s.total || 0})</button>
+          {Object.entries(ACTOR_FR).map(([k, lb]) => {
+            const slot = byActor[k] || { total: 0, todo: 0 };
+            return <button key={k} className={`toggle ${actorFilter === k ? "on" : ""}`} onClick={() => setActorFilter(k)}>{lb} ({slot.total || 0}{slot.todo ? ` · ${slot.todo} à faire` : ""})</button>;
+          })}
+        </span>
+      </div>
       {phases.map((ph) => (
         <div className="card" key={ph} style={{ marginBottom: 12 }}>
           <h3>{SIA_PHASE_FR[ph] || ph}</h3>
-          {items.filter((i) => i.phase_code === ph).map((it) => { const [c, l] = CSTATUS[it.status] || ["is-unknown", it.status]; return (
+          {filtered.filter((i) => i.phase_code === ph).map((it) => { const [c, l] = CSTATUS[it.status] || ["is-unknown", it.status]; const ac = ACTOR_CHIP[it.actor] || "is-unknown"; return (
             <div className="row-line" key={it.id}>
               <span className={`ds-ts ${c}`}><span className="dot" />{l}</span>
-              <span className="grow"><span className="ttl">{it.title}{it.is_retroactive && <small style={{ display: "inline", color: "var(--ts-assume)" }}> · rétroactif</small>}</span></span>
+              <span className={`ds-ts ${ac}`} title="Acteur responsable"><span className="dot" />{ACTOR_FR[it.actor] || it.actor}{it.responsible_name ? ` · ${it.responsible_name}` : ""}</span>
+              <span className="grow"><span className="ttl">{it.title}{it.is_retroactive && <small style={{ display: "inline", color: "var(--ts-assume)" }}> · rétroactif</small>}{it.is_external && it.status === "todo" && <small style={{ display: "inline", color: "var(--ts-conflict)" }}> · en attente de l&apos;extérieur</small>}</span></span>
               <span className="row" style={{ gap: 6 }}>
                 <button className="toggle" disabled={busy === `i${it.id}`} onClick={() => set(it.id, "done")}>Fait</button>
                 <button className="toggle" onClick={() => set(it.id, "todo")}>À faire</button>
@@ -942,6 +1036,137 @@ function Checklist({ data, entryPhase, onSeed, onPatch }: any) {
         </div>
       ))}
     </>
+  );
+}
+
+/* ===================== COORDINATION — single point of truth (W10) ===================== */
+function Coordination({ data, onRefresh, go }: { data: any; onRefresh: () => void; go: (v: View) => void }) {
+  useEffect(() => { if (!data) onRefresh(); }, []);
+  if (!data) return <p className="spin">Chargement de la coordination…</p>;
+  const owes = data.who_owes_what || {};
+  const blockers = data.blockers || { external: [], atelier: [], counts: { external: 0, atelier: 0 } };
+  const docs = (data.documents?.items || []).slice(0, 12);
+  const queue = data.to_validate || {};
+  return (
+    <>
+      <div className="vh">
+        <div className="row"><h2>Coordination</h2><span className="badge live"><span className="d" />Point unique</span></div>
+        <p>Une seule vue pour : <b>qui doit quoi</b> · <b>où ça bloque</b> · <b>les documents</b> · <b>ce qu&apos;il vous reste à valider</b>. Source : la feuille SIA Vaud, projetée par acteur.</p>
+      </div>
+      {/* (1) Qui doit quoi — by actor */}
+      <div className="card" style={{ marginBottom: 12 }}>
+        <h3>Qui doit quoi</h3>
+        <div className="g2">
+          {Object.entries(ACTOR_FR).map(([k, lb]) => {
+            const rows = owes[k] || [];
+            const chip = ACTOR_CHIP[k] || "is-unknown";
+            return (
+              <div key={k} className="card" style={{ background: "var(--surface)", marginBottom: 0 }}>
+                <div className="row"><span className={`ds-ts ${chip}`}><span className="dot" />{lb}</span><span className="grow" /><small>{rows.length} à faire</small></div>
+                {rows.length === 0 && <small className="spin" style={{ display: "block", padding: "8px 0" }}>Rien d&apos;ouvert.</small>}
+                {rows.slice(0, 6).map((r: any) => (
+                  <div key={r.id} className="row-line"><span className="grow"><span className="ttl" style={{ fontSize: 13 }}>{r.title}</span><small> · phase {r.phase_code}{r.is_retroactive ? " · rétroactif" : ""}</small></span></div>
+                ))}
+                {rows.length > 6 && <small><button className="signout" style={{ padding: 0 }} onClick={() => go("checklist")}>Voir les {rows.length} →</button></small>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {/* (2) Où ça bloque */}
+      <div className="card" style={{ marginBottom: 12 }}>
+        <h3>Où ça bloque</h3>
+        <div className="g2">
+          <div className="card" style={{ background: "var(--surface)", marginBottom: 0 }}>
+            <div className="row"><span className="ds-ts is-conflict"><span className="dot" />En attente de l&apos;extérieur ({blockers.counts.external})</span></div>
+            {blockers.external.length === 0 && <small className="spin">Aucun bloquant externe.</small>}
+            {blockers.external.slice(0, 8).map((b: any) => (
+              <div key={b.id} className="row-line"><span className={`ds-ts ${ACTOR_CHIP[b.actor] || "is-assume"}`}><span className="dot" />{ACTOR_FR[b.actor] || b.actor}</span><span className="grow"><span className="ttl" style={{ fontSize: 13 }}>{b.title}</span><small> · phase {b.phase_code}</small></span></div>
+            ))}
+          </div>
+          <div className="card" style={{ background: "var(--surface)", marginBottom: 0 }}>
+            <div className="row"><span className="ds-ts is-assume"><span className="dot" />Atelier — tâches bloquées ({blockers.counts.atelier})</span></div>
+            {blockers.atelier.length === 0 && <small className="spin">Aucun blocage atelier.</small>}
+            {blockers.atelier.slice(0, 8).map((t: any) => (
+              <div key={t.id} className="row-line"><span className="ds-ts is-assume"><span className="dot" />{t.priority?.toUpperCase()}</span><span className="grow"><span className="ttl" style={{ fontSize: 13 }}>{t.title}</span>{t.assignee && <small> · {t.assignee}</small>}</span></div>
+            ))}
+          </div>
+        </div>
+      </div>
+      {/* (3) Documents */}
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div className="row"><h3>Documents</h3><span className="grow" /><button className="toggle" onClick={() => go("documents")}>Tout voir →</button></div>
+        {docs.length === 0 && <small className="spin">Aucun document.</small>}
+        {docs.map((d: any) => { const [c, l] = (d.validation_level === "canonical" ? ["is-sourced", "Canonique"] : d.validation_level === "indicative" ? ["is-computed", "Indicatif"] : d.validation_level === "refused" ? ["is-conflict", "Refusé"] : ["is-assume", "À valider"]); return (
+          <div key={d.id} className="row-line"><span className={`ds-ts ${c}`}><span className="dot" />{l}</span><span className="grow"><span className="ttl" style={{ fontSize: 13 }}>{d.official_name}</span><small> · {d.category}{d.confidential ? " · confidentiel (LPD)" : ""}</small></span></div>
+        ); })}
+      </div>
+      {/* (4) Validation queue */}
+      <div className="card">
+        <div className="row"><h3>Ce qu&apos;il vous reste à valider</h3><span className="grow" /><button className="toggle" onClick={() => go("documents")}>Documents →</button> <button className="toggle" onClick={() => go("checklist")}>Checklist →</button></div>
+        <p><b>{(queue.documents || []).length}</b> document(s) en attente · <b>{queue.checklist_todo || 0}</b> step(s) checklist à faire.</p>
+      </div>
+    </>
+  );
+}
+
+/* ===================== EXTERNAL USER VIEW (W10 — client / mandataire) ===================== */
+function ExternalView({ ext, onTick, onSignOut }: { ext: any; onTick: (id: number, status: string) => void; onSignOut: () => void }) {
+  const me = ext.me || {}; const project = me.project || {}; const iv = me.intervenant || {};
+  const checklist = ext.checklist || { items: [], summary: {} };
+  const docs = ext.documents?.documents || [];
+  const isMo = iv.actor_category === "mo";
+  const intro = isMo
+    ? "Voici votre projet. Cette page rassemble : ce que nous attendons de vous, vos documents accessibles, et l'avancée — le tout côte à côte avec votre architecte."
+    : "Voici votre mandat. Cette page rassemble : ce que nous attendons de vous, vos documents accessibles, et l'avancée — côte à côte avec l'atelier.";
+  const phases = Array.from(new Set(checklist.items.map((c: any) => c.phase_code))) as string[];
+  return (
+    <div className="ws" style={{ gridTemplateColumns: "1fr" }}>
+      <main className="ws__main" style={{ maxWidth: 900, margin: "0 auto", padding: 24 }}>
+        <div className="vh" style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+          <span className="wordmark"><span className="ae">Æ</span>DIFICA</span>
+          <span className="grow" />
+          <small className="mono">{me.user?.email}</small>
+          <button className="signout" onClick={onSignOut}>Déconnexion</button>
+        </div>
+        <div className="card" style={{ marginBottom: 14 }}>
+          <h2>{project.name || project.project_id}</h2>
+          <p>{intro}</p>
+          <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
+            <span className="ds-ts is-sourced"><span className="dot" />{iv.name}{iv.organization ? ` · ${iv.organization}` : ""}</span>
+            <span className="ds-ts is-computed"><span className="dot" />{iv.role || (isMo ? "Maître d'ouvrage" : "Intervenant")}</span>
+            <span className="ds-ts is-decision"><span className="dot" />{me.phase_label || project.phase_code}</span>
+          </div>
+        </div>
+        <div className="card" style={{ marginBottom: 14 }}>
+          <div className="row"><h3>{isMo ? "Ce que vous devez fournir" : "Vos livrables"}</h3><span className="grow" /><span className="badge live"><span className="d" />{checklist.summary?.done || 0}/{checklist.summary?.total || 0} fait</span></div>
+          {checklist.items.length === 0 && <p className="spin">Rien à faire pour le moment — l&apos;atelier vous notifiera.</p>}
+          {phases.map((ph) => (
+            <div key={ph} style={{ borderTop: "1px solid var(--line)", paddingTop: 11, marginTop: 11 }}>
+              <h4 style={{ margin: "0 0 8px" }}>{checklist.items.find((c: any) => c.phase_code === ph)?.phase_label || ph}</h4>
+              {checklist.items.filter((c: any) => c.phase_code === ph).map((it: any) => (
+                <div key={it.id} className="row-line">
+                  <span className={`ds-ts ${it.status === "done" ? "is-sourced" : "is-assume"}`}><span className="dot" />{it.status === "done" ? "Fait" : "À faire"}</span>
+                  <span className="grow"><span className="ttl">{it.title}{it.is_retroactive && <small style={{ display: "inline", color: "var(--ts-assume)" }}> · à reconstituer</small>}</span></span>
+                  <button className="ds-btn" onClick={() => onTick(it.id, it.status === "done" ? "todo" : "done")}>{it.status === "done" ? "↺ Annuler" : "✓ Marquer fait"}</button>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+        <div className="card">
+          <h3>Vos documents</h3>
+          <p>Documents auxquels l&apos;atelier vous a donné accès.</p>
+          {docs.length === 0 && <p className="spin">Aucun document partagé pour l&apos;instant.</p>}
+          {docs.map((d: any) => (
+            <div key={d.id} className="row-line">
+              <span className={`ds-ts ${d.validation_level === "canonical" ? "is-sourced" : d.validation_level === "refused" ? "is-conflict" : "is-computed"}`}><span className="dot" />{d.validation_level}</span>
+              <span className="grow"><span className="ttl">{d.official_name}</span><small> · {d.category}{d.confidential ? " · confidentiel (LPD)" : ""} · accès : {d.access_level}</small></span>
+            </div>
+          ))}
+        </div>
+      </main>
+    </div>
   );
 }
 
