@@ -120,6 +120,34 @@ svg.i { fill:none; stroke:currentColor; stroke-width:1.4; stroke-linejoin:round;
 .psw .k { font-family:var(--font-mono); font-size:9px; letter-spacing:.14em; text-transform:uppercase; color:var(--mut); }
 .psw .nm { font-family:var(--font-display); font-size:16px; margin-top:3px; }
 .psw .me { font-family:var(--font-mono); font-size:10px; color:var(--mut); margin-top:4px; }
+
+/* W13 — ProjectSwitcher: click-to-open popover anchored under the button.
+   Designed to match the existing .psw card aesthetic (Datum surface-2 +
+   single ink border) while adding affordance for the dropdown. */
+.psw-wrap { position:relative; margin:14px; }
+.psw-btn { width:100%; display:flex; align-items:center; gap:10px; border:1px solid var(--ink); background:var(--surface-2); padding:11px 13px; cursor:pointer; text-align:left; }
+.psw-btn:hover { background:var(--surface); }
+.psw-cur { flex:1; min-width:0; }
+.psw-cur .k { font-family:var(--font-mono); font-size:9px; letter-spacing:.14em; text-transform:uppercase; color:var(--mut); }
+.psw-cur .nm { font-family:var(--font-display); font-size:16px; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.psw-cur .me { font-family:var(--font-mono); font-size:10px; color:var(--mut); margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.psw-caret { font-size:14px; color:var(--mut); margin-left:4px; }
+.psw-pop { position:absolute; z-index:50; top:calc(100% + 4px); left:0; right:0; background:var(--surface); border:1px solid var(--ink); padding:6px; box-shadow:0 8px 22px rgba(0,0,0,0.12); }
+.psw-search { width:100%; margin:0 0 6px; padding:6px 9px; font-size:12px; }
+.psw-list { max-height:300px; overflow-y:auto; }
+.psw-empty { padding:10px; font-family:var(--font-mono); font-size:11px; color:var(--mut); text-align:center; }
+.psw-item { width:100%; display:flex; align-items:center; gap:8px; padding:8px 10px; border:1px solid transparent; background:none; text-align:left; cursor:pointer; }
+.psw-item:hover { background:var(--surface-2); border-color:var(--line); }
+.psw-item.on { background:var(--surface-2); border-color:var(--ink); }
+.psw-item-main { flex:1; min-width:0; }
+.psw-item-nm { font-family:var(--font-display); font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.psw-item-me { font-family:var(--font-mono); font-size:10px; color:var(--mut); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.psw-check { font-size:13px; color:var(--accent); }
+.psw-sep { height:1px; background:var(--line); margin:6px 0; }
+.psw-new { width:100%; padding:9px 10px; border:1px dashed var(--ink-60); background:none; font-family:var(--font-mono); font-size:11px; letter-spacing:.06em; color:var(--ink); cursor:pointer; text-align:left; }
+.psw-new:hover { background:var(--surface-2); border-style:solid; }
+.psw-form { display:flex; flex-direction:column; gap:6px; padding:8px; }
+.psw-form .fld { margin:0; padding:6px 9px; font-size:12px; }
 .tnav { padding:4px 12px; overflow-y:auto; flex:1; }
 .tnav .grp { font-family:var(--font-mono); font-size:9px; letter-spacing:.16em; text-transform:uppercase; color:var(--mut); padding:14px 8px 6px; }
 .titem { display:flex; align-items:center; gap:10px; padding:9px 10px; border:1px solid transparent; cursor:pointer; color:var(--ink); width:100%; background:none; text-align:left; }
