@@ -110,6 +110,15 @@ export function GanttView({ tasks, onPatch }: {
     };
   }), [plotted]);
 
+  // W15 — stable content-based key so the mount effect re-runs ONLY when
+  // the actual data changed, not when the parent re-renders with a new
+  // `tasks` array reference (very common: a state change anywhere in App
+  // recreates `scoped`/`tasks` even though the data is unchanged).
+  const rowsKey = useMemo(
+    () => rows.map((r) => `${r.id}|${r.start}|${r.end}|${r.progress}|${r.dependencies}|${r.custom_class}|${r.name}`).join(";"),
+    [rows]
+  );
+
   const effectiveMode: ViewMode = viewMode === "auto" ? autoViewMode(rows) : viewMode;
 
   useEffect(() => {
@@ -192,11 +201,13 @@ export function GanttView({ tasks, onPatch }: {
       }, 80);
     })();
     return () => { cancelled = true; };
-    // W15 — onPatch deliberately NOT in deps: we use onPatchRef so the
-    // mount effect doesn't tear-down + re-mount the Gantt (and reset
-    // scrollLeft to 0) every time the parent re-renders.
+    // W15 — Deps deliberately use rowsKey (content) instead of rows
+    // (reference). `tasks` prop is a new array on every parent render
+    // (computed via filter in AtelierPilotage), which propagated into
+    // rows → useEffect → mount → cleanup → mount loop, resetting
+    // scrollLeft to 0 forever. onPatch lives in a ref for the same reason.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, effectiveMode]);
+  }, [rowsKey, effectiveMode]);
 
   if (rows.length === 0) {
     return (
