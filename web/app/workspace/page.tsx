@@ -1251,7 +1251,7 @@ function Copilote({ token, pid, ledger, onChange }: { token: string; pid: string
             <li><b>Mode <i>live</i></b> : disponible dès qu&apos;une URL est renseignée ci-dessous (ex. <code className="mono">http://localhost:19723/aedifica</code>).</li>
           </ul>
           <p style={{ marginTop: 0 }}>
-            Le bridge n&apos;est pas encore distribué publiquement — c&apos;est un add-on que l&apos;atelier installe sur la machine qui héberge Archicad. Vous pouvez explorer le flux complet sans bridge, sur le modèle replay.
+            Le bridge n&apos;est pas encore distribué publiquement — c&apos;est un add-on que l&apos;atelier installe sur la machine qui héberge Archicad. Vous pouvez explorer le flux complet sans bridge, sur le modèle replay. <a href="https://github.com/decarvalhoe/aedifica/blob/main/docs/integrations/archicad-bridge.md" target="_blank" rel="noreferrer" style={{ textDecoration: "underline", color: "var(--ink)" }}>Voir la documentation technique du bridge →</a>
           </p>
         </div>
       )}
