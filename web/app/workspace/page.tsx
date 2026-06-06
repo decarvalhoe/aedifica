@@ -890,12 +890,28 @@ function Conformite({ d, tasks, projectId, onOpenAtelierPlanning }: any) {
 }
 
 /* ===================== COPILOTE (action loop) ===================== */
+// W11.D: paramétrable au lieu d'une demande hardcodée. L'architecte saisit l'ID
+// de l'espace cible + la classification voulue (la pré-fill garde la démo
+// "AC-SPACE-101 → bureau" comme exemple, mais c'est éditable). Sans endpoint
+// Archicad renseigné, on garde un état vide honnête plutôt que de prétendre
+// qu'on a une connexion live — Etienne avait raison : "surface fake" sinon.
 function Copilote({ token, pid, ledger, onChange }: { token: string; pid: string; ledger?: any[]; onChange: () => void }) {
   const [txn, setTxn] = useState<any>(null); const [approved, setApproved] = useState(false); const [executed, setExecuted] = useState(false);
-  const [msg, setMsg] = useState(""); const [blocked, setBlocked] = useState(false); const [endpoint, setEndpoint] = useState(""); const [mode, setMode] = useState(""); const [product, setProduct] = useState<any>(null);
+  const [msg, setMsg] = useState(""); const [blocked, setBlocked] = useState(false);
+  const [endpoint, setEndpoint] = useState(""); const [mode, setMode] = useState(""); const [product, setProduct] = useState<any>(null);
+  const [opKind, setOpKind] = useState<"set_property" | "rename" | "set_category">("set_property");
+  const [target, setTarget] = useState("");      // ID de l'élément (ex. AC-SPACE-101)
+  const [propName, setPropName] = useState("Classification");
+  const [propAfter, setPropAfter] = useState(""); // valeur souhaitée
   async function dryRun() {
     setMsg(""); setBlocked(false);
-    try { const r = await api<any>(`/projects/${pid}/adapter/dry-run`, { method: "POST", token, body: { adapter_id: "archicad_json", operations: [{ op_id: "O1", kind: "set_property", target: "AC-SPACE-101", before: "", after: "bureau", undo: "restore" }], adapter_endpoint: endpoint.trim() || undefined } });
+    if (!target.trim() || !propAfter.trim()) { setMsg("Renseignez l'identifiant de l'élément Archicad ET la valeur cible avant l'aperçu."); return; }
+    try {
+      const op: any = { op_id: "O1", kind: opKind, target: target.trim(), undo: "restore" };
+      if (opKind === "set_property") { op.property = propName.trim() || "Classification"; op.after = propAfter.trim(); }
+      else if (opKind === "rename") { op.after = propAfter.trim(); }
+      else if (opKind === "set_category") { op.category = propAfter.trim(); }
+      const r = await api<any>(`/projects/${pid}/adapter/dry-run`, { method: "POST", token, body: { adapter_id: "archicad_json", operations: [op], adapter_endpoint: endpoint.trim() || undefined } });
       setTxn(r.transaction); setExecuted(false); setApproved(false); setMode(r.mode); setProduct(r.preview?.product);
       setMsg(r.mode === "live" ? `Aperçu live depuis Archicad ${r.preview?.product?.version || ""} — lecture seule.` : r.mode === "fixture_fallback" ? "Endpoint injoignable — aperçu sur le modèle replay." : "Aperçu prêt (replay). Rien n'a encore changé."); onChange();
     } catch (e: any) { setMsg(e.message); }
@@ -908,21 +924,57 @@ function Copilote({ token, pid, ledger, onChange }: { token: string; pid: string
     } catch (e: any) { setMsg(e.message); }
   }
   const s1 = !!txn;
+  const hasEndpoint = endpoint.trim().length > 0;
   return (
     <>
       <div className="vh"><div className="row"><h2>Copilote IA · maquette Archicad</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>L&apos;IA prépare une modification, vous la validez, elle l&apos;applique — tracé et réversible. <b>Rien ne change sans votre accord.</b></p></div>
-      <div className="searchrow"><input value={endpoint} onChange={(e) => setEndpoint(e.target.value)} placeholder="Endpoint Archicad JSON — http://127.0.0.1:19723 (vide = replay)" /><button onClick={dryRun}>Connecter &amp; aperçu</button></div>
-      <div className="banner">Demande : <b>« classer l&apos;espace AC-SPACE-101 en bureau »</b>{mode && <> · mode <b>{mode === "live" ? `live (${product?.version || "Archicad"})` : "replay"}</b></>}.</div>
+      {!hasEndpoint && (
+        <div className="banner warn"><b>Aucun endpoint Archicad connecté.</b> Renseignez l&apos;URL du <i>JSON bridge</i> Archicad ci-dessous (vide ⇒ mode <i>replay</i> sur le modèle de fixture seulement — utile pour comprendre le flux, pas pour modifier votre vraie maquette).</div>
+      )}
+      <div className="searchrow"><input value={endpoint} onChange={(e) => setEndpoint(e.target.value)} placeholder="Endpoint Archicad JSON — http://127.0.0.1:19723 (vide = replay)" /><button onClick={dryRun} disabled={!target.trim() || !propAfter.trim()}>Connecter &amp; aperçu</button></div>
+      <div className="card" style={{ marginTop: 8, marginBottom: 12 }}>
+        <h3>Opération à proposer à l&apos;architecte</h3>
+        <div className="g2">
+          <label className="mono" style={{ fontSize: 11, color: "var(--mut)" }}>Type
+            <select className="fld" value={opKind} onChange={(e) => setOpKind(e.target.value as any)}>
+              <option value="set_property">Modifier une propriété</option>
+              <option value="rename">Renommer un élément</option>
+              <option value="set_category">Changer la classification SIA</option>
+            </select>
+          </label>
+          <label className="mono" style={{ fontSize: 11, color: "var(--mut)" }}>Élément Archicad (ID)
+            <input className="fld" placeholder="ex. AC-SPACE-101" value={target} onChange={(e) => setTarget(e.target.value)} />
+          </label>
+          {opKind === "set_property" && (
+            <label className="mono" style={{ fontSize: 11, color: "var(--mut)" }}>Nom de propriété
+              <input className="fld" value={propName} onChange={(e) => setPropName(e.target.value)} placeholder="Classification" />
+            </label>
+          )}
+          <label className="mono" style={{ fontSize: 11, color: "var(--mut)" }}>Valeur cible
+            <input className="fld" placeholder={opKind === "set_category" ? "ex. eCH-0119:room.office" : "ex. bureau"} value={propAfter} onChange={(e) => setPropAfter(e.target.value)} />
+          </label>
+        </div>
+        {target && propAfter && (
+          <small style={{ color: "var(--mut)" }}>
+            Demande : <b>{opKind === "rename" ? `renommer « ${target} » en « ${propAfter} »` : opKind === "set_category" ? `classer « ${target} » en « ${propAfter} »` : `mettre la propriété « ${propName || "Classification"} » de « ${target} » à « ${propAfter} »`}</b>
+            {mode && <> · mode <b>{mode === "live" ? `live (${product?.version || "Archicad"})` : "replay"}</b></>}.
+          </small>
+        )}
+      </div>
       <div className="stepper">
         <div className={`step ${executed ? "done" : s1 && !executed ? "act" : ""}`}><div className="idx">Étape 1</div><div className="nm">Aperçu (simulation)</div></div>
         <div className={`step ${approved ? "done" : s1 && !approved ? "act" : ""}`}><div className="idx">Étape 2</div><div className="nm">Votre validation</div></div>
         <div className={`step ${executed ? "done act" : ""}`}><div className="idx">Étape 3</div><div className="nm">Appliqué &amp; tracé</div></div>
       </div>
-      <div className="actbar"><button className="ds-btn" onClick={dryRun}>Demander un aperçu</button><button className="ds-btn ghost" onClick={approve} disabled={!s1}>Valider l&apos;exécution</button><button className="ds-btn ghost" onClick={execute} disabled={!s1}>Appliquer à la maquette</button></div>
+      <div className="actbar">
+        <button className="ds-btn" disabled={!target.trim() || !propAfter.trim()} onClick={dryRun}>Demander un aperçu</button>
+        <button className="ds-btn ghost" onClick={approve} disabled={!s1}>Valider l&apos;exécution</button>
+        <button className="ds-btn ghost" onClick={execute} disabled={!s1}>Appliquer à la maquette</button>
+      </div>
       {msg && <div className={`banner ${blocked ? "bad" : executed ? "ok" : ""}`}>{blocked && <b>Garde-fou · </b>}{msg}</div>}
       <div className="card"><h3>Historique du projet — horodaté, signé, réversible</h3>
         {[...(ledger || [])].map((e, i) => (<div className="claim" key={i}><Trust state={e.mutating ? "conflict" : e.event_type === "approval" ? "sourced" : "computed"} label={EVENT[e.event_type] || e.event_type} /><div><div className="ttl">{human(e)}</div>{e.mutating && <small>réf. {e.ledger_id} · réversible</small>}</div></div>))}
-        {(ledger || []).length === 0 && <p className="spin">Aucune action. Commencez par « Demander un aperçu ».</p>}
+        {(ledger || []).length === 0 && <p className="spin">Aucune action. Connectez Archicad puis composez une opération ci-dessus.</p>}
       </div>
     </>
   );
@@ -1021,30 +1073,88 @@ const CAP_TS: Record<string, string> = { friction: "is-assume", observation: "is
 function Memoire({ unknowns, ledger, captures, token, pid, onAddCapture, onDelCapture }: any) {
   const [f, setF] = useState<any>({ kind: "friction", content: "", source_ref: "" });
   const [busy, setBusy] = useState("");
+  const [showCap, setShowCap] = useState(false);
   if (!unknowns) return <p className="spin">Chargement…</p>;
   const caps: any[] = captures?.captures || [];
-  const add = async () => { if (!f.content.trim()) return; setBusy("add"); try { await onAddCapture({ ...f, source_ref: f.source_ref || null }); setF({ kind: f.kind, content: "", source_ref: "" }); } catch { } finally { setBusy(""); } };
+  const add = async () => { if (!f.content.trim()) return; setBusy("add"); try { await onAddCapture({ ...f, source_ref: f.source_ref || null }); setF({ kind: f.kind, content: "", source_ref: "" }); setShowCap(false); } catch { } finally { setBusy(""); } };
   const act = async (p: Promise<any>, id: string) => { setBusy(id); try { await p; } catch { } finally { setBusy(""); } };
+  // W11.D: positionnée comme JOURNAL AUTOMATIQUE (ledger + unknowns + alertes
+  // règlement-à-l'étude captées). La capture manuelle est reléguée à un toggle
+  // secondaire — pour les cas explicites (tél client, photo chantier) — et
+  // n'est plus la vue principale qui faisait croire que c'était un bloc-notes.
+  const regAlerts = caps.filter((c) => c.kind === "regulation");
+  const ledRev = [...(ledger || [])].reverse();
   return (
     <>
-      <div className="vh"><h2>Mémoire du projet</h2><p>Tout ce que le projet sait, ignore ou a décidé — conservé et interrogeable. Captez la friction, les décisions verbales et les preuves au fil de l&apos;eau.</p></div>
-      <div className="card" style={{ marginBottom: 14 }}>
-        <h3>Capture rapide (friction · décision · photo · règlement à l&apos;étude)</h3>
-        <div className="row" style={{ gap: 8, alignItems: "stretch" }}>
-          <select className="fld" style={{ margin: 0, width: "auto" }} value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })}>{Object.entries(CAP_KIND).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
-          <input className="fld" style={{ margin: 0, flex: 1, minWidth: 160 }} placeholder="Ce que vous voulez garder en trace…" value={f.content} onChange={(e) => setF({ ...f, content: e.target.value })} onKeyDown={(e) => e.key === "Enter" && add()} />
-          <input className="fld" style={{ margin: 0, width: 150 }} placeholder="Réf / photo (URL)" value={f.source_ref} onChange={(e) => setF({ ...f, source_ref: e.target.value })} />
-          <button className="ds-btn" disabled={busy === "add" || !f.content} onClick={add}>{busy === "add" ? "…" : "Capter"}</button>
+      <div className="vh"><h2>Mémoire du projet</h2><p>Le <b>journal automatique</b> du projet : ce qu&apos;il sait, ce qu&apos;il ignore, ce qu&apos;il a décidé, et les alertes de règlement à l&apos;étude — alimenté par l&apos;activité (sources, validations, copilote). La capture manuelle existe en complément pour les choses qui n&apos;ont pas d&apos;autre place (un coup de fil, une photo chantier).</p></div>
+
+      <div className="g2">
+        <div className="card">
+          <h3>Inconnues du projet ({unknowns.length})</h3>
+          {unknowns.length === 0 && <p className="spin">Rien d&apos;identifié comme inconnu à ce stade.</p>}
+          {unknowns.map((c: any, i: number) => (
+            <div className="claim" key={"u" + i}>
+              <Trust state={c.state} />
+              <div><div className="ttl">{c.title}</div>{c.next_action && <small>{c.next_action}</small>}</div>
+            </div>
+          ))}
+        </div>
+        <div className="card">
+          <h3>Activité récente ({ledRev.length})</h3>
+          {ledRev.length === 0 && <p className="spin">Aucune action enregistrée encore.</p>}
+          {ledRev.slice(0, 10).map((e: any, i: number) => (
+            <div className="claim" key={"l" + i}>
+              <Trust state={e.mutating ? "conflict" : e.event_type === "approval" ? "sourced" : "computed"} label={EVENT[e.event_type] || e.event_type} />
+              <div><div className="ttl">{human(e)}</div></div>
+            </div>
+          ))}
         </div>
       </div>
-      <div className="g2">
-        <div className="card"><h3>Captures &amp; preuves ({caps.length})</h3>{caps.length === 0 && <p className="spin">Aucune capture. Tout ce qui se dit (tél, séance) ou se voit (chantier) se consigne ici — horodaté et attribué.</p>}{caps.map((c: any) => (
-          <div key={c.id} style={{ borderTop: "1px solid var(--line)", paddingTop: 10, marginTop: 10 }}>
-            <div className="claim" style={{ marginBottom: 0 }}><span className={`ds-ts ${CAP_TS[c.kind] || "is-unknown"}`}><span className="dot" />{CAP_KIND[c.kind] || c.kind}</span><div style={{ flex: 1 }}><div className="ttl">{c.content}</div><small>{[c.author ? "par " + c.author : null, (c.created_at || "").slice(0, 16).replace("T", " "), c.source_ref].filter(Boolean).join(" · ")}</small></div><button className="signout" style={{ padding: 0 }} onClick={() => act(onDelCapture(c.id), "d" + c.id)}>✕</button></div>
+
+      {regAlerts.length > 0 && (
+        <div className="card" style={{ marginTop: 12, borderLeft: "3px solid var(--ts-conflict)" }}>
+          <h3>Règlement à l&apos;étude ({regAlerts.length})</h3>
+          <p style={{ color: "var(--mut)" }}>Modifications réglementaires repérées qui peuvent affecter ce projet en cours.</p>
+          {regAlerts.map((c: any) => (
+            <div key={c.id} style={{ borderTop: "1px solid var(--line)", paddingTop: 8, marginTop: 8 }}>
+              <div className="claim" style={{ marginBottom: 0 }}>
+                <span className={`ds-ts ${CAP_TS.regulation || "is-conflict"}`}><span className="dot" />{CAP_KIND.regulation}</span>
+                <div style={{ flex: 1 }}><div className="ttl">{c.content}</div><small>{[c.author ? "par " + c.author : null, (c.created_at || "").slice(0, 16).replace("T", " "), c.source_ref].filter(Boolean).join(" · ")}</small></div>
+                <button className="signout" style={{ padding: 0 }} onClick={() => act(onDelCapture(c.id), "d" + c.id)}>✕</button>
+              </div>
+              {token && pid && <AttachField token={token} projectId={pid} ownerKind="capture" ownerId={c.id} label="Extrait réglementaire" />}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="card" style={{ marginTop: 12 }}>
+        <div className="row" style={{ alignItems: "baseline" }}>
+          <h3 style={{ margin: 0 }}>Captures manuelles ({caps.length - regAlerts.length})</h3>
+          <small style={{ color: "var(--mut)" }}>Friction · photo · décision verbale · … — pour ce qui n&apos;a pas d&apos;autre endroit où vivre.</small>
+          <span className="grow" />
+          <button className="toggle" onClick={() => setShowCap((v) => !v)}>{showCap ? "Annuler" : "+ Capter"}</button>
+        </div>
+        {showCap && (
+          <div className="row" style={{ gap: 8, alignItems: "stretch", marginTop: 12 }}>
+            <select className="fld" style={{ margin: 0, width: "auto" }} value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })}>{Object.entries(CAP_KIND).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+            <input className="fld" style={{ margin: 0, flex: 1, minWidth: 160 }} placeholder="Ce que vous voulez garder en trace…" value={f.content} onChange={(e) => setF({ ...f, content: e.target.value })} onKeyDown={(e) => e.key === "Enter" && add()} />
+            <input className="fld" style={{ margin: 0, width: 150 }} placeholder="Réf / photo (URL)" value={f.source_ref} onChange={(e) => setF({ ...f, source_ref: e.target.value })} />
+            <button className="ds-btn" disabled={busy === "add" || !f.content} onClick={add}>{busy === "add" ? "…" : "Capter"}</button>
+          </div>
+        )}
+        {caps.filter((c) => c.kind !== "regulation").length === 0 ? (
+          <p className="spin" style={{ marginTop: 8 }}>Aucune capture manuelle. La plupart du temps, rien à mettre ici — la mémoire du projet vit toute seule dans le journal au-dessus.</p>
+        ) : caps.filter((c) => c.kind !== "regulation").map((c: any) => (
+          <div key={c.id} style={{ borderTop: "1px solid var(--line)", paddingTop: 8, marginTop: 8 }}>
+            <div className="claim" style={{ marginBottom: 0 }}>
+              <span className={`ds-ts ${CAP_TS[c.kind] || "is-unknown"}`}><span className="dot" />{CAP_KIND[c.kind] || c.kind}</span>
+              <div style={{ flex: 1 }}><div className="ttl">{c.content}</div><small>{[c.author ? "par " + c.author : null, (c.created_at || "").slice(0, 16).replace("T", " "), c.source_ref].filter(Boolean).join(" · ")}</small></div>
+              <button className="signout" style={{ padding: 0 }} onClick={() => act(onDelCapture(c.id), "d" + c.id)}>✕</button>
+            </div>
             {token && pid && <AttachField token={token} projectId={pid} ownerKind="capture" ownerId={c.id} label="Photos / preuves" />}
           </div>
-        ))}</div>
-        <div className="card"><h3>Inconnues &amp; journal</h3>{unknowns.map((c: any, i: number) => (<div className="claim" key={"u" + i}><Trust state={c.state} /><div><div className="ttl">{c.title}</div>{c.next_action && <small>{c.next_action}</small>}</div></div>))}{[...(ledger || [])].reverse().slice(0, 6).map((e: any, i: number) => (<div className="claim" key={"l" + i}><Trust state={e.mutating ? "conflict" : e.event_type === "approval" ? "sourced" : "computed"} label={EVENT[e.event_type] || e.event_type} /><div><div className="ttl">{human(e)}</div></div></div>))}{unknowns.length === 0 && (ledger || []).length === 0 && <p className="spin">Rien encore.</p>}</div>
+        ))}
       </div>
     </>
   );
