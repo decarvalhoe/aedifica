@@ -49,7 +49,7 @@ One strong validation track is **Swiss Auto-BIM for small and mid-sized offices*
 
 On top of the stdlib engine, Aedifica now runs as a **deployed multi-tenant web app** (FastAPI + Next.js, Datum design system):
 
-- **Accounts & team** — create an atelier, sign in with an access key, invite members with roles (owner / member / viewer).
+- **Accounts & team** — create an atelier with email + password and sign in; invite members with roles (owner / member / viewer); members can also join with an invitation key.
 - **Projects** — create / open / switch projects; each carries its own parcel, memory, ledger and regulatory inputs.
 - **Per-project SIA surfaces** (all run on the project's own data; new projects start honestly empty): Terrain & zonage (live address lookup, sourced / à-vérifier), Dossier de permis (submit pieces), Risque d'opposition, Conformité, Coûts & appels d'offres, Chantier & remise.
 - **Copilote IA · maquette** — the agent→Archicad action loop: inspect → dry-run diff → scoped approval → execute → ledger. Mutation is never possible without an `adapter_execution` approval. (The Archicad adapter runs in replay; a live connection is the partner-pilot step.)

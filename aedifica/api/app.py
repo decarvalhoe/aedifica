@@ -1,9 +1,10 @@
 """FastAPI product API over the engine + SQL store (multi-tenant).
 
-Auth: bootstrap an org+owner (`POST /api/orgs`) to get a bearer token, then send
-`Authorization: Bearer <token>` on every other call. Projects are scoped to the
-caller's org; mutations require a capability (see api.auth). Errors are
-structured: HTTP status + {"detail": {"code", "message"}}.
+Auth: bootstrap an org+owner (`POST /api/orgs`, with an optional password) to get
+a bearer token; returning users exchange email + password for that token at
+`POST /api/auth/login`. Send `Authorization: Bearer <token>` on every other call.
+Projects are scoped to the caller's org; mutations require a capability (see
+api.auth). Errors are structured: HTTP status + {"detail": {"code", "message"}}.
 """
 from __future__ import annotations
 
@@ -28,12 +29,19 @@ class OrgIn(BaseModel):
     org_name: str
     user_email: str
     user_name: str = "Owner"
+    password: str = ""  # when set, the owner can sign in with email + password
+
+
+class LoginIn(BaseModel):
+    email: str
+    password: str
 
 
 class UserIn(BaseModel):
     email: str
     name: str = "Membre"
     role: str = "member"
+    password: str = ""  # when set, the member can sign in with email + password
 
 
 class RoleIn(BaseModel):
@@ -154,9 +162,21 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         session.add(org)
         session.flush()
         token = auth.new_token()
-        session.add(m.User(org_id=org.id, email=body.user_email, name=body.user_name, role="owner", api_token=token))
+        pw_hash = auth.hash_password(body.password) if body.password else None
+        session.add(m.User(org_id=org.id, email=body.user_email, name=body.user_name, role="owner", api_token=token, password_hash=pw_hash))
         session.commit()
         return {"org_id": org.id, "user_email": body.user_email, "role": "owner", "token": token}
+
+    @app.post("/api/auth/login")
+    def login(body: LoginIn, session: Session = Depends(get_session)):
+        # Email is unique per org, not globally: match the user whose password verifies.
+        for u in session.query(m.User).filter_by(email=body.email).all():
+            if auth.verify_password(body.password, u.password_hash):
+                if not u.api_token:
+                    u.api_token = auth.new_token()
+                    session.commit()
+                return {"token": u.api_token, "user_email": u.email, "role": u.role, "org_id": u.org_id}
+        raise _err(401, "BAD_CREDENTIALS", "e-mail ou mot de passe incorrect")
 
     # ---- org & team management (owner only) ------------------------------ #
     @app.get("/api/orgs/users")
@@ -173,7 +193,8 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         if session.query(m.User).filter_by(org_id=user.org_id, email=body.email).first():
             raise _err(409, "USER_EXISTS", body.email)
         token = auth.new_token()
-        u = m.User(org_id=user.org_id, email=body.email, name=body.name, role=body.role, api_token=token)
+        pw_hash = auth.hash_password(body.password) if body.password else None
+        u = m.User(org_id=user.org_id, email=body.email, name=body.name, role=body.role, api_token=token, password_hash=pw_hash)
         session.add(u)
         session.commit()
         return {"user": {"id": u.id, "email": u.email, "name": u.name, "role": u.role}, "token": token}
