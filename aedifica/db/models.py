@@ -86,6 +86,8 @@ class Project(Base):
     intervenant_groups: Mapped[list["IntervenantGroup"]] = relationship(back_populates="project", cascade="all, delete-orphan")
     intervenants: Mapped[list["Intervenant"]] = relationship(back_populates="project", cascade="all, delete-orphan")
     documents: Mapped[list["Document"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    brs_entries: Mapped[list["BrsEntry"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    checklist_items: Mapped[list["ChecklistItem"]] = relationship(back_populates="project", cascade="all, delete-orphan")
 
 
 class Source(Base):
@@ -294,6 +296,47 @@ class AccessGrant(Base):
     intervenant_id: Mapped[int | None] = mapped_column(ForeignKey("intervenant.id"), nullable=True)
     level: Mapped[str] = mapped_column(String(20), default="read")  # read | write
     document: Mapped["Document"] = relationship(back_populates="grants")
+
+
+BRS_CHANNELS = ("phone", "email", "pv", "meeting", "other")
+
+
+class BrsEntry(Base):
+    """Business Requirements Specifications — a living, sourced, attributed register of
+    the client/owner requirements that change over time. Append-only; each entry traces
+    its channel + emitter + date for the architect's legal protection (traceability)."""
+
+    __tablename__ = "brs_entry"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    content: Mapped[str] = mapped_column(Text)
+    kind: Mapped[str] = mapped_column(String(30), default="requirement")  # requirement|change|decision
+    channel: Mapped[str] = mapped_column(String(20), default="other")  # phone|email|pv|meeting|other
+    emitter_intervenant_id: Mapped[int | None] = mapped_column(ForeignKey("intervenant.id"), nullable=True)
+    emitter_label: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    source_ref: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    supersedes_id: Mapped[int | None] = mapped_column(ForeignKey("brs_entry.id"), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="active")  # active|superseded|locked
+    created_at: Mapped[_dt.datetime] = _TS()
+    project: Mapped["Project"] = relationship(back_populates="brs_entries")
+
+
+class ChecklistItem(Base):
+    """A step of the project's SIA checklist — seeded from a template per phase, then made
+    parametric by the atelier (todo/done/deferred/skipped). Retroactive items back-fill
+    earlier phases when a project is onboarded mid-process."""
+
+    __tablename__ = "checklist_item"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    phase_code: Mapped[str] = mapped_column(String(8))
+    title: Mapped[str] = mapped_column(String(300))
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="todo")  # todo|done|deferred|skipped
+    order_index: Mapped[int] = mapped_column(default=0)
+    is_retroactive: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[_dt.datetime] = _TS()
+    project: Mapped["Project"] = relationship(back_populates="checklist_items")
 
 
 # --------------------------------------------------------------------------- #

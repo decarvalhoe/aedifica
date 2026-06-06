@@ -145,6 +145,35 @@ class ValidateIn(BaseModel):
     level: str  # canonical | indicative | refused | pending
 
 
+class BrsIn(BaseModel):
+    content: str
+    kind: str = "requirement"  # requirement | change | decision
+    channel: str = "other"  # phone | email | pv | meeting | other
+    emitter_intervenant_id: int | None = None
+    emitter_label: str | None = None
+    source_ref: str | None = None
+    supersedes_id: int | None = None
+
+
+class BrsPatch(BaseModel):
+    status: str | None = None  # active | superseded | locked
+    content: str | None = None
+
+
+class ChecklistSeedIn(BaseModel):
+    entry_phase: str = "11"
+
+
+class ChecklistItemIn(BaseModel):
+    phase_code: str
+    title: str
+    description: str | None = None
+
+
+class ChecklistPatch(BaseModel):
+    status: str  # todo | done | deferred | skipped
+
+
 def _err(status: int, code: str, message: str) -> HTTPException:
     return HTTPException(status_code=status, detail={"code": code, "message": message})
 
@@ -445,6 +474,141 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
             session.delete(gr); session.commit()
         d = session.query(m.Document).filter_by(project_id=p.id, id=document_id).first()
         return {"document": _doc_dict(d) if d else None}
+
+    # ---- BRS — business requirements register (#223) ------------------------ #
+    def _brs_dict(b: m.BrsEntry, names: dict) -> dict:
+        return {"id": b.id, "content": b.content, "kind": b.kind, "channel": b.channel,
+                "emitter_intervenant_id": b.emitter_intervenant_id,
+                "emitter": names.get(b.emitter_intervenant_id) or b.emitter_label,
+                "source_ref": b.source_ref, "supersedes_id": b.supersedes_id, "status": b.status,
+                "created_at": str(b.created_at) if b.created_at else None}
+
+    @app.get("/api/projects/{project_id}/brs")
+    def list_brs(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.read")
+        p = _project(session, user, project_id)
+        rows = session.query(m.BrsEntry).filter_by(project_id=p.id).order_by(m.BrsEntry.id.desc()).all()
+        names = {i.id: i.name for i in session.query(m.Intervenant).filter_by(project_id=p.id).all()}
+        chans: dict = {}
+        for b in rows:
+            chans[b.channel] = chans.get(b.channel, 0) + 1
+        return {"entries": [_brs_dict(b, names) for b in rows],
+                "summary": {"total": len(rows), "active": sum(1 for b in rows if b.status == "active"), "by_channel": chans}}
+
+    @app.post("/api/projects/{project_id}/brs", status_code=201)
+    def add_brs(project_id: str, body: BrsIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        if body.channel not in m.BRS_CHANNELS:
+            raise _err(400, "BAD_CHANNEL", f"channel must be one of {m.BRS_CHANNELS}")
+        p = _project(session, user, project_id)
+        e = m.BrsEntry(project_id=p.id, content=body.content, kind=body.kind, channel=body.channel,
+                       emitter_intervenant_id=body.emitter_intervenant_id, emitter_label=body.emitter_label,
+                       source_ref=body.source_ref, supersedes_id=body.supersedes_id)
+        session.add(e)
+        if body.supersedes_id:
+            prev = session.query(m.BrsEntry).filter_by(project_id=p.id, id=body.supersedes_id).first()
+            if prev:
+                prev.status = "superseded"
+        session.commit()
+        names = {i.id: i.name for i in session.query(m.Intervenant).filter_by(project_id=p.id).all()}
+        return {"entry": _brs_dict(e, names)}
+
+    @app.patch("/api/projects/{project_id}/brs/{entry_id}")
+    def patch_brs(project_id: str, entry_id: int, body: BrsPatch, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        e = session.query(m.BrsEntry).filter_by(project_id=p.id, id=entry_id).first()
+        if not e:
+            raise _err(404, "BRS_NOT_FOUND", str(entry_id))
+        for k, v in body.model_dump(exclude_unset=True).items():
+            setattr(e, k, v)
+        session.commit()
+        names = {i.id: i.name for i in session.query(m.Intervenant).filter_by(project_id=p.id).all()}
+        return {"entry": _brs_dict(e, names)}
+
+    @app.delete("/api/projects/{project_id}/brs/{entry_id}")
+    def del_brs(project_id: str, entry_id: int, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        e = session.query(m.BrsEntry).filter_by(project_id=p.id, id=entry_id).first()
+        if not e:
+            raise _err(404, "BRS_NOT_FOUND", str(entry_id))
+        session.delete(e); session.commit()
+        return {"deleted": entry_id}
+
+    # ---- parametric SIA checklist (#221) ------------------------------------ #
+    def _ci_dict(c: m.ChecklistItem) -> dict:
+        return {"id": c.id, "phase_code": c.phase_code, "title": c.title, "description": c.description,
+                "status": c.status, "order_index": c.order_index, "is_retroactive": c.is_retroactive}
+
+    @app.get("/api/projects/{project_id}/checklist")
+    def list_checklist(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.read")
+        p = _project(session, user, project_id)
+        items = session.query(m.ChecklistItem).filter_by(project_id=p.id).order_by(m.ChecklistItem.order_index).all()
+        by_status: dict = {s: 0 for s in ("todo", "done", "deferred", "skipped")}
+        for c in items:
+            by_status[c.status] = by_status.get(c.status, 0) + 1
+        return {"items": [_ci_dict(c) for c in items],
+                "summary": {"total": len(items), "seeded": len(items) > 0,
+                            "retroactive": sum(1 for c in items if c.is_retroactive),
+                            "by_status": by_status}}
+
+    @app.post("/api/projects/{project_id}/checklist/seed", status_code=201)
+    def seed_checklist(project_id: str, body: ChecklistSeedIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        if session.query(m.ChecklistItem).filter_by(project_id=p.id).count():
+            raise _err(409, "ALREADY_SEEDED", "checklist already seeded for this project")
+        from . import sia_checklist
+        for r in sia_checklist.seed_rows(body.entry_phase):
+            session.add(m.ChecklistItem(project_id=p.id, **r))
+        session.commit()
+        items = session.query(m.ChecklistItem).filter_by(project_id=p.id).order_by(m.ChecklistItem.order_index).all()
+        return {"items": [_ci_dict(c) for c in items], "seeded": len(items)}
+
+    @app.post("/api/projects/{project_id}/checklist", status_code=201)
+    def add_checklist_item(project_id: str, body: ChecklistItemIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        nxt = (session.query(m.ChecklistItem).filter_by(project_id=p.id).count()) + 100
+        c = m.ChecklistItem(project_id=p.id, phase_code=body.phase_code, title=body.title, description=body.description, order_index=nxt)
+        session.add(c); session.commit()
+        return {"item": _ci_dict(c)}
+
+    @app.patch("/api/projects/{project_id}/checklist/{item_id}")
+    def patch_checklist_item(project_id: str, item_id: int, body: ChecklistPatch, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        if body.status not in ("todo", "done", "deferred", "skipped"):
+            raise _err(400, "BAD_STATUS", "status must be todo|done|deferred|skipped")
+        p = _project(session, user, project_id)
+        c = session.query(m.ChecklistItem).filter_by(project_id=p.id, id=item_id).first()
+        if not c:
+            raise _err(404, "ITEM_NOT_FOUND", str(item_id))
+        c.status = body.status
+        session.commit()
+        return {"item": _ci_dict(c)}
+
+    @app.delete("/api/projects/{project_id}/checklist/{item_id}")
+    def del_checklist_item(project_id: str, item_id: int, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        c = session.query(m.ChecklistItem).filter_by(project_id=p.id, id=item_id).first()
+        if not c:
+            raise _err(404, "ITEM_NOT_FOUND", str(item_id))
+        session.delete(c); session.commit()
+        return {"deleted": item_id}
+
+    # ---- validation queue / "à valider" (#222) ------------------------------ #
+    @app.get("/api/projects/{project_id}/to-validate")
+    def to_validate(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.read")
+        p = _project(session, user, project_id)
+        pending_docs = session.query(m.Document).filter_by(project_id=p.id, validation_level="pending").all()
+        todo = session.query(m.ChecklistItem).filter_by(project_id=p.id, status="todo").count()
+        retro_todo = session.query(m.ChecklistItem).filter_by(project_id=p.id, status="todo", is_retroactive=True).count()
+        return {"pending_documents": [{"id": d.id, "official_name": d.official_name} for d in pending_docs],
+                "counts": {"documents": len(pending_docs), "checklist_todo": todo, "checklist_retroactive_todo": retro_todo}}
 
     @app.get("/api/projects/{project_id}/claims")
     def project_claims(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):

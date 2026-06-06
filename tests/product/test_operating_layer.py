@@ -78,3 +78,49 @@ def test_write_requires_capability(client, engine):
     assert client.get("/api/projects/VP/intervenants", headers=h).status_code == 200
     r = client.post("/api/projects/VP/intervenant-groups", json={"name": "X"}, headers=h)
     assert r.status_code == 403 and r.json()["detail"]["code"] == "FORBIDDEN"
+
+
+def test_brs_register_sourced_attributed_versioned(client, owner):
+    h = owner["headers"]
+    pid = _project(client, h)
+    e1 = client.post(f"/api/projects/{pid}/brs",
+                     json={"content": "Ajouter un garage", "channel": "phone", "emitter_label": "M. Client"}, headers=h).json()["entry"]
+    assert e1["channel"] == "phone" and e1["emitter"] == "M. Client" and e1["status"] == "active"
+    # a later entry supersedes the first (requirements evolve)
+    client.post(f"/api/projects/{pid}/brs",
+                json={"content": "Finalement un carport", "channel": "email", "supersedes_id": e1["id"]}, headers=h)
+    lst = client.get(f"/api/projects/{pid}/brs", headers=h).json()
+    assert lst["summary"]["total"] == 2 and lst["summary"]["by_channel"]["phone"] == 1
+    assert next(x for x in lst["entries"] if x["id"] == e1["id"])["status"] == "superseded"
+    # invalid channel rejected
+    assert client.post(f"/api/projects/{pid}/brs", json={"content": "x", "channel": "telepathy"}, headers=h).status_code == 400
+    # lock a baseline
+    locked = client.patch(f"/api/projects/{pid}/brs/{e1['id']}", json={"status": "locked"}, headers=h).json()["entry"]
+    assert locked["status"] == "locked"
+
+
+def test_checklist_seed_retroactive_and_parametric(client, owner):
+    h = owner["headers"]
+    pid = _project(client, h)
+    # onboard the project at phase 33 → earlier-phase steps are flagged retroactive
+    seeded = client.post(f"/api/projects/{pid}/checklist/seed", json={"entry_phase": "33"}, headers=h).json()
+    assert seeded["seeded"] > 0
+    cl = client.get(f"/api/projects/{pid}/checklist", headers=h).json()
+    assert cl["summary"]["seeded"] and cl["summary"]["retroactive"] > 0
+    p11 = next(i for i in cl["items"] if i["phase_code"] == "11")
+    p41 = next(i for i in cl["items"] if i["phase_code"] == "41")
+    assert p11["is_retroactive"] and not p41["is_retroactive"]
+    # re-seed is rejected
+    assert client.post(f"/api/projects/{pid}/checklist/seed", json={"entry_phase": "11"}, headers=h).status_code == 409
+    # a step is parametric: todo -> done; bad status rejected
+    assert client.patch(f"/api/projects/{pid}/checklist/{p11['id']}", json={"status": "done"}, headers=h).json()["item"]["status"] == "done"
+    assert client.patch(f"/api/projects/{pid}/checklist/{p41['id']}", json={"status": "bogus"}, headers=h).status_code == 400
+
+
+def test_to_validate_queue(client, owner):
+    h = owner["headers"]
+    pid = _project(client, h)
+    client.post(f"/api/projects/{pid}/documents", json={"official_name": "A valider"}, headers=h)  # pending
+    client.post(f"/api/projects/{pid}/checklist/seed", json={"entry_phase": "11"}, headers=h)
+    tv = client.get(f"/api/projects/{pid}/to-validate", headers=h).json()
+    assert tv["counts"]["documents"] == 1 and tv["counts"]["checklist_todo"] > 0

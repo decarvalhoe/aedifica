@@ -14,14 +14,16 @@ const PHASES: [string, string][] = [
 const phaseIndex = (code?: string) => { const i = PHASES.findIndex((p) => p[0] === code); return i < 0 ? 0 : i; };
 const phaseLabel = (code?: string) => { const p = PHASES.find((x) => x[0] === code); return p ? `Phase ${p[0]} · ${p[1]}` : "Phase 0 · Intake"; };
 
-type View = "dashboard" | "terrain" | "intervenants" | "documents" | "permis" | "opposition" | "conformite" | "copilote" | "memoire" | "couts" | "chantier" | "equipe";
+type View = "dashboard" | "terrain" | "checklist" | "intervenants" | "documents" | "brs" | "permis" | "opposition" | "conformite" | "copilote" | "memoire" | "couts" | "chantier" | "equipe";
 const NAV: { id: View; lb: string; ico: string; ph?: string; grp: string }[] = [
   { id: "dashboard", lb: "Tableau de bord", ico: "grid", grp: "Pilotage" },
+  { id: "checklist", lb: "Checklist SIA", ico: "check", grp: "Pilotage" },
   { id: "terrain", lb: "Terrain & zonage", ico: "pin", ph: "0–11", grp: "Pilotage" },
   { id: "copilote", lb: "Copilote · maquette", ico: "spark", ph: "32", grp: "Pilotage" },
   { id: "memoire", lb: "Mémoire", ico: "clock", ph: "6", grp: "Pilotage" },
   { id: "intervenants", lb: "Intervenants", ico: "users", ph: "0", grp: "Coordination" },
   { id: "documents", lb: "Documents & sources", ico: "doc", ph: "0–33", grp: "Coordination" },
+  { id: "brs", lb: "Exigences (BRS)", ico: "shield", grp: "Coordination" },
   { id: "permis", lb: "Dossier de permis", ico: "doc", ph: "33", grp: "Dossier réglementaire" },
   { id: "opposition", lb: "Risque d'opposition", ico: "shield", ph: "33", grp: "Dossier réglementaire" },
   { id: "conformite", lb: "Conformité", ico: "check", ph: "33", grp: "Dossier réglementaire" },
@@ -180,14 +182,26 @@ export default function App() {
   async function loadAll(p: Project, t: string) {
     const pid = p.project_id; const g = (path: string) => api<any>(`/projects/${pid}${path}`, { token: t });
     const sup = api<any>(`/communes/${p.jurisdiction.commune}/${p.jurisdiction.canton}/support`, { token: t }).then((r) => r.support).catch(() => null);
-    const [claims, permit, opposition, compliance, cost, site, ledger, next, unknowns, support, interv, docs] = await Promise.all([
-      g("/claims"), g("/permit"), g("/opposition"), g("/compliance"), g("/cost"), g("/site"), g("/ledger"), g("/next-step"), g("/memory/unknowns"), sup, g("/intervenants"), g("/documents"),
+    const [claims, permit, opposition, compliance, cost, site, ledger, next, unknowns, support, interv, docs, checklist, brs, toval] = await Promise.all([
+      g("/claims"), g("/permit"), g("/opposition"), g("/compliance"), g("/cost"), g("/site"), g("/ledger"), g("/next-step"), g("/memory/unknowns"), sup, g("/intervenants"), g("/documents"), g("/checklist"), g("/brs"), g("/to-validate"),
     ]);
-    setD({ claims: claims.claims, permit: permit.permit, opposition: opposition.opposition, compliance: compliance.compliance, cost: cost.cost, site: site.site, ledger: ledger.ledger, next: next.steps, unknowns: unknowns.unknowns, support, intervenants: interv, documents: docs.documents, docSummary: docs.summary });
+    setD({ claims: claims.claims, permit: permit.permit, opposition: opposition.opposition, compliance: compliance.compliance, cost: cost.cost, site: site.site, ledger: ledger.ledger, next: next.steps, unknowns: unknowns.unknowns, support, intervenants: interv, documents: docs.documents, docSummary: docs.summary, checklist, brs, toValidate: toval });
   }
   async function refreshInterv() { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/intervenants`, { token: token! }); setD((x) => ({ ...x, intervenants: r })); }
-  async function refreshDocs() { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/documents`, { token: token! }); setD((x) => ({ ...x, documents: r.documents, docSummary: r.summary })); }
+  async function refreshDocs() { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/documents`, { token: token! }); setD((x) => ({ ...x, documents: r.documents, docSummary: r.summary })); await refreshToVal(); }
+  async function refreshChecklist() { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/checklist`, { token: token! }); setD((x) => ({ ...x, checklist: r })); await refreshToVal(); }
+  async function refreshBrs() { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/brs`, { token: token! }); setD((x) => ({ ...x, brs: r })); }
+  async function refreshToVal() { if (!active) return; const r = await api<any>(`/projects/${active.project_id}/to-validate`, { token: token! }); setD((x) => ({ ...x, toValidate: r })); }
   async function api2(path: string, body?: any, method = "POST") { return api<any>(`/projects/${active!.project_id}${path}`, { method, token: token!, body }); }
+  async function seedChecklist(entry_phase: string) { await api2("/checklist/seed", { entry_phase }); await refreshChecklist(); }
+  async function patchChecklist(id: number, status: string) { await api2(`/checklist/${id}`, { status }, "PATCH"); await refreshChecklist(); }
+  async function addChecklistItem(b: any) { await api2("/checklist", b); await refreshChecklist(); }
+  async function delChecklistItem(id: number) { await api2(`/checklist/${id}`, undefined, "DELETE"); await refreshChecklist(); }
+  async function addBrs(b: any) { await api2("/brs", b); await refreshBrs(); }
+  async function patchBrs(id: number, b: any) { await api2(`/brs/${id}`, b, "PATCH"); await refreshBrs(); }
+  async function delBrs(id: number) { await api2(`/brs/${id}`, undefined, "DELETE"); await refreshBrs(); }
+  async function addGrant(docId: number, b: any) { await api2(`/documents/${docId}/grants`, b); await refreshDocs(); }
+  async function revokeGrant(docId: number, gid: number) { await api2(`/documents/${docId}/grants/${gid}`, undefined, "DELETE"); await refreshDocs(); }
   async function addGroup(name: string, kind: string) { await api2("/intervenant-groups", { name, kind }); await refreshInterv(); }
   async function delGroup(id: number) { await api2(`/intervenant-groups/${id}`, undefined, "DELETE"); await refreshInterv(); }
   async function addIntervenant(b: any) { await api2("/intervenants", b); await refreshInterv(); }
@@ -316,9 +330,11 @@ export default function App() {
         <div className="ws__view">
           {flash && <div className={`banner ${flash.kind}`} style={{ display: "flex", alignItems: "center", gap: 12 }}><span style={{ flex: 1 }}>{flash.text}</span><button className="toggle" onClick={() => setFlash(null)}>Compris</button></div>}
           {view === "dashboard" && <Dashboard d={d} project={active} go={setView} />}
+          {view === "checklist" && <Checklist data={d.checklist} entryPhase={active.phase_code} onSeed={seedChecklist} onPatch={patchChecklist} onAdd={addChecklistItem} onDel={delChecklistItem} />}
           {view === "terrain" && <Terrain claims={d.claims} mode={d.intakeMode} support={d.support} commune={j.commune} initialQuery={d.pendingQuery} onLookup={lookup} onRequest={requestCommune} />}
           {view === "intervenants" && <Intervenants data={d.intervenants} onAddGroup={addGroup} onDelGroup={delGroup} onAdd={addIntervenant} onPatch={patchIntervenant} onDel={delIntervenant} />}
-          {view === "documents" && <Documents docs={d.documents} summary={d.docSummary} onAdd={addDocument} onValidate={validateDocument} onPatch={patchDocument} onDel={delDocument} go={setView} />}
+          {view === "documents" && <Documents docs={d.documents} summary={d.docSummary} intervenants={d.intervenants} onAdd={addDocument} onValidate={validateDocument} onPatch={patchDocument} onDel={delDocument} onGrant={addGrant} onRevoke={revokeGrant} />}
+          {view === "brs" && <Brs data={d.brs} intervenants={d.intervenants} onAdd={addBrs} onPatch={patchBrs} onDel={delBrs} />}
           {view === "permis" && <Permis d={d.permit} onSubmit={submitPermit} />}
           {view === "opposition" && <Opposition d={d.opposition} />}
           {view === "conformite" && <Conformite d={d.compliance} />}
@@ -464,6 +480,13 @@ function Dashboard({ d, project, go }: { d: any; project: Project; go: (v: View)
     <>
       <div className="vh"><div className="row"><h2>{phaseLabel(project.phase_code)}</h2><span className="badge live"><span className="d" />Opérationnel</span></div>
         <p>L&apos;état du projet en un coup d&apos;œil : ce qui est fiable, ce qu&apos;il faut traiter ensuite, et les quick-wins de cette phase.</p></div>
+      {d.toValidate && (d.toValidate.counts.documents + d.toValidate.counts.checklist_todo) > 0 && (
+        <div className="banner warn" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <b>À valider</b>
+          {d.toValidate.counts.documents > 0 && <button className="toggle" onClick={() => go("documents")}>{d.toValidate.counts.documents} document(s)</button>}
+          {d.toValidate.counts.checklist_todo > 0 && <button className="toggle" onClick={() => go("checklist")}>{d.toValidate.counts.checklist_todo} step(s) à faire{d.toValidate.counts.checklist_retroactive_todo > 0 ? ` · ${d.toValidate.counts.checklist_retroactive_todo} rétroactif` : ""}</button>}
+        </div>
+      )}
       <div className="next">
         <div className="h"><span className="t">Prochain pas</span></div>
         {(d.next || []).slice(0, 4).map((s: any, i: number) => (
@@ -710,16 +733,22 @@ function Intervenants({ data, onAddGroup, onDelGroup, onAdd, onDel }: any) {
 
 /* ===================== DOCUMENTS & SOURCES (W9) ===================== */
 const VLEVEL: Record<string, [string, string]> = { canonical: ["is-sourced", "Canonique"], indicative: ["is-computed", "Indicatif"], refused: ["is-conflict", "Refusé"], pending: ["is-unknown", "À valider"] };
-function Documents({ docs, summary, onAdd, onValidate, onPatch, onDel, go }: any) {
+function Documents({ docs, summary, intervenants, onAdd, onValidate, onPatch, onDel, onGrant, onRevoke }: any) {
   const [f, setF] = useState<any>({ official_name: "", category: "general", source: "manual", confidential: false });
   const [busy, setBusy] = useState("");
+  const [grantFor, setGrantFor] = useState<number | null>(null);
+  const [grantSel, setGrantSel] = useState("");
   if (!docs) return <p className="spin">Chargement…</p>;
+  const groups: any[] = intervenants?.groups || []; const people: any[] = intervenants?.people || [];
+  const gName = (id: number) => groups.find((g) => g.id === id)?.name || `groupe ${id}`;
+  const pName = (id: number) => people.find((p) => p.id === id)?.name || `personne ${id}`;
   const submit = async () => { if (!f.official_name.trim()) return; setBusy("add"); try { await onAdd(f); setF({ official_name: "", category: "general", source: "manual", confidential: false }); } catch { } finally { setBusy(""); } };
   const act = async (p: Promise<any>, id: string) => { setBusy(id); try { await p; } catch { } finally { setBusy(""); } };
+  const grant = async (docId: number) => { if (!grantSel) return; const [t, id] = grantSel.split(":"); setBusy("g" + docId); try { await onGrant(docId, t === "g" ? { group_id: Number(id) } : { intervenant_id: Number(id) }); setGrantFor(null); setGrantSel(""); } catch { } finally { setBusy(""); } };
   const s = summary || { total: 0, pending: 0, by_level: {} };
   return (
     <>
-      <div className="vh"><div className="row"><h2>Documents &amp; sources</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>La curation des sources du projet : import + versioning, validation par l&apos;architecte (canonique / indicatif / refusé), marquage confidentiel (LPD). « Sourcé ou inconnu — jamais inventé. »</p></div>
+      <div className="vh"><div className="row"><h2>Documents &amp; sources</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>La curation des sources du projet : import + versioning, validation par l&apos;architecte (canonique / indicatif / refusé), marquage confidentiel (LPD) et accès par intervenant. « Sourcé ou inconnu — jamais inventé. »</p></div>
       {s.pending > 0 && <div className="banner warn"><b>{s.pending}</b> document(s) à valider.</div>}
       <div className="card" style={{ marginBottom: 14 }}>
         <h3>Ajouter / injecter une source</h3>
@@ -737,16 +766,125 @@ function Documents({ docs, summary, onAdd, onValidate, onPatch, onDel, go }: any
         <h3>Sources du projet ({s.total})</h3>
         {docs.length === 0 && <p className="spin">Aucun document. Ajoutez ou injectez une source ci-dessus.</p>}
         {docs.map((dd: any) => { const [c, l] = VLEVEL[dd.validation_level] || ["is-unknown", dd.validation_level]; return (
-          <div className="row-line" key={dd.id}>
-            <span className={`ds-ts ${c}`}><span className="dot" />{l}</span>
-            <span className="grow"><span className="ttl">{dd.official_name}{dd.confidential && <small style={{ display: "inline", color: "var(--ts-conflict)" }}> · confidentiel</small>}</span><small>{[dd.category, dd.latest, dd.validated_by ? `validé par ${dd.validated_by}` : null].filter(Boolean).join(" · ")}</small></span>
-            <span className="row" style={{ gap: 6 }}>
-              <button className="toggle" disabled={busy === `v${dd.id}`} onClick={() => act(onValidate(dd.id, "canonical"), `v${dd.id}`)}>Canonique</button>
-              <button className="toggle" onClick={() => act(onValidate(dd.id, "indicative"), `v${dd.id}`)}>Indicatif</button>
-              <button className="toggle" onClick={() => act(onValidate(dd.id, "refused"), `v${dd.id}`)}>Refusé</button>
-              <button className="toggle" onClick={() => act(onPatch(dd.id, { confidential: !dd.confidential }), `c${dd.id}`)}>{dd.confidential ? "Rendre public" : "Confidentiel"}</button>
-              <button className="signout" style={{ padding: 0 }} onClick={() => act(onDel(dd.id), `x${dd.id}`)}>✕</button>
-            </span>
+          <div key={dd.id} style={{ borderTop: "1px solid var(--line)", paddingTop: 11, marginTop: 11 }}>
+            <div className="row-line" style={{ border: 0, padding: 0 }}>
+              <span className={`ds-ts ${c}`}><span className="dot" />{l}</span>
+              <span className="grow"><span className="ttl">{dd.official_name}{dd.confidential && <small style={{ display: "inline", color: "var(--ts-conflict)" }}> · confidentiel</small>}</span><small>{[dd.category, dd.latest, dd.validated_by ? `validé par ${dd.validated_by}` : null].filter(Boolean).join(" · ")}</small></span>
+              <span className="row" style={{ gap: 6 }}>
+                <button className="toggle" disabled={busy === `v${dd.id}`} onClick={() => act(onValidate(dd.id, "canonical"), `v${dd.id}`)}>Canonique</button>
+                <button className="toggle" onClick={() => act(onValidate(dd.id, "indicative"), `v${dd.id}`)}>Indicatif</button>
+                <button className="toggle" onClick={() => act(onValidate(dd.id, "refused"), `v${dd.id}`)}>Refusé</button>
+                <button className="toggle" onClick={() => act(onPatch(dd.id, { confidential: !dd.confidential }), `c${dd.id}`)}>{dd.confidential ? "Rendre public" : "Confidentiel"}</button>
+                <button className="signout" style={{ padding: 0 }} onClick={() => act(onDel(dd.id), `x${dd.id}`)}>✕</button>
+              </span>
+            </div>
+            <div className="row" style={{ gap: 6, marginTop: 7, flexWrap: "wrap" }}>
+              <span className="mono" style={{ fontSize: 10 }}>Accès :</span>
+              {(dd.grants || []).length === 0 && <span className="mono" style={{ fontSize: 10, color: dd.confidential ? "var(--ts-conflict)" : "var(--mut)" }}>{dd.confidential ? "confidentiel — restreint" : "aucun (atelier seul)"}</span>}
+              {(dd.grants || []).map((gr: any) => (
+                <span key={gr.id} className="chip" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>{gr.group_id ? gName(gr.group_id) : pName(gr.intervenant_id)}<button className="signout" style={{ padding: 0 }} onClick={() => act(onRevoke(dd.id, gr.id), `r${gr.id}`)}>✕</button></span>
+              ))}
+              {grantFor === dd.id ? (
+                <span className="row" style={{ gap: 4 }}>
+                  <select className="fld" style={{ margin: 0, padding: "4px 8px", width: "auto" }} value={grantSel} onChange={(e) => setGrantSel(e.target.value)}>
+                    <option value="">— qui ? —</option>
+                    {groups.map((g) => <option key={"g" + g.id} value={"g:" + g.id}>Groupe · {g.name}</option>)}
+                    {people.map((p) => <option key={"p" + p.id} value={"p:" + p.id}>{p.name}</option>)}
+                  </select>
+                  <button className="toggle" disabled={!grantSel} onClick={() => grant(dd.id)}>OK</button>
+                  <button className="signout" style={{ padding: 0 }} onClick={() => setGrantFor(null)}>annuler</button>
+                </span>
+              ) : <button className="toggle" style={{ padding: "3px 8px" }} onClick={() => { setGrantFor(dd.id); setGrantSel(""); }}>+ accès</button>}
+            </div>
+          </div>
+        ); })}
+      </div>
+    </>
+  );
+}
+
+/* ===================== CHECKLIST SIA (W9 #221) ===================== */
+const SIA_PHASE_FR: Record<string, string> = { "11": "1 · Définition des objectifs", "21": "2 · Études préliminaires", "22": "2 · Choix des mandataires", "31": "3.31 · Avant-projet", "32": "3.32 · Projet de l'ouvrage", "33": "3.33 · Autorisation / enquête", "41": "4.41 · Appel d'offres", "51": "5.51 · Projet d'exécution", "52": "5.52 · Chantier", "53": "5.53 · Mise en service", "61": "6 · Exploitation" };
+const CSTATUS: Record<string, [string, string]> = { done: ["is-sourced", "Fait"], todo: ["is-unknown", "À faire"], deferred: ["is-assume", "Plus tard"], skipped: ["is-computed", "Inutile"] };
+function Checklist({ data, entryPhase, onSeed, onPatch }: any) {
+  const valid = /^(11|21|22|31|32|33|41|51|52|53|61)$/;
+  const [phase, setPhase] = useState(valid.test(entryPhase || "") ? entryPhase : "11");
+  const [busy, setBusy] = useState("");
+  if (!data) return <p className="spin">Chargement…</p>;
+  const items: any[] = data.items || []; const s = data.summary || {};
+  const seed = async () => { setBusy("seed"); try { await onSeed(phase); } catch { } finally { setBusy(""); } };
+  const set = async (id: number, status: string) => { setBusy("i" + id); try { await onPatch(id, status); } catch { } finally { setBusy(""); } };
+  if (!s.seeded) {
+    return (
+      <>
+        <div className="vh"><h2>Checklist SIA</h2><p>Les steps du mandat, dérivés de la norme SIA — déjà classés dans l&apos;ordre. Vous les activez / différez / désactivez selon le projet (pas de step imposé).</p></div>
+        <div className="placeholder"><h4>Checklist non initialisée</h4><p>Initialisez la checklist depuis le gabarit SIA. Choisissez la <b>phase d&apos;entrée</b> du projet : les steps des phases antérieures seront marqués « rétroactif » (à reconstituer pour un projet repris en cours).</p>
+          <div className="actbar" style={{ justifyContent: "center", marginTop: 14 }}>
+            <select className="fld" style={{ margin: 0, width: "auto" }} value={phase} onChange={(e) => setPhase(e.target.value)}>{Object.entries(SIA_PHASE_FR).map(([v, lb]) => <option key={v} value={v}>{lb}</option>)}</select>
+            <button className="ds-btn" disabled={busy === "seed"} onClick={seed}>{busy === "seed" ? "…" : "Initialiser la checklist"}</button>
+          </div>
+        </div>
+      </>
+    );
+  }
+  const done = (s.by_status?.done) || 0;
+  const phases = items.map((i) => i.phase_code).filter((v, idx, a) => a.indexOf(v) === idx);
+  return (
+    <>
+      <div className="vh"><div className="row"><h2>Checklist SIA</h2><span className="badge live"><span className="d" />{done}/{s.total} fait</span></div><p>Les steps réels du projet.{s.retroactive > 0 && <> <b>{s.retroactive} step(s) rétroactif(s)</b> à reconstituer (projet repris en cours).</>}</p></div>
+      {phases.map((ph) => (
+        <div className="card" key={ph} style={{ marginBottom: 12 }}>
+          <h3>{SIA_PHASE_FR[ph] || ph}</h3>
+          {items.filter((i) => i.phase_code === ph).map((it) => { const [c, l] = CSTATUS[it.status] || ["is-unknown", it.status]; return (
+            <div className="row-line" key={it.id}>
+              <span className={`ds-ts ${c}`}><span className="dot" />{l}</span>
+              <span className="grow"><span className="ttl">{it.title}{it.is_retroactive && <small style={{ display: "inline", color: "var(--ts-assume)" }}> · rétroactif</small>}</span></span>
+              <span className="row" style={{ gap: 6 }}>
+                <button className="toggle" disabled={busy === `i${it.id}`} onClick={() => set(it.id, "done")}>Fait</button>
+                <button className="toggle" onClick={() => set(it.id, "todo")}>À faire</button>
+                <button className="toggle" onClick={() => set(it.id, "deferred")}>Plus tard</button>
+                <button className="toggle" onClick={() => set(it.id, "skipped")}>Inutile</button>
+              </span>
+            </div>
+          ); })}
+        </div>
+      ))}
+    </>
+  );
+}
+
+/* ===================== EXIGENCES · BRS (W9 #223) ===================== */
+const BRS_CHAN: Record<string, string> = { phone: "Téléphone", email: "E-mail", pv: "PV", meeting: "Séance", other: "Autre" };
+const BRS_KIND: Record<string, string> = { requirement: "Exigence", change: "Changement", decision: "Décision" };
+const BRS_STATUS: Record<string, [string, string]> = { active: ["is-sourced", "Actif"], superseded: ["is-computed", "Remplacé"], locked: ["is-decision", "Verrouillé"] };
+function Brs({ data, intervenants, onAdd, onPatch, onDel }: any) {
+  const [f, setF] = useState<any>({ content: "", kind: "requirement", channel: "phone", emitter_intervenant_id: "", source_ref: "" });
+  const [busy, setBusy] = useState("");
+  if (!data) return <p className="spin">Chargement…</p>;
+  const entries: any[] = data.entries || []; const s = data.summary || {};
+  const people: any[] = intervenants?.people || [];
+  const submit = async () => { if (!f.content.trim()) return; setBusy("add"); try { await onAdd({ ...f, emitter_intervenant_id: f.emitter_intervenant_id ? Number(f.emitter_intervenant_id) : null }); setF({ content: "", kind: f.kind, channel: f.channel, emitter_intervenant_id: f.emitter_intervenant_id, source_ref: "" }); } catch { } finally { setBusy(""); } };
+  const act = async (p: Promise<any>, id: string) => { setBusy(id); try { await p; } catch { } finally { setBusy(""); } };
+  return (
+    <>
+      <div className="vh"><div className="row"><h2>Exigences · BRS</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p><b>Business Requirements Specifications</b> — le registre vivant des exigences du client / maître d&apos;ouvrage, qui changent en permanence. Chaque entrée est <b>sourcée</b> (canal), <b>attribuée</b> (émetteur) et <b>horodatée</b> : votre traçabilité pour vous protéger.</p></div>
+      <div className="card" style={{ marginBottom: 14 }}>
+        <h3>Consigner une exigence / un changement</h3>
+        <textarea className="fld" style={{ minHeight: 64, resize: "vertical", width: "100%" }} placeholder="Ce que le client / le maître d'ouvrage a demandé ou décidé…" value={f.content} onChange={(e) => setF({ ...f, content: e.target.value })} />
+        <div className="g2">
+          <select className="fld" value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })}>{Object.entries(BRS_KIND).map(([v, lb]) => <option key={v} value={v}>{lb}</option>)}</select>
+          <select className="fld" value={f.channel} onChange={(e) => setF({ ...f, channel: e.target.value })}>{Object.entries(BRS_CHAN).map(([v, lb]) => <option key={v} value={v}>Canal : {lb}</option>)}</select>
+          <select className="fld" value={f.emitter_intervenant_id} onChange={(e) => setF({ ...f, emitter_intervenant_id: e.target.value })}><option value="">— émetteur —</option>{people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+          <input className="fld" placeholder="Référence / pièce (facultatif)" value={f.source_ref} onChange={(e) => setF({ ...f, source_ref: e.target.value })} />
+        </div>
+        <div className="actbar"><span style={{ marginLeft: "auto" }} /><button className="ds-btn" disabled={busy === "add" || !f.content} onClick={submit}>{busy === "add" ? "…" : "Consigner"}</button></div>
+      </div>
+      <div className="card"><h3>Registre des exigences ({s.total || 0})</h3>
+        {entries.length === 0 && <p className="spin">Aucune exigence consignée. La première entrée crée la base vivante.</p>}
+        {entries.map((e: any) => { const [c, l] = BRS_STATUS[e.status] || ["is-unknown", e.status]; return (
+          <div className="claim" key={e.id}><span className={`ds-ts ${c}`}><span className="dot" />{l}</span>
+            <div style={{ flex: 1 }}><div className="ttl">{e.content}</div><small>{[BRS_KIND[e.kind] || e.kind, "canal : " + (BRS_CHAN[e.channel] || e.channel), e.emitter ? "par " + e.emitter : null, (e.created_at || "").slice(0, 16).replace("T", " "), e.source_ref].filter(Boolean).join(" · ")}</small></div>
+            <span className="row" style={{ gap: 6 }}>{e.status !== "locked" && <button className="toggle" disabled={busy === `l${e.id}`} onClick={() => act(onPatch(e.id, { status: "locked" }), `l${e.id}`)}>Verrouiller</button>}<button className="signout" style={{ padding: 0 }} onClick={() => act(onDel(e.id), `d${e.id}`)}>✕</button></span>
           </div>
         ); })}
       </div>
