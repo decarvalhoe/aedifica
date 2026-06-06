@@ -1,5 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
 
+// W13: register lands DIRECTLY in the unified workspace — the seeded
+// reference project is auto-selected and the SIA phase rail is visible
+// immediately. No intermediate "Vos projets" heading.
 async function register(page: Page, org: string, email: string) {
   await page.goto("/workspace");
   await page.getByRole("button", { name: "Créer un atelier" }).click();
@@ -7,15 +10,24 @@ async function register(page: Page, org: string, email: string) {
   await page.getByPlaceholder("vous@atelier.ch").fill(email);
   await page.getByPlaceholder("6 caractères minimum").fill("motdepasse1");
   await page.getByRole("button", { name: "Créer l'atelier" }).click();
-  await expect(page.getByRole("heading", { name: /Vos projets/ })).toBeVisible();
+  await expect(page.getByText("Parcours SIA du projet")).toBeVisible();
 }
 
+// W13: project creation now lives in the sidebar ProjectSwitcher popover.
+// Open the switcher (button-card at the top of the sidebar), click
+// "+ Nouveau projet", fill the inline form, submit. The new project becomes
+// active and the workspace re-renders for it.
 async function createProject(page: Page, name: string, commune: string) {
+  await page.locator(".psw-btn").click();
   await page.getByRole("button", { name: /Nouveau projet/ }).click();
   await page.getByPlaceholder("Nom du projet").fill(name);
-  await page.getByPlaceholder("Commune").fill(commune);
+  // The popover form already pre-fills "Lausanne" — override:
+  const communeField = page.getByPlaceholder("Commune");
+  await communeField.fill("");
+  await communeField.fill(commune);
   await page.getByRole("button", { name: "Créer", exact: true }).click();
-  // Lands in the dual-nav workspace.
+  // The active project flips to the new one; the switcher shows its name.
+  await expect(page.locator(".psw-cur .nm")).toHaveText(name);
   await expect(page.getByText("Parcours SIA du projet")).toBeVisible();
 }
 
@@ -38,8 +50,9 @@ test("permit: submitting a piece flips it to present", async ({ page }) => {
 
 test("team: an owner can invite a member", async ({ page }) => {
   await register(page, "Team Atelier", "team@test.ch");
-  // Team management lives on the project workspace (Équipe task nav).
-  await page.getByRole("button", { name: /Place de la Palud/ }).click();
+  // W13: Équipe lives in the "Atelier · global" group; it stays accessible
+  // regardless of the active project — no need to bounce through a project
+  // selector card.
   await page.locator(".ws__side").getByRole("button", { name: /Équipe/ }).click();
   await expect(page.getByRole("heading", { name: /Équipe/ })).toBeVisible();
   await page.getByRole("button", { name: /Inviter un collaborateur/ }).click();
@@ -49,13 +62,15 @@ test("team: an owner can invite a member", async ({ page }) => {
   await expect(page.getByText(/Membre ajouté/)).toBeVisible();
 });
 
-test("home search: unsupported commune → honest dossier, no fabricated data", async ({ page }) => {
+// W13: the standalone home parcel-search was removed (it duplicated the
+// Terrain & zonage flow). The equivalent honesty guarantee — "unsupported
+// commune → no fabricated data" — is now exercised inside Terrain itself.
+test("unsupported commune → honest dossier, no fabricated data", async ({ page }) => {
   await register(page, "Search Atelier", "search@test.ch");
-  await page.getByPlaceholder(/Analyser une parcelle/).fill("Fontainemelon, bien-fonds 904");
-  await page.getByRole("button", { name: "Analyser" }).click();
-  // a real dossier is created for the searched parcel (not the Lausanne demo)
-  await expect(page.locator(".psw .nm")).toHaveText("Fontainemelon, bien-fonds 904");
-  // honest: commune not covered + no fabricated constraints
-  await expect(page.getByText(/pas encore prise en charge/).first()).toBeVisible();
+  await createProject(page, "Fontaine 904", "Fontainemelon");
+  await page.locator(".ws__side").getByRole("button", { name: /Terrain/ }).click();
+  // Empty Terrain on the freshly-created project: no claims, banner about
+  // commune not supported, NEVER fabricated.
   await expect(page.getByText(/Aucune parcelle analysée/)).toBeVisible();
+  await expect(page.getByText(/pas encore prise en charge/).first()).toBeVisible();
 });

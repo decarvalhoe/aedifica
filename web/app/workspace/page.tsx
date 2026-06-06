@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "@/lib/api";
 import { AttachField } from "./AttachField";
 import { GanttView } from "./GanttView";
@@ -36,7 +36,9 @@ const phaseLabel = (code?: string) => {
 // SIA cost-precision convergence per phase (from the SIA Vaud chart)
 const COST_PRECISION: Record<string, string> = { "31": "± 15 %", "32": "± 10 %", "33": "± 10 %", "41": "ferme", "51": "ferme", "52": "ferme" };
 
-type View = "dashboard" | "taches" | "terrain" | "checklist" | "coordination" | "intervenants" | "documents" | "brs" | "permis" | "opposition" | "conformite" | "copilote" | "memoire" | "couts" | "chantier" | "equipe" | "foresight";
+type View = "dashboard" | "taches" | "terrain" | "checklist" | "coordination" | "intervenants" | "documents" | "brs" | "permis" | "opposition" | "conformite" | "copilote" | "memoire" | "couts" | "chantier" | "equipe" | "foresight" | "atelier";
+// W13: views that don't require an active project — they're aggregated or org-level.
+const PROJECT_AGNOSTIC: View[] = ["atelier", "equipe"];
 // W11 P0: every NAV icon references the official Datum sprite by symbol id —
 // `web/public/assets/functional-icons.svg#ic-*` — no more inline custom SVG.
 // Closest semantic match per surface, taken from the DS iconography page §05.
@@ -57,9 +59,12 @@ const NAV: { id: View; lb: string; ico: string; ph?: string; grp: string }[] = [
   { id: "conformite", lb: "Conformité", ico: "ic-check", ph: "33", grp: "Dossier réglementaire" },
   { id: "couts", lb: "Coûts & soumissions", ico: "ic-report", ph: "41", grp: "Économie & chantier" },
   { id: "chantier", lb: "Chantier & remise", ico: "ic-datum-dimension", ph: "52", grp: "Économie & chantier" },
-  { id: "equipe", lb: "Équipe", ico: "ic-claims", grp: "Atelier" },
+  // W13: «Atelier · global» — surfaces multi-projet/org-level, accessibles depuis
+  // n'importe quel projet sans bouger la sélection courante.
+  { id: "atelier", lb: "Atelier · multi-projet", ico: "ic-portfolio", grp: "Atelier · global" },
+  { id: "equipe", lb: "Équipe", ico: "ic-claims", grp: "Atelier · global" },
 ];
-const GROUPS = ["Pilotage", "Coordination", "Dossier réglementaire", "Économie & chantier", "Atelier"];
+const GROUPS = ["Pilotage", "Coordination", "Dossier réglementaire", "Économie & chantier", "Atelier · global"];
 
 const TRUST: Record<string, [string, string]> = {
   sourced: ["is-sourced", "Source officielle"], computed: ["is-computed", "Calculé"],
@@ -111,21 +116,9 @@ const COMMUNE_CANTON: Record<string, string> = {
   bern: "BE", berne: "BE", thun: "BE", "zürich": "ZH", zurich: "ZH", winterthur: "ZH",
 };
 const noAccent = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "");
-function parseParcel(q: string): { commune: string; canton: string; label: string } {
-  const parts = q.split(",").map((s) => s.trim()).filter(Boolean);
-  let commune = parts[0] || q.trim();
-  if (parts.length >= 2) {
-    const last = parts[parts.length - 1];
-    const lastIsParcel = /\d/.test(last) || /bien[-\s]?fonds|parcelle|egrid|n[°o]\b/i.test(last);
-    commune = lastIsParcel ? parts[0] : last;
-  }
-  const canton = COMMUNE_CANTON[commune.toLowerCase()] || "VD";
-  return { commune, canton, label: q.trim() };
-}
-const projIdFrom = (s: string) => noAccent(s).toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48) || "PARCELLE";
-// The pilot has representative data only for the seeded reference parcel; a search
-// matching it opens that populated dossier rather than an empty duplicate.
-const isReferenceParcel = (commune: string, label: string) => commune.toLowerCase() === "lausanne" && /palud/i.test(label);
+// W13: parseParcel / projIdFrom / isReferenceParcel removed with the Home page —
+// they were only consumed by the parcel-search shortcut that lived on Home.
+// The same flow now lives inside Terrain & zonage on each project.
 
 // W11 P0: ALL icons come from the official Datum sprite (web/public/assets/functional-icons.svg).
 // The DS rule is one proprietary sprite, no external icon library; 24px grid, 1.5 stroke, currentColor.
@@ -200,10 +193,13 @@ export default function App() {
   // W10: external (client / mandataire) user state. When set, the entire workspace is
   // replaced by the External scoped view.
   const [ext, setExt] = useState<any | null>(null);
-  // W11.C: deep-link bridge — Coordination on a project triggers a planning
-  // jump that lands on the Home AtelierPilotage with this project pre-filtered
-  // and the Gantt view active. Cleared by AtelierPilotage after it consumes it.
+  // W11.C → W13: deep-link bridge — Coordination on a project triggers a planning
+  // jump that lands on the Atelier multi-project view with this project pre-filtered
+  // and the Gantt view active. Consumed (and cleared) by AtelierPilotage on render.
   const [pendingPlanningFilter, setPendingPlanningFilter] = useState<string | null>(null);
+  // W13: auto-select the project that was last active in this browser. Falls
+  // back to the most recently created (top of the list) if nothing is stored.
+  const LAST_PID_KEY = "aedifica_last_pid";
 
   useEffect(() => {
     const t = typeof window !== "undefined" ? localStorage.getItem("aedifica_token") : null;
@@ -260,11 +256,12 @@ export default function App() {
     await loadAtelier(token!);
     if (active && active.project_id === pid) await refreshTasks();
   }
-  // Coordination → Planning Atelier deep-link. Closes the project, sets the
-  // pending filter, returns to Home where AtelierPilotage consumes it.
+  // W13: Coordination → Planning Atelier deep-link. Switches to the multi-project
+  // `atelier` view with this project pre-filtered, WITHOUT dropping the active
+  // project (the user comes back to the same project context afterwards).
   function openAtelierPlanning(pid: string) {
     setPendingPlanningFilter(pid);
-    setActive(null); setD({}); setFlash(null);
+    setView("atelier");
   }
   async function loadProjects(t: string): Promise<Project[]> {
     const ids = (await api<any>("/projects", { token: t })).projects as string[];
@@ -307,7 +304,25 @@ export default function App() {
     try { await api("/projects", { method: "POST", token: token!, body: { project_id: id, name, commune } }); const sums = await loadProjects(token!); const p = sums.find((s) => s.project_id === id); if (p) await openProject(p); }
     catch (e: any) { setErr(e.message?.includes("exists") ? "Un projet porte déjà ce nom." : e.message); } finally { setBusy(false); }
   }
-  async function openProject(p: Project) { setActive(p); setView("dashboard"); setD({}); setFlashKey(null); setFlash(null); try { await loadAll(p, token!); } catch (e: any) { setErr(e.message); } }
+  async function openProject(p: Project) {
+    setActive(p);
+    // W13: keep the current view if it's project-agnostic (Atelier / Équipe);
+    // otherwise land on the Dashboard for the freshly-opened project.
+    setView((v) => (PROJECT_AGNOSTIC.includes(v) ? v : "dashboard"));
+    setD({}); setFlashKey(null); setFlash(null);
+    try { localStorage.setItem(LAST_PID_KEY, p.project_id); } catch {}
+    try { await loadAll(p, token!); } catch (e: any) { setErr(e.message); }
+  }
+  // W13: pick an initial active project once the project list lands. Prefer
+  // the last-active id from localStorage, fall back to the first (most recent).
+  useEffect(() => {
+    if (!token || !projects || active) return;
+    let last: string | null = null;
+    try { last = localStorage.getItem(LAST_PID_KEY); } catch {}
+    const pick = (last && projects.find((p) => p.project_id === last)) || projects[0];
+    if (pick) { openProject(pick); }
+  /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [token, projects]);
   async function loadAll(p: Project, t: string) {
     const pid = p.project_id; const g = (path: string) => api<any>(`/projects/${pid}${path}`, { token: t });
     const sup = api<any>(`/communes/${p.jurisdiction.commune}/${p.jurisdiction.canton}/support`, { token: t }).then((r) => r.support).catch(() => null);
@@ -392,86 +407,57 @@ export default function App() {
   async function addUser(email: string, name: string, role: string): Promise<string> { const r = await api<any>("/orgs/users", { method: "POST", token: token!, body: { email, name, role } }); await loadUsers(token!); return r.token; }
   async function setUserRole(id: number, role: string) { await api(`/orgs/users/${id}`, { method: "PATCH", token: token!, body: { role } }); await loadUsers(token!); }
 
-  // ---- home parcel search: create (or reuse) a real project for the searched parcel,
-  //      run the intake/search, then land on Terrain with an explicit confirmation. ----
-  async function homeSearch(query: string) {
-    const q = query.trim();
-    if (!q) return;
-    setBusy(true); setErr(""); setFlash(null);
-    try {
-      const { commune, canton, label } = parseParcel(q);
-      // Pilot reference parcel → open the seeded dossier with representative data.
-      if (isReferenceParcel(commune, label)) {
-        await seedReference(token!);
-        const refs = await loadProjects(token!);
-        const ref = refs.find((x) => x.project_id === REF_ID);
-        if (ref) {
-          await openProject(ref);
-          setView("terrain");
-          setD((x) => ({ ...x, pendingQuery: q }));
-          setFlash({ kind: "ok", text: `Dossier de référence « ${ref.name} » ouvert · ${ref.claims ?? 0} contrainte(s) sourcée(s) (parcelle pilote).` });
-          return;
-        }
-      }
-      const id = projIdFrom(label);
-      let sums = projects || [];
-      let p = sums.find((x) => x.project_id === id);
-      const isNew = !p;
-      if (!p) {
-        try { await api("/projects", { method: "POST", token: token!, body: { project_id: id, name: label, commune, canton } }); }
-        catch (e: any) { if (!String(e.message || "").toLowerCase().includes("exist")) throw e; }
-        sums = await loadProjects(token!);
-        p = sums.find((x) => x.project_id === id);
-      }
-      if (!p) throw new Error("Création du dossier impossible.");
-      // Honesty gate: only run the live search when the commune is actually covered.
-      // On an unsupported commune the engine would fall back to *reference fixtures* —
-      // we must NOT present those as constraints for this parcel.
-      const support = await api<any>(`/communes/${commune}/${canton}/support`, { token: token! }).then((r) => r.support).catch(() => null);
-      const covered = !!(support && support.usable);
-      let mode = "", claims = 0;
-      if (covered) {
-        try { mode = (await api<any>(`/projects/${id}/intake`, { method: "POST", token: token!, body: { query: q, live: true } })).mode; } catch { /* keep honest/empty */ }
-        claims = await api<any>(`/projects/${id}/claims`, { token: token! }).then((r) => (r.claims || []).length).catch(() => 0);
-      }
-      await openProject(p);
-      setView("terrain");
-      setD((x) => ({ ...x, pendingQuery: q, intakeMode: mode }));
-      if (covered && claims > 0) {
-        setFlash({ kind: "ok", text: `${isNew ? "Dossier créé" : "Dossier ouvert"} pour « ${label} » · recherche effectuée : ${claims} contrainte(s) sourcée(s).` });
-      } else if (!covered) {
-        setFlash({ kind: "warn", text: `Dossier « ${label} » créé. Commune ${commune}${canton ? " (" + canton + ")" : ""} pas encore prise en charge — aucune donnée inventée. Demandez l'ingestion ci-dessous.` });
-      } else {
-        setFlash({ kind: "warn", text: `Dossier « ${label} » créé · recherche effectuée — aucune contrainte résolue. Relancez une recherche ciblée dans Terrain & zonage.` });
-      }
-    } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
-  }
+  // W13: the home parcel-search shortcut is gone — same flow now lives inside
+  // Terrain & zonage on each project, which avoids the duplicate search box
+  // on the intermediate Home page (now removed entirely).
 
   if (!ready) return <div className="center"><span className="spin">Chargement…</span></div>;
   if (!token) return <Login busy={busy} err={err} onRegister={register} onLogin={login} onJoin={joinWithKey} onAcceptInvite={acceptInvite} />;
   if (ext) return <ExternalView ext={ext} onTick={tickExternal} onSignOut={signOut} />;
-  if (!active) return <Home projects={projects} users={users} atelier={atelier} atelierAlerts={atelierAlerts} flashKey={flashKey} busy={busy} err={err} pendingPlanningFilter={pendingPlanningFilter} onClearPendingPlanning={() => setPendingPlanningFilter(null)} onPatchAtelierTask={patchAtelierTask} onDelAtelierTask={delAtelierTask} onOpen={openProject} onCreate={createProject} onSignOut={signOut} onSearch={homeSearch} dismissFlash={() => setFlashKey(null)} />;
 
-  const cur = NAV.find((n) => n.id === view)!;
-  const j = active.jurisdiction;
-  const curIdx = phaseIndex(active.phase_code);
+  // W13: single unified shell — no more intermediate Home page. The sidebar
+  // hosts a ProjectSwitcher (replaces the old static .psw card + the
+  // "Tous les projets" back button) and always shows the "Atelier · global"
+  // group so multi-projet planning + équipe stay one click away from any
+  // project context.
+  const cur = NAV.find((n) => n.id === view) || NAV[0];
+  const projectAgnostic = PROJECT_AGNOSTIC.includes(view);
+  const j = active?.jurisdiction;
+  const curIdx = active ? phaseIndex(active.phase_code) : -1;
+  // Empty-state when an architect has zero projects. The switcher's inline
+  // create form lives in the sidebar; here we just say "you can also create
+  // your first project from the switcher above".
+  const noProjects = (projects || []).length === 0;
+  // When the active project's data is still loading, only the agnostic views
+  // (atelier, equipe) can render meaningfully — everything else needs `d.*`.
+  const projectViewBlocked = !projectAgnostic && (!active || !d || Object.keys(d).length === 0);
+
   return (
     <div className="ws">
       <aside className="ws__side">
         <div className="ws__brand" style={{ display: "flex", alignItems: "center", padding: "4px 0" }}>
           <Wordmark height={48} />
         </div>
-        <button className="back" onClick={() => { setActive(null); setD({}); loadAtelier(token!); }}>← Tous les projets</button>
-        <div className="psw"><div className="k">Projet</div><div className="nm">{active.name}</div><div className="me">{j.commune} · {j.canton} · {phaseLabel(active.phase_code)}</div></div>
+        <ProjectSwitcher active={active} projects={projects} onOpen={openProject} onCreate={createProject} busy={busy} />
         <nav className="tnav">
           {GROUPS.map((grp) => (
             <div key={grp}>
               <div className="grp">{grp}</div>
-              {NAV.filter((n) => n.grp === grp).map((n) => (
-                <button key={n.id} className={`titem ${view === n.id ? "on" : ""}`} onClick={() => { setView(n.id); setFlash(null); }}>
-                  <Icon n={n.ico} /><span className="lb">{n.lb}</span>{n.ph && <span className="ph">{n.ph}</span>}
-                </button>
-              ))}
+              {NAV.filter((n) => n.grp === grp).map((n) => {
+                // W13: per-project surfaces are disabled until a project is
+                // selected. Atelier · global stays clickable.
+                const disabled = !active && !PROJECT_AGNOSTIC.includes(n.id);
+                return (
+                  <button key={n.id}
+                          className={`titem ${view === n.id ? "on" : ""}`}
+                          disabled={disabled}
+                          title={disabled ? "Sélectionnez un projet" : undefined}
+                          style={disabled ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
+                          onClick={() => { if (!disabled) { setView(n.id); setFlash(null); } }}>
+                    <Icon n={n.ico} /><span className="lb">{n.lb}</span>{n.ph && <span className="ph">{n.ph}</span>}
+                  </button>
+                );
+              })}
             </div>
           ))}
         </nav>
@@ -479,54 +465,90 @@ export default function App() {
       </aside>
 
       <main className="ws__main">
-        <div className="phaserail">
-          <div className="cap">
-            <span className="t">Parcours SIA du projet</span>
-            {curIdx >= 0
-              ? <span className="now">● {phaseLabel(active.phase_code)}</span>
-              : <span className="now" style={{ color: "var(--mut)" }}>○ Phase à cadrer — cliquez une phase pour démarrer</span>}
-            {curIdx >= 0 && COST_PRECISION[norm(active.phase_code)] && <span className="chip">Précision coût {COST_PRECISION[norm(active.phase_code)]}</span>}
-            {d.intervenants && (d.intervenants.people || []).length > 0 && <span className="chip">{(d.intervenants.people || []).length} intervenant·e·s</span>}
+        {active && (
+          <div className="phaserail">
+            <div className="cap">
+              <span className="t">Parcours SIA du projet</span>
+              {curIdx >= 0
+                ? <span className="now">● {phaseLabel(active.phase_code)}</span>
+                : <span className="now" style={{ color: "var(--mut)" }}>○ Phase à cadrer — cliquez une phase pour démarrer</span>}
+              {curIdx >= 0 && COST_PRECISION[norm(active.phase_code)] && <span className="chip">Précision coût {COST_PRECISION[norm(active.phase_code)]}</span>}
+              {d.intervenants && (d.intervenants.people || []).length > 0 && <span className="chip">{(d.intervenants.people || []).length} intervenant·e·s</span>}
+            </div>
+            <div className="phases">
+              {PHASES.map(([code, lb], i) => {
+                const isDone = curIdx >= 0 && i < curIdx;
+                const isNow = curIdx >= 0 && i === curIdx;
+                return (
+                  <button key={code} className={`phase ${isDone ? "done" : ""} ${isNow ? "now" : ""}`}
+                          title={`Basculer le projet en ${SIA_PHASE_FR[code] || ("Phase " + code)}`}
+                          onClick={() => setProjectPhase(code).catch((e: any) => setErr(e?.message || "Échec du changement de phase"))}>
+                    <span className="pt">{isDone ? "✓" : code}</span><span className="pl">{code} {lb}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-          <div className="phases">
-            {PHASES.map(([code, lb], i) => {
-              const isDone = curIdx >= 0 && i < curIdx;
-              const isNow = curIdx >= 0 && i === curIdx;
-              return (
-                <button key={code} className={`phase ${isDone ? "done" : ""} ${isNow ? "now" : ""}`}
-                        title={`Basculer le projet en ${SIA_PHASE_FR[code] || ("Phase " + code)}`}
-                        onClick={() => setProjectPhase(code).catch((e: any) => setErr(e?.message || "Échec du changement de phase"))}>
-                  <span className="pt">{isDone ? "✓" : code}</span><span className="pl">{code} {lb}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        )}
         <div className="ws__top">
           <span className="t-nm">{cur.lb}</span>
-          <span className="chip">{j.commune}</span>
+          {j && <span className="chip">{j.commune}</span>}
           <span className="sp" />
           <span className="chip">L&apos;IA propose — l&apos;architecte décide</span>
         </div>
         <div className="ws__view">
           {flash && <div className={`banner ${flash.kind}`} style={{ display: "flex", alignItems: "center", gap: 12 }}><span style={{ flex: 1 }}>{flash.text}</span><button className="toggle" onClick={() => setFlash(null)}>Compris</button></div>}
-          {view === "dashboard" && <Dashboard d={d} project={active} go={setView} alerts={atelierAlerts} onOpenAtelierPlanning={openAtelierPlanning} />}
-          {view === "taches" && <Taches data={d.tasks} token={token!} pid={active.project_id} onAdd={addTask} onPatch={patchTask} onDel={delTask} onAddDep={addDep} onDelDep={delDep} onPredict={predictTask} />}
-          {view === "checklist" && <Checklist data={d.checklist} entryPhase={active.phase_code} token={token!} pid={active.project_id} onSeed={seedChecklist} onPatch={patchChecklist} onAdd={addChecklistItem} onDel={delChecklistItem} />}
-          {view === "terrain" && <Terrain claims={d.claims} mode={d.intakeMode} support={d.support} commune={j.commune} initialQuery={d.pendingQuery} regAlerts={d.captures?.regulation_alerts} onLookup={lookup} onRequest={requestCommune} />}
-          {view === "coordination" && <Coordination data={d.coord} onRefresh={refreshCoord} go={setView} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
-          {view === "intervenants" && <Intervenants data={d.intervenants} onAddGroup={addGroup} onDelGroup={delGroup} onAdd={addIntervenant} onPatch={patchIntervenant} onDel={delIntervenant} onInvite={inviteIntervenant} />}
-          {view === "documents" && <Documents docs={d.documents} summary={d.docSummary} intervenants={d.intervenants} token={token!} pid={active.project_id} onAdd={addDocument} onValidate={validateDocument} onPatch={patchDocument} onDel={delDocument} onGrant={addGrant} onRevoke={revokeGrant} />}
-          {view === "brs" && <Brs data={d.brs} intervenants={d.intervenants} token={token!} pid={active.project_id} onAdd={addBrs} onPatch={patchBrs} onDel={delBrs} />}
-          {view === "permis" && <Permis d={d.permit} onSubmit={submitPermit} tasks={d.tasks?.tasks || []} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
-          {view === "opposition" && <Opposition d={d.opposition} canonicalDocs={(d.documents || []).filter((x: any) => x.validation_level === "canonical").length} />}
-          {view === "conformite" && <Conformite d={d.compliance} tasks={d.tasks?.tasks || []} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
-          {view === "copilote" && <Copilote token={token} pid={active.project_id} ledger={d.ledger} onChange={refreshLedger} />}
-          {view === "memoire" && <Memoire unknowns={d.unknowns} ledger={d.ledger} captures={d.captures} token={token!} pid={active.project_id} onAddCapture={addCapture} onDelCapture={delCapture} />}
-          {view === "couts" && <Couts d={d.cost} onFee={feeEstimate} tasks={d.tasks?.tasks || []} projectPhase={active.phase_code} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
-          {view === "chantier" && <Chantier d={d.site} tasks={d.tasks?.tasks || []} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
+          {flashKey && (
+            <div className="banner" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ flex: 1 }}><b>Atelier créé.</b> Conservez votre clé d&apos;accès pour vous reconnecter : <code>{flashKey}</code></span>
+              <button className="toggle" onClick={() => setFlashKey(null)}>J&apos;ai noté ma clé</button>
+            </div>
+          )}
+
+          {/* Project-agnostic views (always renderable). */}
+          {view === "atelier" && (
+            atelier ? <AtelierPilotage atelier={atelier} onOpen={openProject} projects={projects}
+                                       pendingFilter={pendingPlanningFilter}
+                                       onClearPending={() => setPendingPlanningFilter(null)}
+                                       onPatchTask={patchAtelierTask} onDelTask={delAtelierTask} />
+                    : <p className="spin">Chargement de l&apos;atelier…</p>
+          )}
           {view === "equipe" && <Team users={users} onAdd={addUser} onSetRole={setUserRole} />}
-          {view === "foresight" && token && <Foresight token={token} pid={active.project_id} />}
+
+          {/* Empty-state when no project exists at all. */}
+          {!active && noProjects && !projectAgnostic && (
+            <div className="placeholder" style={{ maxWidth: 560, margin: "32px auto" }}>
+              <h4>Créer votre premier projet</h4>
+              <p>Ouvrez le sélecteur de projet en haut de la barre latérale et choisissez <b>+ Nouveau projet</b>. La parcelle, les contraintes, et la feuille SIA sont seedées à la création.</p>
+            </div>
+          )}
+
+          {/* Project-required views — blocked until a project is loaded. */}
+          {!projectAgnostic && projectViewBlocked && active && (
+            <p className="spin">Chargement du projet {active.name}…</p>
+          )}
+
+          {!projectAgnostic && !projectViewBlocked && active && (
+            <>
+              {view === "dashboard" && <Dashboard d={d} project={active} go={setView} alerts={atelierAlerts} onOpenAtelierPlanning={openAtelierPlanning} />}
+              {view === "taches" && <Taches data={d.tasks} token={token!} pid={active.project_id} onAdd={addTask} onPatch={patchTask} onDel={delTask} onAddDep={addDep} onDelDep={delDep} onPredict={predictTask} />}
+              {view === "checklist" && <Checklist data={d.checklist} entryPhase={active.phase_code} token={token!} pid={active.project_id} onSeed={seedChecklist} onPatch={patchChecklist} onAdd={addChecklistItem} onDel={delChecklistItem} />}
+              {view === "terrain" && <Terrain claims={d.claims} mode={d.intakeMode} support={d.support} commune={active.jurisdiction.commune} initialQuery={d.pendingQuery} regAlerts={d.captures?.regulation_alerts} onLookup={lookup} onRequest={requestCommune} />}
+              {view === "coordination" && <Coordination data={d.coord} onRefresh={refreshCoord} go={setView} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
+              {view === "intervenants" && <Intervenants data={d.intervenants} onAddGroup={addGroup} onDelGroup={delGroup} onAdd={addIntervenant} onPatch={patchIntervenant} onDel={delIntervenant} onInvite={inviteIntervenant} />}
+              {view === "documents" && <Documents docs={d.documents} summary={d.docSummary} intervenants={d.intervenants} token={token!} pid={active.project_id} onAdd={addDocument} onValidate={validateDocument} onPatch={patchDocument} onDel={delDocument} onGrant={addGrant} onRevoke={revokeGrant} />}
+              {view === "brs" && <Brs data={d.brs} intervenants={d.intervenants} token={token!} pid={active.project_id} onAdd={addBrs} onPatch={patchBrs} onDel={delBrs} />}
+              {view === "permis" && <Permis d={d.permit} onSubmit={submitPermit} tasks={d.tasks?.tasks || []} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
+              {view === "opposition" && <Opposition d={d.opposition} canonicalDocs={(d.documents || []).filter((x: any) => x.validation_level === "canonical").length} />}
+              {view === "conformite" && <Conformite d={d.compliance} tasks={d.tasks?.tasks || []} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
+              {view === "copilote" && <Copilote token={token} pid={active.project_id} ledger={d.ledger} onChange={refreshLedger} />}
+              {view === "memoire" && <Memoire unknowns={d.unknowns} ledger={d.ledger} captures={d.captures} token={token!} pid={active.project_id} onAddCapture={addCapture} onDelCapture={delCapture} />}
+              {view === "couts" && <Couts d={d.cost} onFee={feeEstimate} tasks={d.tasks?.tasks || []} projectPhase={active.phase_code} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
+              {view === "chantier" && <Chantier d={d.site} tasks={d.tasks?.tasks || []} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
+              {view === "foresight" && token && <Foresight token={token} pid={active.project_id} />}
+            </>
+          )}
+          {err && <p className="note err" style={{ marginTop: 16 }}>{err}</p>}
         </div>
       </main>
     </div>
@@ -669,78 +691,105 @@ function AtelierPilotage({ atelier, onOpen, projects, pendingFilter, onClearPend
   );
 }
 
-function Home({ projects, users, atelier, atelierAlerts, flashKey, busy, err, pendingPlanningFilter, onClearPendingPlanning, onPatchAtelierTask, onDelAtelierTask, onOpen, onCreate, onSignOut, onSearch, dismissFlash }: any) {
-  const [q, setQ] = useState(""); const [creating, setCreating] = useState(false);
-  const [name, setName] = useState(""); const [commune, setCommune] = useState("Lausanne");
+// W13 — Project switcher (replaces the static .psw card). A button that
+// opens a popover with the project list (search if many), a checkmark on the
+// active one, and an inline "+ Nouveau projet" form at the bottom. Pattern
+// borrowed from Notion / Linear / Figma workspace switchers: stay in the
+// workspace, never bounce to a separate page.
+function ProjectSwitcher({ active, projects, onOpen, onCreate, busy }: {
+  active: Project | null; projects: Project[] | null;
+  onOpen: (p: Project) => void;
+  onCreate: (name: string, commune: string) => Promise<void> | void;
+  busy: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState("");
+  const [commune, setCommune] = useState("Lausanne");
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    function onDoc(e: MouseEvent) {
+      if (!open) return;
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false); setCreating(false);
+      }
+    }
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") { setOpen(false); setCreating(false); } }
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onKey); };
+  }, [open]);
+
+  const list = (projects || []).slice();
+  const filtered = q.trim() ? list.filter((p) => `${p.name} ${p.jurisdiction.commune}`.toLowerCase().includes(q.toLowerCase())) : list;
+  const create = async () => {
+    if (!name.trim()) return;
+    await onCreate(name, commune);
+    setCreating(false); setName(""); setOpen(false);
+  };
   return (
-    <div className="app">
-      <div className="home__bar">
-        <Wordmark height={56} />
-        <span className="eyebrow">ArchiOS Suisse</span>
-        <span className="sp" /><button className="acct" onClick={onSignOut}>Se déconnecter</button>
-      </div>
-      <div className="home__wrap">
-        <div className="home__hero">
-          <p className="eyebrow">L&apos;assistant de l&apos;architecte suisse</p>
-          <h1>Un appui concret à chaque phase SIA.</h1>
-          <p>De la première fiche de contraintes à la remise — sourcé, tracé, et capable d&apos;agir dans vos outils sous votre approbation.</p>
+    <div className="psw-wrap" ref={ref}>
+      <button className="psw-btn" onClick={() => setOpen(v => !v)} aria-haspopup="listbox" aria-expanded={open}>
+        <div className="psw-cur">
+          <div className="k">Projet</div>
+          {active
+            ? <>
+                <div className="nm">{active.name}</div>
+                <div className="me">{active.jurisdiction.commune} · {active.jurisdiction.canton} · {phaseLabel(active.phase_code)}</div>
+              </>
+            : <>
+                <div className="nm" style={{ color: "var(--mut)" }}>Aucun projet</div>
+                <div className="me">Créez-en un ↓</div>
+              </>}
         </div>
-        <div className="search">
-          <span className="ico"><Icon n="search" /></span>
-          <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && onSearch(q)} placeholder="Analyser une parcelle — adresse ou EGRID (ex. Place de la Palud, Lausanne)" />
-          <button disabled={busy} onClick={() => onSearch(q)}>{busy ? "…" : "Analyser"}</button>
-        </div>
-        <p className="home__hint">→ un dossier est créé pour la parcelle. Contraintes sourcées si la commune est prise en charge — sinon « demander l&apos;ingestion ». Jamais inventées.</p>
-
-        <div className="home__how">
-          <div className="how"><div className="n">01 · Intake → faisabilité</div><div className="t">Cherchez une parcelle</div><p>Adresse ou EGRID → contraintes et enveloppe constructible, sourcées ou marquées « à vérifier ».</p></div>
-          <div className="how"><div className="n">02 · Projet → permis</div><div className="t">Avancez par phase SIA</div><p>Chaque phase a son prochain pas. L&apos;IA prépare une action dans vos outils ; vous la validez.</p></div>
-          <div className="how"><div className="n">03 · Chantier → remise</div><div className="t">Pilotez jusqu&apos;à la livraison</div><p>Dossier, opposition, conformité, coûts, chantier — tracés, réversibles, prêts à présenter.</p></div>
-        </div>
-
-        {flashKey && <div className="flash"><b>Atelier créé.</b> Conservez votre clé d&apos;accès pour vous reconnecter :<code>{flashKey}</code><button className="signout" style={{ padding: 0 }} onClick={dismissFlash}>J&apos;ai noté ma clé</button></div>}
-
-        {atelier && (atelier.tasks || []).length > 0 && (
-          <AtelierPilotage atelier={atelier} onOpen={onOpen} projects={projects}
-                           pendingFilter={pendingPlanningFilter}
-                           onClearPending={onClearPendingPlanning}
-                           onPatchTask={onPatchAtelierTask} onDelTask={onDelAtelierTask} />
-        )}
-
-        <div className="home__sec">
-          <h2>Vos projets ({(projects || []).length})</h2>
-          <div className="plist">
-            {(projects || []).map((p: Project) => {
-              const ci = phaseIndex(p.phase_code);
-              const unset = ci < 0;
+        <span className="psw-caret" aria-hidden="true">▾</span>
+      </button>
+      {open && (
+        <div className="psw-pop" role="listbox">
+          {list.length > 5 && (
+            <input className="fld psw-search" placeholder="Filtrer…" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+          )}
+          <div className="psw-list">
+            {filtered.length === 0 && <div className="psw-empty">Aucun projet ne correspond.</div>}
+            {filtered.map((p) => {
+              const isActive = active && active.project_id === p.project_id;
               return (
-                <button className="pcard" key={p.project_id} onClick={() => onOpen(p)}>
-                  <div><div className="nm">{p.name}</div><div className="me">{p.jurisdiction.commune} · {p.jurisdiction.canton}</div></div>
-                  <div>
-                    <div className="siabar">{PHASES.map(([c], i) => <span key={c} className={`ph ${(!unset && i < ci) ? "done" : ""} ${(!unset && i === ci) ? "now" : ""}`} />)}</div>
-                    <span className="lab" style={unset ? { color: "var(--mut)" } : undefined}>{phaseLabel(p.phase_code)}</span>
+                <button key={p.project_id} className={`psw-item ${isActive ? "on" : ""}`}
+                        onClick={() => { onOpen(p); setOpen(false); }}>
+                  <div className="psw-item-main">
+                    <div className="psw-item-nm">{p.name}</div>
+                    <div className="psw-item-me">{p.jurisdiction.commune} · {phaseLabel(p.phase_code)}</div>
                   </div>
-                  <div className="foot"><span>{p.claims ?? 0} contraintes</span><span>Ouvrir →</span></div>
+                  {isActive && <span className="psw-check" aria-hidden="true">✓</span>}
                 </button>
               );
             })}
-            {creating ? (
-              <div className="pcard" style={{ cursor: "default", gap: 10 }}>
-                <input className="fld" style={{ margin: 0 }} placeholder="Nom du projet" value={name} onChange={(e) => setName(e.target.value)} />
-                <input className="fld" style={{ margin: 0 }} placeholder="Commune" value={commune} onChange={(e) => setCommune(e.target.value)} />
-                <div className="actbar" style={{ margin: 0 }}><button className="ds-btn" disabled={busy || !name} onClick={() => onCreate(name, commune)}>{busy ? "…" : "Créer"}</button><button className="ds-btn ghost" onClick={() => setCreating(false)}>Annuler</button></div>
-              </div>
-            ) : (
-              <button className="pcard new" onClick={() => setCreating(true)}>+ Nouveau projet</button>
-            )}
           </div>
-          {users && users.length > 1 && <Team users={users} readOnly hideTitle />}
+          <div className="psw-sep" />
+          {!creating ? (
+            <button className="psw-new" onClick={() => setCreating(true)}>+ Nouveau projet</button>
+          ) : (
+            <div className="psw-form">
+              <input className="fld" placeholder="Nom du projet" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+              <input className="fld" placeholder="Commune" value={commune} onChange={(e) => setCommune(e.target.value)} />
+              <div className="row" style={{ gap: 6 }}>
+                <button className="ds-btn" disabled={busy || !name} onClick={create}>{busy ? "…" : "Créer"}</button>
+                <button className="ds-btn ghost" onClick={() => setCreating(false)}>Annuler</button>
+              </div>
+            </div>
+          )}
         </div>
-        {err && <p className="note err" style={{ margin: "0 24px 24px" }}>{err}</p>}
-      </div>
+      )}
     </div>
   );
 }
+
+// W13: the Home component is gone. After login the user lands directly in the
+// unified workspace. The reference parcel search (was duplicate of Terrain),
+// the marketing "Présentation faisabilité" cards, and the standalone project
+// grid all disappear — project selection lives in the sidebar's ProjectSwitcher
+// and the per-phase guidance lives inside each project's surfaces.
 
 /* ===================== DASHBOARD (phase-aware) ===================== */
 function Dashboard({ d, project, go, alerts, onOpenAtelierPlanning }: { d: any; project: Project; go: (v: View) => void; alerts: any[]; onOpenAtelierPlanning: (pid: string) => void }) {
