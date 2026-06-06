@@ -15,4 +15,4 @@ W12.A is deterministic: duration / cost / risk / comparables / suggest.
 W12.B wires the surface. W12.C adds the opt-in LLM. W12.D smartens next_step.
 W12.E captures the learning loop. W12.F enforces explainability.
 """
-from .engine import compute_proposals, ForesightSummary  # noqa: F401
+from .engine import compute_proposals, thresholds, ForesightSummary  # noqa: F401

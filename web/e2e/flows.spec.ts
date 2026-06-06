@@ -72,5 +72,8 @@ test("unsupported commune → honest dossier, no fabricated data", async ({ page
   // Empty Terrain on the freshly-created project: no claims, banner about
   // commune not supported, NEVER fabricated.
   await expect(page.getByText(/Aucune parcelle analysée/)).toBeVisible();
-  await expect(page.getByText(/pas encore prise en charge/).first()).toBeVisible();
+  // W14.A: the banner is now the honest IngestionPanel ("pas encore
+  // exploitable" + required-inputs list + "Aedifica ne fabrique pas de zones").
+  await expect(page.getByText(/pas encore exploitable/).first()).toBeVisible();
+  await expect(page.getByText(/Aedifica ne fabrique pas de zones/).first()).toBeVisible();
 });
