@@ -465,6 +465,44 @@ class AuditEvent(Base):
     timestamp: Mapped[_dt.datetime] = _TS()
 
 
+# W12.A — Foresight: deterministic, explainable, decision-bound IA proposals.
+# A Proposal is NEVER applied silently; it sits with confidence + basis until
+# the architect accepts / defers / refuses. Source-bound by construction.
+PROPOSAL_KINDS = (
+    "duration_adjust",
+    "cost_factor",
+    "risk_alert",
+    "reuse_brs",
+    "reuse_checklist",
+    "rebalance",
+    "next_step_ranked",
+)
+PROPOSAL_DECISIONS = ("pending", "accepted", "deferred", "refused")
+
+
+class Proposal(Base):
+    """An IA proposition the architect must explicitly approve before it mutates
+    anything. Doctrine: "l'IA propose, l'architecte décide" — the apply_payload
+    describes WHAT would be written if accepted, basis lists WHY (named sources),
+    confidence is a 0..1 number derived from the comparable count / signal
+    strength, NEVER a vibe."""
+
+    __tablename__ = "proposal"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    kind: Mapped[str] = mapped_column(String(40))
+    title: Mapped[str] = mapped_column(String(300))
+    detail: Mapped[str] = mapped_column(Text)
+    basis_json: Mapped[str] = mapped_column(Text)
+    confidence: Mapped[float] = mapped_column(Float, default=0.0)
+    apply_payload_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    proposed_at: Mapped[_dt.datetime] = _TS()
+    decided_at: Mapped[_dt.datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    decided_by: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    decision: Mapped[str] = mapped_column(String(20), default="pending")
+    decision_basis: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
 class CaptureNote(Base):
     """A captured note — site friction/observation, a photo proof ('preuve à futur'),
     a verbal decision, or a 'regulation under study' alert. Append-only, author-tagged,

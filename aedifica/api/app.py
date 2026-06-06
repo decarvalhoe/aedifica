@@ -650,6 +650,75 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
                 .order_by(m.AuditEvent.id.desc()).limit(min(limit, 1000)).all())
         return {"events": [_audit_dict(e) for e in rows], "total": len(rows)}
 
+    # ---- W12.A: Foresight — deterministic predictive layer ---------------- #
+    def _proposal_dict(p: m.Proposal) -> dict:
+        import json as _json
+        return {"id": p.id, "kind": p.kind, "title": p.title, "detail": p.detail,
+                "basis": _json.loads(p.basis_json) if p.basis_json else [],
+                "confidence": p.confidence, "decision": p.decision,
+                "apply_payload": (_json.loads(p.apply_payload_json) if p.apply_payload_json else None),
+                "proposed_at": p.proposed_at.isoformat() if p.proposed_at else None,
+                "decided_at": p.decided_at.isoformat() if p.decided_at else None,
+                "decided_by": p.decided_by, "decision_basis": p.decision_basis}
+
+    @app.get("/api/projects/{project_id}/foresight")
+    def get_foresight(project_id: str, refresh: bool = False,
+                      user: m.User = Depends(current_user),
+                      session: Session = Depends(get_session)):
+        """Read (and optionally refresh) the IA proposals for this project.
+        Without refresh, returns the currently-persisted proposals + counts;
+        with refresh, re-runs the deterministic engine over the live data
+        and replaces the pending set. Accepted/refused proposals are kept
+        as the architect's decision history."""
+        require(user, "project.read")
+        p = _project(session, user, project_id)
+        from ..foresight import compute_proposals
+        if refresh:
+            rows, summary = compute_proposals(session, p)
+            session.commit()
+            comparables = [{"project_id": c.project_id, "label": c.project_label,
+                            "score": c.score, "reasons": c.reasons} for c in summary.comparables]
+            return {
+                "proposals": [_proposal_dict(r) for r in rows],
+                "summary": {"predictions": summary.predictions, "risks": summary.risks,
+                            "suggestions": summary.suggestions, "confidence_avg": summary.confidence_avg},
+                "comparables": comparables,
+                "freshness": summary.freshness.isoformat(),
+            }
+        rows = (session.query(m.Proposal).filter_by(project_id=p.id, decision="pending")
+                .order_by(m.Proposal.id.desc()).all())
+        return {
+            "proposals": [_proposal_dict(r) for r in rows],
+            "summary": {"predictions": sum(1 for r in rows if r.kind in ("duration_adjust", "cost_factor")),
+                        "risks": sum(1 for r in rows if r.kind == "risk_alert"),
+                        "suggestions": sum(1 for r in rows if r.kind in ("reuse_brs", "reuse_checklist", "rebalance")),
+                        "confidence_avg": round(sum(r.confidence for r in rows) / len(rows), 2) if rows else 0.0},
+            "comparables": [],
+            "freshness": None,
+        }
+
+    @app.post("/api/projects/{project_id}/foresight/{proposal_id}/decide")
+    def decide_foresight(project_id: str, proposal_id: int, body: dict,
+                         user: m.User = Depends(current_user),
+                         session: Session = Depends(get_session)):
+        """Accept / defer / refuse a proposal. On accept, the apply_payload
+        (when it has a method+path) is what the client will PATCH itself —
+        this endpoint only records the decision + the architect's basis."""
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        decision = body.get("decision", "")
+        if decision not in ("accepted", "deferred", "refused"):
+            raise _err(400, "BAD_DECISION", "decision must be accepted|deferred|refused")
+        row = session.query(m.Proposal).filter_by(project_id=p.id, id=proposal_id).first()
+        if not row:
+            raise _err(404, "PROPOSAL_NOT_FOUND", str(proposal_id))
+        row.decision = decision
+        row.decided_at = _dt.datetime.now(_dt.timezone.utc)
+        row.decided_by = user.name or user.email
+        row.decision_basis = body.get("basis") or None
+        session.commit()
+        return {"proposal": _proposal_dict(row)}
+
     @app.post("/api/projects/{project_id}/documents", status_code=201)
     def create_document(project_id: str, body: DocumentIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
