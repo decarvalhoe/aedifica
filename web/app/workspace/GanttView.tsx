@@ -209,6 +209,26 @@ export function GanttView({ tasks, onPatch }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rowsKey, effectiveMode]);
 
+  // W15 — Belt-and-suspenders one-shot scroll. Runs once on mount with no
+  // deps, far enough after frappe-gantt finishes settling (its internal
+  // `scroll_today()` runs synchronously but the SVG layout takes a tick).
+  // If the polling above already landed scroll, this is a no-op; if the
+  // polling lost a fight with a re-render, this gets us back on target.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const scroller = scrollerRef.current;
+      if (!scroller) return;
+      const bar = scroller.querySelector(".bar") as SVGRectElement | null;
+      if (!bar) return;
+      if (scroller.scrollWidth <= scroller.clientWidth) return;
+      const barRect = bar.getBoundingClientRect();
+      const scRect = scroller.getBoundingClientRect();
+      const offset = (barRect.left - scRect.left) + scroller.scrollLeft;
+      scroller.scrollLeft = Math.max(0, offset - scroller.clientWidth * 0.25);
+    }, 1500);
+    return () => clearTimeout(t);
+  }, []);
+
   if (rows.length === 0) {
     return (
       <div className="card" style={{ borderLeft: "3px solid var(--ts-assume)" }}>
