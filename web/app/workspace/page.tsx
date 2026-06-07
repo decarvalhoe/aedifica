@@ -207,6 +207,11 @@ export default function App() {
   const [users, setUsers] = useState<any[] | null>(null);
   const [atelier, setAtelier] = useState<any>(null);
   const [atelierAlerts, setAtelierAlerts] = useState<any[]>([]);
+  // W16 — fine-grained ACL map for the current user. Populated by loadAccess()
+  // on verify. Used to hide NAV items the user can't see and to mark surfaces
+  // read-only when they have read but not write. Owners get role="owner"
+  // and skip the lookups entirely.
+  const [access, setAccess] = useState<any | null>(null);
   // W10: external (client / mandataire) user state. When set, the entire workspace is
   // replaced by the External scoped view.
   const [ext, setExt] = useState<any | null>(null);
@@ -229,8 +234,14 @@ export default function App() {
   async function verify(t: string) {
     // Try the external scope first — if 200, the token belongs to an external user.
     try { const me = await api<any>("/external/me", { token: t }); await loadExternal(t, me); setToken(t); setReady(true); return; } catch { /* not external */ }
-    try { await loadProjects(t); await loadUsers(t); loadAtelier(t); setToken(t); }
+    try { await loadProjects(t); await loadUsers(t); loadAtelier(t); await loadAccess(t); setToken(t); }
     catch { localStorage.removeItem("aedifica_token"); } finally { setReady(true); }
+  }
+  // W16 — fine-grained ACL map for the current user. Keys: role, default
+  // (global level), projects[project_id]: { default, surfaces[name]: level }.
+  async function loadAccess(t: string) {
+    try { setAccess(await api<any>("/auth/me/access", { token: t })); }
+    catch { setAccess(null); }
   }
   async function loadExternal(t: string, me?: any) {
     const meR = me || await api<any>("/external/me", { token: t });
@@ -433,6 +444,24 @@ export default function App() {
   // Terrain & zonage on each project, which avoids the duplicate search box
   // on the intermediate Home page (now removed entirely).
 
+  // W16 — given a NAV view id, returns the effective level ("none" | "read" |
+  // "write") for the current project. Falls back to "write" for owners,
+  // project-agnostic views, or when no access map is loaded yet.
+  function levelFor(viewId: View): "none" | "read" | "write" {
+    if (!access || access.role === "owner") return "write";
+    // Project-agnostic surfaces aren't scoped at the surface level; they're
+    // gated only by role-default (member/viewer = write/read).
+    if (PROJECT_AGNOSTIC.includes(viewId)) return (access.default || "read") as any;
+    const pid = active?.project_id;
+    if (!pid) return (access.default || "read") as any;
+    const proj = access.projects?.[pid];
+    if (!proj) return (access.default || "read") as any;
+    const lvl = proj.surfaces?.[viewId];
+    return (lvl || proj.default || access.default || "read") as any;
+  }
+  const currentLevel = levelFor(view);
+  const readonly = currentLevel === "read";
+
   if (!ready) return <div className="center"><span className="spin">Chargement…</span></div>;
   if (!token) return <Login busy={busy} err={err} onRegister={register} onLogin={login} onJoin={joinWithKey} onAcceptInvite={acceptInvite} />;
   if (ext) return <ExternalView ext={ext} onTick={tickExternal} onSignOut={signOut} />;
@@ -469,14 +498,19 @@ export default function App() {
                 // W13: per-project surfaces are disabled until a project is
                 // selected. Atelier · global stays clickable.
                 const disabled = !active && !PROJECT_AGNOSTIC.includes(n.id);
+                // W16: hide views the user has no access to.
+                const lvl = levelFor(n.id);
+                if (lvl === "none") return null;
                 return (
                   <button key={n.id}
                           className={`titem ${view === n.id ? "on" : ""}`}
                           disabled={disabled}
-                          title={disabled ? "Sélectionnez un projet" : undefined}
+                          title={disabled ? "Sélectionnez un projet" : (lvl === "read" ? "Lecture seule" : undefined)}
                           style={disabled ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
                           onClick={() => { if (!disabled) { setView(n.id); setFlash(null); setSideOpen(false); } }}>
-                    <Icon n={n.ico} /><span className="lb">{n.lb}</span>{n.ph && <span className="ph">{n.ph}</span>}
+                    <Icon n={n.ico} /><span className="lb">{n.lb}</span>
+                    {lvl === "read" && <span className="ph" title="Lecture seule">RO</span>}
+                    {n.ph && <span className="ph">{n.ph}</span>}
                   </button>
                 );
               })}
@@ -519,6 +553,7 @@ export default function App() {
           <button className="ws__nav-toggle" aria-label="Menu" onClick={() => setSideOpen((v) => !v)}>☰ Menu</button>
           <span className="t-nm">{cur.lb}</span>
           {j && <span className="chip">{j.commune}</span>}
+          {readonly && <span className="chip" style={{ borderColor: "var(--ts-assume)", color: "var(--ts-assume)" }} title="Vous avez un accès en lecture seule à cette surface">Lecture seule</span>}
           <span className="sp" />
           <span className="chip">L&apos;IA propose — l&apos;architecte décide</span>
         </div>
