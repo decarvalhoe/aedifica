@@ -447,7 +447,43 @@ AUDIT_EVENT_TYPES = (
     "external_view_blocked",  # external attempted an out-of-scope read; recorded for audit
     "llm_mode_changed",   # W12.C — project's llm_mode flipped off/local/cloud
     "llm_called",         # W12.C — an LLM-backed Foresight rule was invoked
+    "scope_granted",      # W16 — owner set/raised a CollaboratorScope row
+    "scope_revoked",      # W16 — owner removed/lowered a CollaboratorScope row
 )
+
+
+# W16 — fine-grained access control for internal collaborators.
+# Externals (role="external") keep their own scoping via AccessGrant + the
+# ExternalView. This table only constrains members/viewers; owners are
+# always full-write regardless.
+SCOPE_LEVELS = ("none", "read", "write")
+# Surfaces the architect can scope. Settings/atelier/equipe stay role-only
+# to avoid lockouts on org administration.
+SCOPED_SURFACES = (
+    "dashboard", "foresight", "taches", "checklist", "terrain", "copilote", "memoire",
+    "coordination", "intervenants", "documents", "brs",
+    "permis", "opposition", "conformite",
+    "couts", "chantier",
+)
+
+
+class CollaboratorScope(Base):
+    """Per-(user, project, surface) override of a collaborator's access
+    level. Resolution walks specificity: exact → project-wide → surface-wide
+    → user-default → role-default. Empty table = role-default everywhere."""
+
+    __tablename__ = "collaborator_scope"
+    __table_args__ = (
+        UniqueConstraint("user_id", "project_id", "surface", name="uq_scope_triple"),
+    )
+    id: Mapped[int] = mapped_column(primary_key=True)
+    org_id: Mapped[int] = mapped_column(ForeignKey("org.id"))
+    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
+    project_id: Mapped[int | None] = mapped_column(ForeignKey("project.id"), nullable=True)
+    surface: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    level: Mapped[str] = mapped_column(String(10))
+    created_at: Mapped[_dt.datetime] = _TS()
+    created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("user.id"), nullable=True)
 
 
 class AuditEvent(Base):

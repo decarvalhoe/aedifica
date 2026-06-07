@@ -684,6 +684,119 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
                 .order_by(m.AuditEvent.id.desc()).limit(min(limit, 1000)).all())
         return {"events": [_audit_dict(e) for e in rows], "total": len(rows)}
 
+    # ---- W16: fine-grained ACL for internal collaborators ----------------- #
+    from .acl import resolve_access, user_access_map, has_level
+
+    def _scope_dict(s: m.CollaboratorScope) -> dict:
+        return {"id": s.id, "user_id": s.user_id, "project_id": s.project_id,
+                "surface": s.surface, "level": s.level,
+                "created_at": s.created_at.isoformat() if s.created_at else None}
+
+    @app.get("/api/orgs/scopes")
+    def list_scopes(user_id: int | None = None,
+                    user: m.User = Depends(current_user),
+                    session: Session = Depends(get_session)):
+        """List CollaboratorScope rows. Owner only. Filter by user_id optional."""
+        require(user, "org.manage")
+        q = session.query(m.CollaboratorScope).filter_by(org_id=user.org_id)
+        if user_id is not None:
+            q = q.filter_by(user_id=user_id)
+        rows = q.order_by(m.CollaboratorScope.id.desc()).all()
+        return {"scopes": [_scope_dict(s) for s in rows]}
+
+    @app.put("/api/orgs/scopes")
+    def upsert_scope(body: dict, user: m.User = Depends(current_user),
+                     session: Session = Depends(get_session)):
+        """Owner sets a (user, project?, surface?) → level scope row.
+        If a row with the same triple exists, its level is updated.
+        Setting level='write' for a member is a no-op vs role default but stays
+        recorded so the owner sees their intent.
+        Owners CANNOT scope themselves down — silently ignored.
+        Body: {user_id, project_id?, surface?, level}."""
+        require(user, "org.manage")
+        target_id = int(body.get("user_id") or 0)
+        if not target_id:
+            raise _err(400, "BAD_USER", "user_id required")
+        target = session.query(m.User).filter_by(id=target_id, org_id=user.org_id).first()
+        if not target:
+            raise _err(404, "USER_NOT_FOUND", str(target_id))
+        if target.role == "owner":
+            # No-op: owners are always full-write.
+            return {"scope": None, "noop": "owner stays full-write"}
+        if target.role == "external":
+            raise _err(400, "EXTERNAL_USER", "externals are scoped via AccessGrant, not this endpoint")
+        level = (body.get("level") or "").strip()
+        if level not in m.SCOPE_LEVELS:
+            raise _err(400, "BAD_LEVEL", f"level must be one of {m.SCOPE_LEVELS}")
+        surface = body.get("surface") or None
+        if surface and surface not in m.SCOPED_SURFACES:
+            raise _err(400, "BAD_SURFACE", f"surface must be one of {m.SCOPED_SURFACES}")
+        project = None
+        pid_in = body.get("project_id")
+        if pid_in is not None:
+            project = session.query(m.Project).filter_by(org_id=user.org_id, id=int(pid_in)).first()
+            if not project:
+                raise _err(404, "PROJECT_NOT_FOUND", str(pid_in))
+        existing = (session.query(m.CollaboratorScope)
+                    .filter_by(user_id=target_id,
+                               project_id=project.id if project else None,
+                               surface=surface).first())
+        if existing:
+            existing.level = level
+            row = existing
+        else:
+            row = m.CollaboratorScope(
+                org_id=user.org_id, user_id=target_id,
+                project_id=project.id if project else None,
+                surface=surface, level=level,
+                created_by_user_id=user.id,
+            )
+            session.add(row); session.flush()
+        _audit(session, user, "scope_granted",
+               f"{target.email} → {project.project_id if project else 'org'}/{surface or 'all'} = {level}",
+               project=project, target_user=target,
+               meta={"surface": surface, "level": level,
+                     "project_id": project.project_id if project else None})
+        session.commit()
+        return {"scope": _scope_dict(row)}
+
+    @app.delete("/api/orgs/scopes/{scope_id}")
+    def delete_scope(scope_id: int, user: m.User = Depends(current_user),
+                     session: Session = Depends(get_session)):
+        """Remove a scope row → user falls back to less specific resolution."""
+        require(user, "org.manage")
+        row = session.query(m.CollaboratorScope).filter_by(
+            id=scope_id, org_id=user.org_id).first()
+        if not row:
+            raise _err(404, "SCOPE_NOT_FOUND", str(scope_id))
+        target = session.query(m.User).filter_by(id=row.user_id).first()
+        proj = session.query(m.Project).filter_by(id=row.project_id).first() if row.project_id else None
+        _audit(session, user, "scope_revoked",
+               f"{target.email if target else row.user_id} ← {proj.project_id if proj else 'org'}/{row.surface or 'all'} removed",
+               project=proj, target_user=target,
+               meta={"surface": row.surface, "level": row.level})
+        session.delete(row); session.commit()
+        return {"deleted": scope_id}
+
+    @app.get("/api/auth/me/access")
+    def my_access(user: m.User = Depends(current_user),
+                  session: Session = Depends(get_session)):
+        """Returns the access map for the current user (used by the workspace
+        shell to hide / disable surfaces based on level). Includes role and
+        per-project per-surface levels. Non-owner externals get the empty
+        map; they go through ExternalView anyway."""
+        return user_access_map(session, user)
+
+    def require_access(user: m.User, project: m.Project | None, surface: str | None,
+                       needed: str, session: Session) -> None:
+        """Enforce a minimum access level. Used in route handlers that need
+        finer granularity than the original capability check."""
+        # Owner shortcut handled inside resolve_access.
+        lvl = resolve_access(session, user, project, surface)
+        if not has_level(lvl, needed):
+            raise _err(403, "SCOPED_OUT",
+                       f"your access to {surface or 'this resource'} is {lvl!r}, {needed!r} required")
+
     @app.get("/api/projects/{project_id}/audit")
     def list_project_audit(project_id: str, user: m.User = Depends(current_user),
                            session: Session = Depends(get_session), limit: int = 200):
