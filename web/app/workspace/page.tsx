@@ -566,15 +566,31 @@ export default function App() {
             </div>
           )}
 
+          {/* W16.C — wrap surface render in a disabled fieldset when the user
+              has read-only access. fieldset[disabled] natively propagates to
+              every descendant button/input/select/textarea, so individual
+              surface components don't need a readonly prop. */}
+
           {/* Project-agnostic views (always renderable). */}
           {view === "atelier" && (
-            atelier ? <AtelierPilotage atelier={atelier} onOpen={openProject} projects={projects}
+            atelier ? (
+              <fieldset disabled={readonly} className="ws-surface-wrap" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
+                <AtelierPilotage atelier={atelier} onOpen={openProject} projects={projects}
                                        pendingFilter={pendingPlanningFilter}
                                        onClearPending={() => setPendingPlanningFilter(null)}
                                        onPatchTask={patchAtelierTask} onDelTask={delAtelierTask} />
-                    : <p className="spin">Chargement de l&apos;atelier…</p>
+              </fieldset>
+            ) : <p className="spin">Chargement de l&apos;atelier…</p>
           )}
-          {view === "equipe" && <Team users={users} onAdd={addUser} onSetRole={setUserRole} />}
+          {view === "equipe" && (
+            <fieldset disabled={readonly} className="ws-surface-wrap" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
+              <Team users={users} onAdd={addUser} onSetRole={setUserRole} />
+            </fieldset>
+          )}
+          {/* Settings is intentionally NOT wrapped: the user must always be
+              able to reach their account/preferences screen even when their
+              project access is read-only. The owner-only sub-panels enforce
+              their own gates server-side. */}
           {view === "settings" && token && (
             <Settings token={token}
                       projectId={active?.project_id || null}
@@ -598,7 +614,7 @@ export default function App() {
           )}
 
           {!projectAgnostic && !projectViewBlocked && active && (
-            <>
+            <fieldset disabled={readonly} className="ws-surface-wrap" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
               {view === "dashboard" && <Dashboard d={d} project={active} go={setView} alerts={atelierAlerts} onOpenAtelierPlanning={openAtelierPlanning} />}
               {view === "taches" && <Taches data={d.tasks} token={token!} pid={active.project_id} onAdd={addTask} onPatch={patchTask} onDel={delTask} onAddDep={addDep} onDelDep={delDep} onPredict={predictTask} />}
               {view === "checklist" && <Checklist data={d.checklist} entryPhase={active.phase_code} token={token!} pid={active.project_id} onSeed={seedChecklist} onPatch={patchChecklist} onAdd={addChecklistItem} onDel={delChecklistItem} />}
@@ -615,7 +631,7 @@ export default function App() {
               {view === "couts" && <Couts d={d.cost} onFee={feeEstimate} tasks={d.tasks?.tasks || []} projectPhase={active.phase_code} projectId={active.project_id} token={token!} onOpenAtelierPlanning={openAtelierPlanning} />}
               {view === "chantier" && <Chantier d={d.site} tasks={d.tasks?.tasks || []} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
               {view === "foresight" && token && <Foresight token={token} pid={active.project_id} />}
-            </>
+            </fieldset>
           )}
           {err && <p className="note err" style={{ marginTop: 16 }}>{err}</p>}
         </div>

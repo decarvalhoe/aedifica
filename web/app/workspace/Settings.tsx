@@ -91,9 +91,21 @@ export function Settings({ token, projectId, projectName, projectLlmMode, onToke
   // --- Audit log ----------------------------------------------------------
   const [audit, setAudit] = useState<AuditEv[] | null>(null);
   const [auditErr, setAuditErr] = useState<string | null>(null);
+  // W16.D — filter by event family. Each family maps to a prefix/list to keep
+  // the dropdown legible (e.g. "Permissions" covers W10 access_* + W16 scope_*).
+  type AuditFamily = "all" | "scope" | "access" | "invite" | "token" | "llm";
+  const AUDIT_FAMILY: Record<AuditFamily, { label: string; match: (et: string) => boolean }> = {
+    all: { label: "Tous", match: () => true },
+    scope: { label: "Permissions collaborateurs (W16)", match: (et) => et.startsWith("scope_") },
+    access: { label: "Partages documents (W10)", match: (et) => et.startsWith("access_") },
+    invite: { label: "Invitations", match: (et) => et.startsWith("invite_") },
+    token: { label: "Jetons API", match: (et) => et.startsWith("token_") },
+    llm: { label: "LLM (mode + appels)", match: (et) => et.startsWith("llm_") },
+  };
+  const [auditFamily, setAuditFamily] = useState<AuditFamily>("all");
   async function loadAudit() {
     try {
-      const r = await api<any>("/orgs/audit?limit=50", { token });
+      const r = await api<any>("/orgs/audit?limit=200", { token });
       setAudit(r.events || []);
     } catch (e: any) {
       setAudit([]);
@@ -104,6 +116,7 @@ export function Settings({ token, projectId, projectName, projectLlmMode, onToke
     }
   }
   useEffect(() => { loadAudit(); /* eslint-disable-next-line */ }, []);
+  const visibleAudit = audit ? audit.filter((e) => AUDIT_FAMILY[auditFamily].match(e.event_type)) : null;
 
   // --- W16: Permissions collaborateurs ------------------------------------
   type Scope = { id: number; user_id: number; project_id: number | null; surface: string | null; level: string };
@@ -288,16 +301,35 @@ export function Settings({ token, projectId, projectName, projectLlmMode, onToke
       <div className="card">
         <div className="row" style={{ alignItems: "baseline" }}>
           <h3 style={{ margin: 0 }}>Journal de sécurité</h3>
-          <small style={{ color: "var(--mut)", marginLeft: 8 }}>append-only, 50 derniers événements</small>
+          <small style={{ color: "var(--mut)", marginLeft: 8 }}>append-only, 200 derniers événements</small>
         </div>
         <p style={{ marginTop: 4, color: "var(--mut)" }}>
           Invitations émises et acceptées, droits d&apos;accès accordés/révoqués, rotations de jeton, changements de mode LLM. Visible par les owners de l&apos;atelier (les externes n&apos;y ont pas accès).
         </p>
+        {/* W16.D — filtre par famille d'événements */}
+        <div className="row" style={{ marginTop: 8, alignItems: "center", gap: 8 }}>
+          <label className="lbl" style={{ margin: 0 }}>Filtrer</label>
+          <select className="fld" style={{ maxWidth: 320 }}
+                  value={auditFamily}
+                  onChange={(e) => setAuditFamily(e.target.value as AuditFamily)}>
+            {(Object.keys(AUDIT_FAMILY) as AuditFamily[]).map((k) => (
+              <option key={k} value={k}>{AUDIT_FAMILY[k].label}</option>
+            ))}
+          </select>
+          {audit && (
+            <small style={{ color: "var(--mut)" }}>
+              {visibleAudit?.length || 0} / {audit.length} événement{(visibleAudit?.length || 0) === 1 ? "" : "s"}
+            </small>
+          )}
+        </div>
         {auditErr && <small style={{ color: "var(--ts-conflict)", display: "block", marginTop: 6 }}>{auditErr}</small>}
         <div style={{ marginTop: 10 }}>
           {audit === null && <small className="spin">Chargement…</small>}
           {audit && audit.length === 0 && <small style={{ color: "var(--mut)" }}>Aucun événement consigné pour l&apos;instant.</small>}
-          {audit?.map((e) => (
+          {audit && audit.length > 0 && visibleAudit && visibleAudit.length === 0 && (
+            <small style={{ color: "var(--mut)" }}>Aucun événement dans cette famille — choisissez « Tous » pour voir l&apos;intégralité.</small>
+          )}
+          {visibleAudit?.map((e) => (
             <div key={e.id} className="row-line">
               <span className="ds-ts is-decision" style={{ fontSize: 10 }}><span className="dot" />{e.event_type}</span>
               <span className="grow">

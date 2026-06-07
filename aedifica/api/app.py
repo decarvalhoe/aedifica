@@ -563,6 +563,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def create_group(project_id: str, body: GroupIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
         p = _project(session, user, project_id)
+        require_access(user, p, "intervenants", "write", session)
         g = m.IntervenantGroup(project_id=p.id, name=body.name, kind=body.kind, parent_id=body.parent_id)
         session.add(g); session.commit()
         return {"group": _group_dict(g)}
@@ -571,6 +572,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def delete_group(project_id: str, group_id: int, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
         p = _project(session, user, project_id)
+        require_access(user, p, "intervenants", "write", session)
         g = session.query(m.IntervenantGroup).filter_by(project_id=p.id, id=group_id).first()
         if not g:
             raise _err(404, "GROUP_NOT_FOUND", str(group_id))
@@ -584,6 +586,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def create_intervenant(project_id: str, body: IntervenantIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
         p = _project(session, user, project_id)
+        require_access(user, p, "intervenants", "write", session)
         i = m.Intervenant(project_id=p.id, name=body.name, role=body.role, organization=body.organization,
                           email=body.email, phone=body.phone, is_responsible=body.is_responsible, group_id=body.group_id)
         session.add(i); session.commit()
@@ -593,6 +596,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def patch_intervenant(project_id: str, intervenant_id: int, body: IntervenantPatch, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
         p = _project(session, user, project_id)
+        require_access(user, p, "intervenants", "write", session)
         i = session.query(m.Intervenant).filter_by(project_id=p.id, id=intervenant_id).first()
         if not i:
             raise _err(404, "INTERVENANT_NOT_FOUND", str(intervenant_id))
@@ -605,6 +609,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def delete_intervenant(project_id: str, intervenant_id: int, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
         p = _project(session, user, project_id)
+        require_access(user, p, "intervenants", "write", session)
         i = session.query(m.Intervenant).filter_by(project_id=p.id, id=intervenant_id).first()
         if not i:
             raise _err(404, "INTERVENANT_NOT_FOUND", str(intervenant_id))
@@ -624,6 +629,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         The new user has role ``external`` and only sees data linked to their intervenant."""
         require(user, "project.write")
         p = _project(session, user, project_id)
+        require_access(user, p, "intervenants", "write", session)
         iv = session.query(m.Intervenant).filter_by(project_id=p.id, id=intervenant_id).first()
         if not iv:
             raise _err(404, "INTERVENANT_NOT_FOUND", str(intervenant_id))
@@ -796,6 +802,32 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         if not has_level(lvl, needed):
             raise _err(403, "SCOPED_OUT",
                        f"your access to {surface or 'this resource'} is {lvl!r}, {needed!r} required")
+
+    # Generic attachments hang off any owning row — derive the surface from
+    # owner_kind so the ACL check matches the surface the attachment lives in.
+    # Unknown kinds default to "documents" (file storage is the visible bucket).
+    _OWNER_SURFACE = {
+        "document": "documents",
+        "brs": "brs",
+        "task": "taches",
+        "checklist_item": "checklist",
+        "capture_note": "memoire",
+        "capture": "memoire",
+        "permit_piece": "permis",
+        "permit": "permis",
+        "opposition": "opposition",
+        "opposition_item": "opposition",
+        "conformity": "conformite",
+        "conformity_item": "conformite",
+        "intervenant": "intervenants",
+        "cost": "couts",
+        "site": "chantier",
+        "proposal": "foresight",
+    }
+    def _owner_surface(owner_kind: str | None) -> str:
+        if not owner_kind:
+            return "documents"
+        return _OWNER_SURFACE.get(owner_kind, "documents")
 
     @app.get("/api/projects/{project_id}/audit")
     def list_project_audit(project_id: str, user: m.User = Depends(current_user),
@@ -1037,6 +1069,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         this endpoint only records the decision + the architect's basis."""
         require(user, "project.write")
         p = _project(session, user, project_id)
+        require_access(user, p, "foresight", "write", session)
         decision = body.get("decision", "")
         if decision not in ("accepted", "deferred", "refused"):
             raise _err(400, "BAD_DECISION", "decision must be accepted|deferred|refused")
@@ -1054,6 +1087,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def create_document(project_id: str, body: DocumentIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
         p = _project(session, user, project_id)
+        require_access(user, p, "documents", "write", session)
         d = m.Document(project_id=p.id, official_name=body.official_name, category=body.category,
                        confidential=body.confidential, note=body.note)
         d.versions.append(m.DocumentVersion(label=body.version_label, file_ref=body.file_ref, source=body.source))
@@ -1066,6 +1100,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         if body.level not in m.VALIDATION_LEVELS:
             raise _err(400, "BAD_LEVEL", f"level must be one of {m.VALIDATION_LEVELS}")
         p = _project(session, user, project_id)
+        require_access(user, p, "documents", "write", session)
         d = session.query(m.Document).filter_by(project_id=p.id, id=document_id).first()
         if not d:
             raise _err(404, "DOCUMENT_NOT_FOUND", str(document_id))
@@ -1078,6 +1113,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def patch_document(project_id: str, document_id: int, body: DocumentPatch, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
         p = _project(session, user, project_id)
+        require_access(user, p, "documents", "write", session)
         d = session.query(m.Document).filter_by(project_id=p.id, id=document_id).first()
         if not d:
             raise _err(404, "DOCUMENT_NOT_FOUND", str(document_id))
@@ -1090,6 +1126,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def delete_document(project_id: str, document_id: int, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
         p = _project(session, user, project_id)
+        require_access(user, p, "documents", "write", session)
         d = session.query(m.Document).filter_by(project_id=p.id, id=document_id).first()
         if not d:
             raise _err(404, "DOCUMENT_NOT_FOUND", str(document_id))
@@ -1100,6 +1137,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def grant_access(project_id: str, document_id: int, body: dict, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
         p = _project(session, user, project_id)
+        require_access(user, p, "documents", "write", session)
         d = session.query(m.Document).filter_by(project_id=p.id, id=document_id).first()
         if not d:
             raise _err(404, "DOCUMENT_NOT_FOUND", str(document_id))
@@ -1125,6 +1163,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def revoke_access(project_id: str, document_id: int, grant_id: int, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
         p = _project(session, user, project_id)
+        require_access(user, p, "documents", "write", session)
         gr = session.query(m.AccessGrant).filter_by(id=grant_id, document_id=document_id).first()
         if gr:
             d_for_audit = session.query(m.Document).filter_by(id=document_id).first()
@@ -1163,6 +1202,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         if body.channel not in m.BRS_CHANNELS:
             raise _err(400, "BAD_CHANNEL", f"channel must be one of {m.BRS_CHANNELS}")
         p = _project(session, user, project_id)
+        require_access(user, p, "brs", "write", session)
         e = m.BrsEntry(project_id=p.id, content=body.content, kind=body.kind, channel=body.channel,
                        emitter_intervenant_id=body.emitter_intervenant_id, emitter_label=body.emitter_label,
                        source_ref=body.source_ref, supersedes_id=body.supersedes_id)
@@ -1179,6 +1219,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def patch_brs(project_id: str, entry_id: int, body: BrsPatch, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
         p = _project(session, user, project_id)
+        require_access(user, p, "brs", "write", session)
         e = session.query(m.BrsEntry).filter_by(project_id=p.id, id=entry_id).first()
         if not e:
             raise _err(404, "BRS_NOT_FOUND", str(entry_id))
@@ -1192,6 +1233,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def del_brs(project_id: str, entry_id: int, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
         p = _project(session, user, project_id)
+        require_access(user, p, "brs", "write", session)
         e = session.query(m.BrsEntry).filter_by(project_id=p.id, id=entry_id).first()
         if not e:
             raise _err(404, "BRS_NOT_FOUND", str(entry_id))
@@ -1257,6 +1299,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def seed_checklist(project_id: str, body: ChecklistSeedIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
         p = _project(session, user, project_id)
+        require_access(user, p, "checklist", "write", session)
         if session.query(m.ChecklistItem).filter_by(project_id=p.id).count():
             raise _err(409, "ALREADY_SEEDED", "checklist already seeded for this project")
         for r in _siacl.seed_rows(body.entry_phase):
@@ -1272,6 +1315,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         if body.actor not in _siacl.ACTORS:
             raise _err(400, "BAD_ACTOR", f"actor must be one of {sorted(_siacl.ACTORS)}")
         p = _project(session, user, project_id)
+        require_access(user, p, "checklist", "write", session)
         if body.responsible_intervenant_id is not None:
             iv = session.query(m.Intervenant).filter_by(project_id=p.id, id=body.responsible_intervenant_id).first()
             if not iv:
@@ -1291,6 +1335,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         if body.actor is not None and body.actor not in _siacl.ACTORS:
             raise _err(400, "BAD_ACTOR", f"actor must be one of {sorted(_siacl.ACTORS)}")
         p = _project(session, user, project_id)
+        require_access(user, p, "checklist", "write", session)
         c = session.query(m.ChecklistItem).filter_by(project_id=p.id, id=item_id).first()
         if not c:
             raise _err(404, "ITEM_NOT_FOUND", str(item_id))
@@ -1310,6 +1355,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def del_checklist_item(project_id: str, item_id: int, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
         p = _project(session, user, project_id)
+        require_access(user, p, "checklist", "write", session)
         c = session.query(m.ChecklistItem).filter_by(project_id=p.id, id=item_id).first()
         if not c:
             raise _err(404, "ITEM_NOT_FOUND", str(item_id))
@@ -1419,6 +1465,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         if body.priority not in m.TASK_PRIORITIES or body.status not in m.TASK_STATUS:
             raise _err(400, "BAD_TASK", "invalid priority or status")
         p = _project(session, user, project_id)
+        require_access(user, p, "taches", "write", session)
         t = m.Task(project_id=p.id, title=body.title, priority=body.priority, status=body.status,
                    assignee_user_id=body.assignee_user_id, estimate_hours=body.estimate_hours, due_date=body.due_date,
                    is_quick_win=body.is_quick_win, phase_code=body.phase_code, checklist_item_id=body.checklist_item_id)
@@ -1430,6 +1477,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def patch_task(project_id: str, task_id: int, body: TaskPatch, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
         p = _project(session, user, project_id)
+        require_access(user, p, "taches", "write", session)
         t = session.query(m.Task).filter_by(project_id=p.id, id=task_id).first()
         if not t:
             raise _err(404, "TASK_NOT_FOUND", str(task_id))
@@ -1452,6 +1500,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def del_task(project_id: str, task_id: int, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
         p = _project(session, user, project_id)
+        require_access(user, p, "taches", "write", session)
         t = session.query(m.Task).filter_by(project_id=p.id, id=task_id).first()
         if not t:
             raise _err(404, "TASK_NOT_FOUND", str(task_id))
@@ -1463,6 +1512,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def add_dep(project_id: str, task_id: int, body: DepIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
         p = _project(session, user, project_id)
+        require_access(user, p, "taches", "write", session)
         if body.blocked_by_id == task_id:
             raise _err(400, "SELF_DEP", "a task cannot block itself")
         owned = {x.id for x in session.query(m.Task).filter_by(project_id=p.id).all()}
@@ -1476,7 +1526,8 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     @app.delete("/api/projects/{project_id}/tasks/{task_id}/deps/{blocked_by_id}")
     def del_dep(project_id: str, task_id: int, blocked_by_id: int, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
-        _project(session, user, project_id)
+        p = _project(session, user, project_id)
+        require_access(user, p, "taches", "write", session)
         session.query(m.TaskDependency).filter_by(task_id=task_id, blocked_by_id=blocked_by_id).delete()
         session.commit()
         return {"removed": [task_id, blocked_by_id]}
@@ -1630,6 +1681,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         if body.kind not in m.CAPTURE_KINDS:
             raise _err(400, "BAD_KIND", f"kind must be one of {m.CAPTURE_KINDS}")
         p = _project(session, user, project_id)
+        require_access(user, p, "memoire", "write", session)
         c = m.CaptureNote(project_id=p.id, kind=body.kind, content=body.content, author=user.name, source_ref=body.source_ref)
         session.add(c); session.commit()
         return {"capture": _cap_dict(c)}
@@ -1638,6 +1690,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def del_capture(project_id: str, capture_id: int, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
         p = _project(session, user, project_id)
+        require_access(user, p, "memoire", "write", session)
         c = session.query(m.CaptureNote).filter_by(project_id=p.id, id=capture_id).first()
         if not c:
             raise _err(404, "CAPTURE_NOT_FOUND", str(capture_id))
@@ -1661,6 +1714,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def submit_permit(project_id: str, body: SubmitPieceIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
         project = _project(session, user, project_id)
+        require_access(user, project, "permis", "write", session)
         from . import reports
 
         try:
@@ -1720,6 +1774,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def adapter_dry_run(project_id: str, body: DryRunIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
         project = _project(session, user, project_id)
+        require_access(user, project, "copilote", "write", session)
         try:
             result = actions.dry_run(session, project, user, body.adapter_id, body.operations, endpoint=body.adapter_endpoint)
         except Exception as exc:
@@ -1731,6 +1786,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def create_approval(project_id: str, body: ApprovalIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
         project = _project(session, user, project_id)
+        require_access(user, project, "copilote", "write", session)
         try:
             result = actions.create_approval(session, project, user, body.scope, body.basis)
         except Exception as exc:
@@ -1742,6 +1798,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def adapter_execute(project_id: str, body: ExecuteIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "adapter.execute")
         project = _project(session, user, project_id)
+        require_access(user, project, "copilote", "write", session)
         result = actions.execute(session, project, user, body.transaction)
         session.commit()
         return result
@@ -1770,6 +1827,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def generate_brief(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
         project = _project(session, user, project_id)
+        require_access(user, project, "copilote", "write", session)
         if not os.path.isdir(DEMO_DIR):
             raise _err(422, "NO_INTAKE", "live parcel intake lands in AED-130 (#169)")
         from aedifica import workspace  # engine facade (stdlib)
@@ -1788,6 +1846,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def parcel_intake(project_id: str, body: IntakeIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
         project = _project(session, user, project_id)
+        require_access(user, project, "terrain", "write", session)
         from ..pipeline import build_live_brief
 
         brief = build_live_brief(body.query, body.live)
@@ -2003,6 +2062,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         title = (body.get("title") or "").strip()
         owner_kind = (body.get("owner_kind") or "").strip()
         owner_id = str(body.get("owner_id") or "").strip()
+        require_access(user, p, _owner_surface(owner_kind), "write", session)
         if not url or not title:
             raise _err(400, "BAD_LINK", "url and title are required for a link attachment")
         if body.get("provider") and body["provider"] not in m.ATTACHMENT_PROVIDERS:
@@ -2023,6 +2083,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
                                  user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.write")
         p = _project(session, user, project_id)
+        require_access(user, p, _owner_surface(owner_kind), "write", session)
         _verify_owner(session, p.id, owner_kind, owner_id)
         # Stream + hash; refuse over the cap.
         h = _hashlib.sha256()
@@ -2071,6 +2132,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         a = session.query(m.Attachment).filter_by(project_id=p.id, id=att_id).first()
         if not a:
             raise _err(404, "NOT_FOUND", str(att_id))
+        require_access(user, p, _owner_surface(a.owner_kind), "write", session)
         if a.kind == "upload" and a.file_ref and os.path.exists(a.file_ref):
             try:
                 os.remove(a.file_ref)
