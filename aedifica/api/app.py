@@ -333,7 +333,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     # ---- public ---------------------------------------------------------- #
     @app.get("/api/health")
     def health():
-        return {"status": "ok", "version": "0.1.0", "env": settings.env}
+        return {"status": "ok", "version": "0.1.0", "env": settings.env, "features": settings.features}
 
     @app.get("/api/ready")
     def ready(session: Session = Depends(get_session)):
