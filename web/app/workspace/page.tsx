@@ -9,8 +9,9 @@ import { PhaseTasks } from "./PhaseTasks";
 import { Foresight } from "./Foresight";
 import { Settings } from "./Settings";
 
-const REF_ID = "DEMO-LAUSANNE-PALUD";
-const REF = { name: "Place de la Palud", commune: "Lausanne" };
+// W17 — the Place de la Palud reference dataset used to be auto-seeded on
+// every new atelier; it's now only available via pilot/seed_etienne.py for
+// marketing demos. New ateliers start empty.
 
 /* ---- SIA phase model (official sub-phases SIA 112/102) ---- */
 const PHASES: [string, string][] = [
@@ -305,14 +306,15 @@ export default function App() {
     const t = (await api<any>("/orgs", { method: "POST", body: { org_name: "Atelier démo", user_email: "demo@aedifica.ch" } })).token;
     localStorage.setItem("aedifica_token", t); setToken(t); return t;
   }
-  async function seedReference(t: string) {
-    try { await api("/projects", { method: "POST", token: t, body: { project_id: REF_ID, name: REF.name, commune: REF.commune, seed_reports: true } }); } catch { /* exists */ }
-    try { const c = ((await api<any>(`/projects/${REF_ID}/claims`, { token: t })).claims) || []; if (!c.length) await api(`/projects/${REF_ID}/intake`, { method: "POST", token: t, body: { query: `${REF.name}, ${REF.commune}`, live: false } }); } catch { /* */ }
-  }
+  // W17 — seedReference() used to auto-create the Place de la Palud demo
+  // project inside every new atelier, which broke the "vierge" promise of
+  // the registration flow. The demo dataset is still available via the
+  // standalone /pilot/seed_etienne.py script for marketing demos; new
+  // ateliers now start empty so the user owns their first project.
   async function register(orgName: string, email: string, password: string) {
     setBusy(true); setErr("");
     try { const t = (await api<any>("/orgs", { method: "POST", body: { org_name: orgName, user_email: email, password } })).token as string;
-      localStorage.setItem("aedifica_token", t); await seedReference(t); await loadProjects(t); await loadUsers(t); loadAtelier(t); setToken(t);
+      localStorage.setItem("aedifica_token", t); await loadProjects(t); await loadUsers(t); loadAtelier(t); setToken(t);
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   }
   async function login(email: string, password: string) {
@@ -330,10 +332,17 @@ export default function App() {
   }
   function signOut() { localStorage.removeItem("aedifica_token"); setToken(null); setProjects(null); setActive(null); setD({}); setFlashKey(null); setFlash(null); setUsers(null); setExt(null); }
 
-  async function createProject(name: string, commune: string) {
+  async function createProject(name: string, commune: string, canton: string | null) {
     const id = (name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40)) || `PROJ-${(projects?.length ?? 0) + 1}`;
     setBusy(true); setErr("");
-    try { await api("/projects", { method: "POST", token: token!, body: { project_id: id, name, commune } }); const sums = await loadProjects(token!); const p = sums.find((s) => s.project_id === id); if (p) await openProject(p); }
+    try {
+      // W17 — explicit canton when picked; otherwise let the backend run the
+      // resolver and report back if it can't decide.
+      const body: any = { project_id: id, name, commune };
+      if (canton) body.canton = canton;
+      await api("/projects", { method: "POST", token: token!, body });
+      const sums = await loadProjects(token!); const p = sums.find((s) => s.project_id === id); if (p) await openProject(p);
+    }
     catch (e: any) { setErr(e.message?.includes("exists") ? "Un projet porte déjà ce nom." : e.message); } finally { setBusy(false); }
   }
   async function openProject(p: Project) {
@@ -845,17 +854,65 @@ function AtelierPilotage({ atelier, onOpen, projects, pendingFilter, onClearPend
 // active one, and an inline "+ Nouveau projet" form at the bottom. Pattern
 // borrowed from Notion / Linear / Figma workspace switchers: stay in the
 // workspace, never bounce to a separate page.
+// W17 — commune→canton resolver hook. Debounces the input so we hit the
+// /jurisdictions/resolve endpoint at most every 250ms while the user types.
+function useCantonResolve(commune: string, country: string = "CH") {
+  const [verdict, setVerdict] = useState<any | null>(null);
+  useEffect(() => {
+    const c = commune.trim();
+    if (!c) { setVerdict(null); return; }
+    let cancelled = false;
+    const id = setTimeout(async () => {
+      try {
+        const r = await api<any>(`/jurisdictions/resolve?country=${encodeURIComponent(country)}&commune=${encodeURIComponent(c)}`, {});
+        if (!cancelled) setVerdict(r);
+      } catch { if (!cancelled) setVerdict(null); }
+    }, 250);
+    return () => { cancelled = true; clearTimeout(id); };
+  }, [commune, country]);
+  return verdict;
+}
+
+// W17 — full canton list for the manual fallback. Loaded once per session.
+function useCantonList(country: string = "CH") {
+  const [list, setList] = useState<{ canton: string; name: string }[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await api<any>(`/jurisdictions/regions?country=${encodeURIComponent(country)}`, {});
+        if (!cancelled) setList(r.regions || []);
+      } catch { /* swallow */ }
+    })();
+    return () => { cancelled = true; };
+  }, [country]);
+  return list;
+}
+
 function ProjectSwitcher({ active, projects, onOpen, onCreate, busy }: {
   active: Project | null; projects: Project[] | null;
   onOpen: (p: Project) => void;
-  onCreate: (name: string, commune: string) => Promise<void> | void;
+  onCreate: (name: string, commune: string, canton: string | null) => Promise<void> | void;
   busy: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
-  const [commune, setCommune] = useState("Lausanne");
+  const [commune, setCommune] = useState("");
+  // W17 — user-selected canton (null until resolver returns "exact" or the
+  // user picks one explicitly).
+  const [canton, setCanton] = useState<string | null>(null);
+  const verdict = useCantonResolve(commune);
+  const cantonList = useCantonList("CH");
+  // When the resolver returns exact, accept it. When it goes ambiguous or
+  // unknown, drop the previous auto-pick so we don't silently submit a
+  // stale canton.
+  useEffect(() => {
+    if (!verdict) { setCanton(null); return; }
+    if (verdict.confidence === "exact") setCanton(verdict.canton);
+    else setCanton(null);
+  }, [verdict]);
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     function onDoc(e: MouseEvent) {
@@ -872,10 +929,14 @@ function ProjectSwitcher({ active, projects, onOpen, onCreate, busy }: {
 
   const list = (projects || []).slice();
   const filtered = q.trim() ? list.filter((p) => `${p.name} ${p.jurisdiction.commune}`.toLowerCase().includes(q.toLowerCase())) : list;
+  // W17 — gate the Créer button on (name + commune + canton). Canton can
+  // come from the resolver (auto) or from the user (manual pick).
+  const cantonReady = !!canton;
+  const canCreate = !!name.trim() && !!commune.trim() && cantonReady && !busy;
   const create = async () => {
-    if (!name.trim()) return;
-    await onCreate(name, commune);
-    setCreating(false); setName(""); setOpen(false);
+    if (!canCreate) return;
+    await onCreate(name, commune, canton);
+    setCreating(false); setName(""); setCommune(""); setCanton(null); setOpen(false);
   };
   return (
     <div className="psw-wrap" ref={ref}>
@@ -921,10 +982,46 @@ function ProjectSwitcher({ active, projects, onOpen, onCreate, busy }: {
           ) : (
             <div className="psw-form">
               <input className="fld" placeholder="Nom du projet" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
-              <input className="fld" placeholder="Commune" value={commune} onChange={(e) => setCommune(e.target.value)} />
+              <input className="fld" placeholder="Commune (ex: Neuchâtel, Lausanne, Sion…)" value={commune} onChange={(e) => setCommune(e.target.value)} />
+              {/* W17 — three resolver outcomes drive three different UIs.
+                  Empty + still typing → tiny hint
+                  Exact → auto-fill chip
+                  Ambiguous → required dropdown of candidates only
+                  Unknown → full 26-canton dropdown */}
+              {commune.trim() && verdict && (
+                <div className="psw-canton" style={{ marginBottom: 10 }}>
+                  {verdict.confidence === "exact" && canton && (
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--ts-sourced)" }}>
+                      Canton détecté : <b>{canton}</b> · {verdict.candidates?.[0]?.name}
+                    </div>
+                  )}
+                  {verdict.confidence === "ambiguous" && (
+                    <>
+                      <label className="lbl">Plusieurs cantons portent ce nom — choisissez :</label>
+                      <select className="fld" value={canton || ""} onChange={(e) => setCanton(e.target.value || null)}>
+                        <option value="">— Sélectionner —</option>
+                        {(verdict.candidates || []).map((c: any) => (
+                          <option key={c.canton} value={c.canton}>{c.canton} · {c.name}</option>
+                        ))}
+                      </select>
+                    </>
+                  )}
+                  {verdict.confidence === "unknown" && (
+                    <>
+                      <label className="lbl">Commune inconnue de notre base — choisissez le canton :</label>
+                      <select className="fld" value={canton || ""} onChange={(e) => setCanton(e.target.value || null)}>
+                        <option value="">— Sélectionner —</option>
+                        {cantonList.map((c) => (
+                          <option key={c.canton} value={c.canton}>{c.canton} · {c.name}</option>
+                        ))}
+                      </select>
+                    </>
+                  )}
+                </div>
+              )}
               <div className="row" style={{ gap: 6 }}>
-                <button className="ds-btn" disabled={busy || !name} onClick={create}>{busy ? "…" : "Créer"}</button>
-                <button className="ds-btn ghost" onClick={() => setCreating(false)}>Annuler</button>
+                <button className="ds-btn" disabled={!canCreate} onClick={create}>{busy ? "…" : "Créer"}</button>
+                <button className="ds-btn ghost" onClick={() => { setCreating(false); setName(""); setCommune(""); setCanton(null); }}>Annuler</button>
               </div>
             </div>
           )}
