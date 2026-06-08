@@ -1,28 +1,41 @@
-"""Swiss canton + commune dataset.
+"""Swiss canton + commune resolver, backed by the official OFS register.
 
-The dataset is a **curated subset** — every canton capital + the population
-centres + a sample of common smaller communes. We deliberately don't ship the
-full ~2100-commune OFS register here: the data changes (mergers happen every
-year), and shipping it would lock the codebase to a snapshot date. Instead,
-when a commune is not in this list, the resolver returns ``unknown`` and
-lets the UI fall back to a manual canton picker. The dataset can grow with
-demand (PR by PR), without changing the resolver contract.
+The dataset lives at ``aedifica/jurisdictions/data/ch_communes.json`` and is
+a snapshot of the Federal Statistical Office (BFS) "Application du
+répertoire officiel des communes de Suisse" (AGVCH) — see
+https://www.agvchapp.bfs.admin.ch . The snapshot is refreshed via
+``pilot/refresh_communes.py`` (manually or by the monthly GitHub Actions
+workflow), so every push to main carries an up-to-date register.
 
-Source for the curated rows: cross-checked against the official OFS register
-(https://www.bfs.admin.ch/bfs/fr/home/bases-statistiques/repertoire-officiel-communes-suisse.html)
-in 2026, plus Wikipedia for canton-code verification. Each entry is the
-canonical OFS commune name (no diacritic gymnastics — the resolver normalises
-the input). Real homonyms (same canonical name in multiple cantons) are kept
-as a list — never silently mapped to one canton.
+Two flavours of name appear in the OFS data:
+
+  - Unique communes: the canonical name is the single field (e.g.,
+    "Lausanne", "Neuchâtel", "Sion"). A user typing the exact (or
+    diacritic-normalised) name lands on an "exact" verdict.
+
+  - Disambiguated homonyms: when several communes share the same base
+    name, OFS appends the canton in parentheses — "Wald (AR)", "Wald (BE)",
+    "Wald (ZH)" — so the canonical form is unique. The resolver detects
+    this pattern: typing just "Wald" returns an "ambiguous" verdict with
+    the three candidates so the UI can ask.
+
+A small Aedifica-curated alias table covers bilingual/synonym entries
+(Bienne→Biel/Bienne, Saint-Gall→St. Gallen, Berne→Bern, Genf→Genève) — every
+alias is marked as such; the source of truth stays the OFS register.
 """
 from __future__ import annotations
 
+import json
+import re
+import unicodedata
+from functools import lru_cache
+from pathlib import Path
+
+DATA = Path(__file__).parent / "data" / "ch_communes.json"
+
 # ---------------------------------------------------------------------------
-# Canton register (26 cantons)
+# Canton register (26 cantons) — kept in code (small, stable, multilingual)
 # ---------------------------------------------------------------------------
-# Each canton has its code (ISO 3166-2:CH) + French/German/Italian names. The
-# code is what we store in `project.canton`. The names are used by the UI to
-# present a friendly label in the dropdown.
 
 CANTONS: dict[str, dict[str, str]] = {
     "AG": {"fr": "Argovie", "de": "Aargau", "it": "Argovia"},
@@ -54,380 +67,180 @@ CANTONS: dict[str, dict[str, str]] = {
 }
 
 # ---------------------------------------------------------------------------
-# Commune → canton(s). Lists for genuine homonyms; singletons otherwise.
+# Curated bilingual / synonym aliases.
 # ---------------------------------------------------------------------------
-# This is intentionally NOT exhaustive. Coverage targets: every canton capital,
-# every commune with > ~10k population, plus a sample of mid-size communes
-# from each canton. Keys are the canonical OFS spellings; the resolver
-# normalises diacritics + casing on the input side so users can type
-# "geneve" or "Genève" indifferently.
-COMMUNES: dict[str, list[str]] = {
-    # ---- Canton capitals --------------------------------------------------
-    "Aarau": ["AG"],
-    "Appenzell": ["AI"],
-    "Herisau": ["AR"],
-    "Bern": ["BE"],
-    "Berne": ["BE"],
-    "Liestal": ["BL"],
-    "Basel": ["BS"],
-    "Bâle": ["BS"],
-    "Fribourg": ["FR"],
-    "Freiburg": ["FR"],
-    "Genève": ["GE"],
-    "Geneve": ["GE"],
-    "Genf": ["GE"],
-    "Glarus": ["GL"],
-    "Glaris": ["GL"],
-    "Chur": ["GR"],
-    "Coire": ["GR"],
-    "Delémont": ["JU"],
-    "Delemont": ["JU"],
-    "Luzern": ["LU"],
-    "Lucerne": ["LU"],
-    "Neuchâtel": ["NE"],
-    "Neuchatel": ["NE"],
-    "Neuenburg": ["NE"],
-    "Stans": ["NW"],
-    "Sarnen": ["OW"],
-    "St. Gallen": ["SG"],
-    "Saint-Gall": ["SG"],
-    "Sankt Gallen": ["SG"],
-    "Schaffhausen": ["SH"],
-    "Schaffhouse": ["SH"],
-    "Solothurn": ["SO"],
-    "Soleure": ["SO"],
-    "Schwyz": ["SZ"],
-    "Frauenfeld": ["TG"],
-    "Bellinzona": ["TI"],
-    "Bellinzone": ["TI"],
-    "Altdorf": ["UR"],
-    "Lausanne": ["VD"],
-    "Sion": ["VS"],
-    "Sitten": ["VS"],
-    "Zug": ["ZG"],
-    "Zoug": ["ZG"],
-    "Zürich": ["ZH"],
-    "Zurich": ["ZH"],
-
-    # ---- Vaud (VD) — major communes ---------------------------------------
-    "Yverdon-les-Bains": ["VD"],
-    "Yverdon": ["VD"],
-    "Montreux": ["VD"],
-    "Renens": ["VD"],
-    "Nyon": ["VD"],
-    "Vevey": ["VD"],
-    "Pully": ["VD"],
-    "Morges": ["VD"],
-    "Gland": ["VD"],
-    "Prilly": ["VD"],
-    "La Tour-de-Peilz": ["VD"],
-    "Ecublens": ["VD"],
-    "Lutry": ["VD"],
-    "Aigle": ["VD"],
-    "Payerne": ["VD"],
-    "Crissier": ["VD"],
-    "Bex": ["VD"],
-    "Orbe": ["VD"],
-    "Moudon": ["VD"],
-    "Sainte-Croix": ["VD"],
-
-    # ---- Genève (GE) ------------------------------------------------------
-    "Vernier": ["GE"],
-    "Lancy": ["GE"],
-    "Carouge": ["GE"],
-    "Meyrin": ["GE"],
-    "Onex": ["GE"],
-    "Thônex": ["GE"],
-    "Versoix": ["GE"],
-    "Plan-les-Ouates": ["GE"],
-    "Grand-Saconnex": ["GE"],
-    "Chêne-Bougeries": ["GE"],
-    "Chêne-Bourg": ["GE"],
-
-    # ---- Valais (VS) ------------------------------------------------------
-    "Martigny": ["VS"],
-    "Sierre": ["VS"],
-    "Monthey": ["VS"],
-    "Brig-Glis": ["VS"],
-    "Visp": ["VS"],
-    "Naters": ["VS"],
-    "Conthey": ["VS"],
-    "Saint-Maurice": ["VS"],
-    "Bagnes": ["VS"],
-    "Verbier": ["VS"],
-    "Crans-Montana": ["VS"],
-    "Zermatt": ["VS"],
-    "Saas-Fee": ["VS"],
-
-    # ---- Fribourg (FR) ----------------------------------------------------
-    "Bulle": ["FR"],
-    "Villars-sur-Glâne": ["FR"],
-    "Marly": ["FR"],
-    "Givisiez": ["FR"],
-    "Düdingen": ["FR"],
-    "Guin": ["FR"],
-    "Murten": ["FR"],
-    "Morat": ["FR"],
-    "Estavayer": ["FR"],
-    "Châtel-Saint-Denis": ["FR"],
-    "Romont": ["FR"],
-    "Gruyères": ["FR"],
-    "Bösingen": ["FR"],
-
-    # ---- Neuchâtel (NE) ---------------------------------------------------
-    "La Chaux-de-Fonds": ["NE"],
-    "Le Locle": ["NE"],
-    "Val-de-Travers": ["NE"],
-    "Val-de-Ruz": ["NE"],
-    "Boudry": ["NE"],
-    "Peseux": ["NE"],
-    "Cortaillod": ["NE"],
-    "Couvet": ["NE"],
-    "Cernier": ["NE"],
-    "Marin-Epagnier": ["NE"],
-    "Hauterive": ["NE"],
-    "Bevaix": ["NE"],
-    "Colombier": ["NE"],
-    "Saint-Aubin-Sauges": ["NE"],
-
-    # ---- Berne (BE) — major communes --------------------------------------
-    "Biel/Bienne": ["BE"],
-    "Bienne": ["BE"],
-    "Biel": ["BE"],
-    "Thun": ["BE"],
-    "Thoune": ["BE"],
-    "Köniz": ["BE"],
-    "Ostermundigen": ["BE"],
-    "Burgdorf": ["BE"],
-    "Berthoud": ["BE"],
-    "Interlaken": ["BE"],
-    "Grindelwald": ["BE"],
-    "Spiez": ["BE"],
-    "Lyss": ["BE"],
-    "Münsingen": ["BE"],
-
-    # ---- Jura (JU) --------------------------------------------------------
-    "Porrentruy": ["JU"],
-    "Bassecourt": ["JU"],
-    "Courrendlin": ["JU"],
-    "Saignelégier": ["JU"],
-    "Courroux": ["JU"],
-
-    # ---- Zurich (ZH) ------------------------------------------------------
-    "Winterthur": ["ZH"],
-    "Uster": ["ZH"],
-    "Dübendorf": ["ZH"],
-    "Dietikon": ["ZH"],
-    "Wetzikon": ["ZH"],
-    "Kloten": ["ZH"],
-    "Wädenswil": ["ZH"],
-    "Bülach": ["ZH"],
-    "Opfikon": ["ZH"],
-    "Horgen": ["ZH"],
-    "Affoltern am Albis": ["ZH"],
-    "Adliswil": ["ZH"],
-    "Schlieren": ["ZH"],
-    "Regensdorf": ["ZH"],
-
-    # ---- Bâle-Ville (BS) --------------------------------------------------
-    "Riehen": ["BS"],
-    "Bettingen": ["BS"],
-
-    # ---- Bâle-Campagne (BL) -----------------------------------------------
-    "Allschwil": ["BL"],
-    "Pratteln": ["BL"],
-    "Muttenz": ["BL"],
-    "Binningen": ["BL"],
-    "Münchenstein": ["BL"],
-    "Birsfelden": ["BL"],
-    "Oberwil": ["BL"],
-    "Aesch": ["BL"],
-    "Therwil": ["BL"],
-
-    # ---- Argovie (AG) -----------------------------------------------------
-    "Baden": ["AG"],
-    "Wettingen": ["AG"],
-    "Wohlen": ["AG"],
-    "Brugg": ["AG"],
-    "Rheinfelden": ["AG"],
-    "Suhr": ["AG"],
-    "Oftringen": ["AG"],
-    "Spreitenbach": ["AG"],
-    "Möhlin": ["AG"],
-    "Lenzburg": ["AG"],
-    "Zofingen": ["AG"],
-    "Frick": ["AG"],
-
-    # ---- Lucerne (LU) -----------------------------------------------------
-    "Emmen": ["LU"],
-    "Kriens": ["LU"],
-    "Horw": ["LU"],
-    "Ebikon": ["LU"],
-    "Sursee": ["LU"],
-    "Hochdorf": ["LU"],
-    "Willisau": ["LU"],
-    "Reiden": ["LU"],
-
-    # ---- Saint-Gall (SG) --------------------------------------------------
-    "Rapperswil-Jona": ["SG"],
-    "Wil": ["SG"],
-    "Gossau": ["SG"],
-    "Altstätten": ["SG"],
-    "Uzwil": ["SG"],
-    "Buchs (SG)": ["SG"],
-    "Sankt Margrethen": ["SG"],
-    "Rorschach": ["SG"],
-    "Sargans": ["SG"],
-
-    # ---- Tessin (TI) ------------------------------------------------------
-    "Lugano": ["TI"],
-    "Locarno": ["TI"],
-    "Mendrisio": ["TI"],
-    "Chiasso": ["TI"],
-    "Biasca": ["TI"],
-    "Ascona": ["TI"],
-    "Minusio": ["TI"],
-    "Massagno": ["TI"],
-    "Paradiso": ["TI"],
-
-    # ---- Grisons (GR) -----------------------------------------------------
-    "Davos": ["GR"],
-    "St. Moritz": ["GR"],
-    "Saint-Moritz": ["GR"],
-    "Landquart": ["GR"],
-    "Domat/Ems": ["GR"],
-    "Ilanz/Glion": ["GR"],
-    "Arosa": ["GR"],
-    "Pontresina": ["GR"],
-
-    # ---- Schwytz (SZ) -----------------------------------------------------
-    "Einsiedeln": ["SZ"],
-    "Freienbach": ["SZ"],
-    "Küssnacht": ["SZ"],
-    "Lachen": ["SZ"],
-    "Arth": ["SZ"],
-    "Brunnen": ["SZ"],
-
-    # ---- Zoug (ZG) --------------------------------------------------------
-    "Baar": ["ZG"],
-    "Cham": ["ZG"],
-    "Steinhausen": ["ZG"],
-    "Risch-Rotkreuz": ["ZG"],
-    "Hünenberg": ["ZG"],
-
-    # ---- Thurgovie (TG) ---------------------------------------------------
-    "Kreuzlingen": ["TG"],
-    "Arbon": ["TG"],
-    "Amriswil": ["TG"],
-    "Romanshorn": ["TG"],
-    "Weinfelden": ["TG"],
-
-    # ---- Soleure (SO) -----------------------------------------------------
-    "Olten": ["SO"],
-    "Grenchen": ["SO"],
-    "Granges": ["SO"],
-    "Zuchwil": ["SO"],
-    "Bettlach": ["SO"],
-    "Derendingen": ["SO"],
-
-    # ---- Schaffhouse (SH) -------------------------------------------------
-    "Neuhausen am Rheinfall": ["SH"],
-    "Stein am Rhein": ["SH"],
-
-    # ---- Uri (UR) ---------------------------------------------------------
-    "Andermatt": ["UR"],
-    "Erstfeld": ["UR"],
-    "Bürglen": ["UR"],
-
-    # ---- Obwald (OW) ------------------------------------------------------
-    "Engelberg": ["OW"],
-    "Alpnach": ["OW"],
-    "Kerns": ["OW"],
-
-    # ---- Nidwald (NW) -----------------------------------------------------
-    "Hergiswil": ["NW"],
-    "Stansstad": ["NW"],
-    "Buochs": ["NW"],
-
-    # ---- Glaris (GL) ------------------------------------------------------
-    "Glarus Nord": ["GL"],
-    "Glarus Süd": ["GL"],
-    "Näfels": ["GL"],
-
-    # ---- Appenzell Rhodes-Extérieures (AR) --------------------------------
-    "Teufen": ["AR"],
-    "Heiden": ["AR"],
-    "Speicher": ["AR"],
-
-    # ---- HOMONYMS (verified) ----------------------------------------------
-    # Multiple cantons share the same canonical name — never silently pick
-    # one. The resolver returns "ambiguous" and the UI asks the user.
-    "Wald": ["ZH", "AR"],          # Wald ZH + Wald AR (BE merged into another)
-    "Buchs": ["AG", "SG", "ZH"],   # Buchs AG, Buchs SG, Buchs ZH (also LU)
-    "Reinach": ["AG", "BL"],       # Reinach AG + Reinach BL
-    "Roggwil": ["BE", "TG"],       # Roggwil BE + Roggwil TG
-    "Bichelsee-Balterswil": ["TG"],  # unique TG
-    "Wiesendangen": ["ZH"],
-    "Niederweningen": ["ZH"],
+# Source of truth = OFS canonical name. These aliases catch common
+# alternative spellings the OFS register does NOT list (a French speaker
+# typing "Berne" instead of the canonical "Bern", or "Bienne" instead of
+# "Biel/Bienne"). Each entry maps an alias → the OFS canonical name.
+ALIASES: dict[str, str] = {
+    # Capital + major French-speaking aliases
+    "Berne": "Bern",
+    "Bienne": "Biel/Bienne",
+    "Biel": "Biel/Bienne",
+    "Bâle": "Basel",
+    "Bale": "Basel",
+    "Genf": "Genève",
+    "Geneva": "Genève",
+    "Ginevra": "Genève",
+    "Saint-Gall": "St. Gallen",
+    "Sankt Gallen": "St. Gallen",
+    "San Gallo": "St. Gallen",
+    "Lugano": "Lugano",
+    "Zurich": "Zürich",
+    "Zurigo": "Zürich",
+    "Coire": "Chur",
+    "Soleure": "Solothurn",
+    "Lucerne": "Luzern",
+    "Lucerna": "Luzern",
+    "Schaffhouse": "Schaffhausen",
+    "Sciaffusa": "Schaffhausen",
+    "Sion": "Sion",
+    "Sitten": "Sion",
+    "Sierre": "Sierre",
+    "Siders": "Sierre",
+    "Neuenburg": "Neuchâtel",
+    "Friburgo": "Fribourg",
+    "Freiburg": "Fribourg",
+    "Thoune": "Thun",
+    "Berthoud": "Burgdorf",
+    "Delemont": "Delémont",
+    "Yverdon": "Yverdon-les-Bains",
+    "Bellinzone": "Bellinzona",
+    "Bellinzona": "Bellinzona",
 }
 
 
 # ---------------------------------------------------------------------------
-# Index: normalised key → list of (canonical_name, canton)
+# Normalisation + indexing
 # ---------------------------------------------------------------------------
 
+
 def _normalise(name: str) -> str:
-    """Strip casing, diacritics, and noise punctuation so 'Genève' and
-    'geneve' and 'GENEVE' all collide on the same key. Keep slashes and
-    parentheses since some official names embed them ('Glarus Süd',
-    'Biel/Bienne', 'Buchs (SG)')."""
-    import unicodedata
+    """Strip casing, diacritics, and most punctuation. Keeps slashes
+    (Biel/Bienne) and digits as significant. Collapses runs of whitespace
+    and hyphens so 'Saint-Aubin' and 'Saint Aubin' collide."""
     nfkd = unicodedata.normalize("NFKD", name.strip().casefold())
     stripped = "".join(ch for ch in nfkd if not unicodedata.combining(ch))
-    # Collapse multiple spaces, normalise common separators.
     return " ".join(stripped.replace("-", " ").replace(".", " ").split())
 
 
-def _build_index() -> dict[str, list[tuple[str, str]]]:
-    idx: dict[str, list[tuple[str, str]]] = {}
-    for canonical, cantons in COMMUNES.items():
-        key = _normalise(canonical)
-        for c in cantons:
-            idx.setdefault(key, []).append((canonical, c))
-    return idx
+# OFS disambiguation suffix, e.g. "Wald (AR)" → ("Wald", "AR").
+_SUFFIX_RE = re.compile(r"^(?P<base>.+?)\s*\((?P<canton>[A-Z]{2})\)\s*$")
 
 
-_INDEX = _build_index()
+@lru_cache(maxsize=1)
+def _load() -> dict:
+    """Load + index the OFS snapshot. Cached so module import stays cheap."""
+    if not DATA.exists():
+        return {"meta": {}, "exact": {}, "homonyms": {}, "all_cantons": list(CANTONS.keys())}
+    raw = json.loads(DATA.read_text(encoding="utf-8"))
+    # Build two indices:
+    #   exact[norm_name]    → {"canonical": ..., "canton": ..., "bfs": ...}
+    #   homonyms[norm_base] → [{"canton": ..., "canonical": "Wald (AR)", "bfs": ...}, ...]
+    exact: dict[str, dict] = {}
+    homonyms: dict[str, list[dict]] = {}
+    for canonical, entries in raw.get("communes", {}).items():
+        for e in entries:
+            norm_full = _normalise(canonical)
+            exact[norm_full] = {"canonical": canonical, "canton": e["canton"], "bfs": e["bfs"]}
+            m = _SUFFIX_RE.match(canonical)
+            if m:
+                norm_base = _normalise(m.group("base"))
+                homonyms.setdefault(norm_base, []).append(
+                    {"canonical": canonical, "canton": m.group("canton"), "bfs": e["bfs"]}
+                )
+    # Resolve aliases against the exact map.
+    for alias, target in ALIASES.items():
+        norm_alias = _normalise(alias)
+        if norm_alias in exact:
+            continue  # alias collides with a real commune name — keep the real one
+        norm_target = _normalise(target)
+        if norm_target in exact:
+            exact[norm_alias] = {**exact[norm_target], "alias_of": target}
+    return {
+        "meta": {
+            "source": raw.get("source"),
+            "snapshot_date": raw.get("snapshot_date"),
+            "fetched_at": raw.get("fetched_at"),
+            "n_communes": raw.get("n_communes"),
+            "n_cantons": raw.get("n_cantons"),
+        },
+        "exact": exact,
+        "homonyms": homonyms,
+        "all_cantons": list(CANTONS.keys()),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
 
 
 def resolve_swiss(commune: str) -> dict:
-    """Resolve a Swiss commune to its canton(s). Always returns a dict with
-    ``confidence`` ∈ {exact, ambiguous, unknown} and ``candidates`` (canton
-    code list). Never raises on bad input — unknown commune is a legitimate
-    state."""
+    """Three-state verdict for a free-text commune input."""
     if not commune or not commune.strip():
-        return {"country": "CH", "commune": commune, "confidence": "unknown", "candidates": []}
+        return {"country": "CH", "commune": commune, "confidence": "unknown", "candidates": [],
+                "all_cantons": list(CANTONS.keys())}
+    index = _load()
     key = _normalise(commune)
-    hits = _INDEX.get(key, [])
-    if not hits:
-        return {"country": "CH", "commune": commune, "confidence": "unknown",
-                "candidates": [], "all_cantons": list(CANTONS.keys())}
-    # De-dup canton codes preserving order (a canonical can repeat if listed
-    # under two French/German aliases — the index already merges).
-    cantons: list[str] = []
-    for _can, c in hits:
-        if c not in cantons:
-            cantons.append(c)
-    if len(cantons) == 1:
-        return {"country": "CH", "commune": commune, "canton": cantons[0],
+
+    # 1) Exact match (after normalisation + alias resolution).
+    hit = index["exact"].get(key)
+    if hit:
+        return {
+            "country": "CH",
+            "commune": commune,
+            "canton": hit["canton"],
+            "confidence": "exact",
+            "candidates": [{"canton": hit["canton"], "name": CANTONS[hit["canton"]]["fr"]}],
+            "canonical": hit["canonical"],
+            "bfs": hit["bfs"],
+            **({"alias_of": hit["alias_of"]} if "alias_of" in hit else {}),
+        }
+
+    # 2) Homonym base — user typed "Wald" and OFS only knows "Wald (XX)".
+    hcandidates = index["homonyms"].get(key, [])
+    if hcandidates:
+        cantons: list[str] = []
+        for h in hcandidates:
+            if h["canton"] not in cantons:
+                cantons.append(h["canton"])
+        if len(cantons) == 1:
+            # All disambiguated entries land in the same canton — treat as
+            # exact with the first canonical form.
+            h0 = hcandidates[0]
+            return {
+                "country": "CH",
+                "commune": commune,
+                "canton": h0["canton"],
                 "confidence": "exact",
-                "candidates": [{"canton": cantons[0], "name": CANTONS[cantons[0]]["fr"]}],
-                "canonical": hits[0][0]}
-    return {"country": "CH", "commune": commune, "confidence": "ambiguous",
-            "candidates": [{"canton": c, "name": CANTONS[c]["fr"]} for c in cantons]}
+                "candidates": [{"canton": h0["canton"], "name": CANTONS[h0["canton"]]["fr"]}],
+                "canonical": h0["canonical"],
+                "bfs": h0["bfs"],
+            }
+        return {
+            "country": "CH",
+            "commune": commune,
+            "confidence": "ambiguous",
+            "candidates": [
+                {"canton": c, "name": CANTONS[c]["fr"],
+                 "canonical": next(h["canonical"] for h in hcandidates if h["canton"] == c)}
+                for c in cantons
+            ],
+        }
+
+    # 3) Unknown — fall back to the 26-canton dropdown.
+    return {"country": "CH", "commune": commune, "confidence": "unknown",
+            "candidates": [], "all_cantons": list(CANTONS.keys())}
 
 
 def list_swiss_cantons() -> list[dict]:
-    """Sorted canton list for the manual-pick dropdown."""
     return [{"canton": code, "name": names["fr"]}
             for code, names in sorted(CANTONS.items(), key=lambda kv: kv[1]["fr"])]
+
+
+def freshness() -> dict:
+    """Metadata about the loaded OFS snapshot. Used by the UI to surface
+    the data-freshness chip ("Données OFS au 1.1.2025")."""
+    return _load()["meta"]

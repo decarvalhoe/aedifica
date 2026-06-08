@@ -473,6 +473,14 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         from .. import jurisdictions
         return {"countries": jurisdictions.list_countries()}
 
+    @app.get("/api/jurisdictions/freshness")
+    def jurisdiction_freshness(country: str = "CH"):
+        """W18 — snapshot metadata so the UI can surface a "Données OFS au
+        {date}" chip and reassure users that the dataset is live, not
+        hand-curated."""
+        from .. import jurisdictions
+        return jurisdictions.freshness(country)
+
     # ---- projects (org-scoped) ------------------------------------------- #
     @app.get("/api/projects")
     def list_projects(user: m.User = Depends(current_user), session: Session = Depends(get_session)):

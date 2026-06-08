@@ -889,6 +889,23 @@ function useCantonList(country: string = "CH") {
   return list;
 }
 
+// W18 — surface the OFS snapshot date in the UI so users see the dataset
+// is live + official, not hand-rolled. Loaded once per session.
+function useFreshness(country: string = "CH") {
+  const [meta, setMeta] = useState<{ snapshot_date?: string; n_communes?: number; source?: string } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await api<any>(`/jurisdictions/freshness?country=${encodeURIComponent(country)}`, {});
+        if (!cancelled) setMeta(r);
+      } catch { /* swallow */ }
+    })();
+    return () => { cancelled = true; };
+  }, [country]);
+  return meta;
+}
+
 function ProjectSwitcher({ active, projects, onOpen, onCreate, busy }: {
   active: Project | null; projects: Project[] | null;
   onOpen: (p: Project) => void;
@@ -905,6 +922,7 @@ function ProjectSwitcher({ active, projects, onOpen, onCreate, busy }: {
   const [canton, setCanton] = useState<string | null>(null);
   const verdict = useCantonResolve(commune);
   const cantonList = useCantonList("CH");
+  const freshness = useFreshness("CH");
   // When the resolver returns exact, accept it. When it goes ambiguous or
   // unknown, drop the previous auto-pick so we don't silently submit a
   // stale canton.
@@ -983,6 +1001,13 @@ function ProjectSwitcher({ active, projects, onOpen, onCreate, busy }: {
             <div className="psw-form">
               <input className="fld" placeholder="Nom du projet" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
               <input className="fld" placeholder="Commune (ex: Neuchâtel, Lausanne, Sion…)" value={commune} onChange={(e) => setCommune(e.target.value)} />
+              {/* W18 — surface the OFS snapshot date so users see the
+                  dataset is the official register, not a guess. */}
+              {freshness?.snapshot_date && (
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--mut)", marginTop: -6, marginBottom: 6 }}>
+                  Source : OFS · {freshness.n_communes?.toLocaleString() || "?"} communes · au {freshness.snapshot_date}
+                </div>
+              )}
               {/* W17 — three resolver outcomes drive three different UIs.
                   Empty + still typing → tiny hint
                   Exact → auto-fill chip

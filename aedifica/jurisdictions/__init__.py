@@ -12,6 +12,6 @@ several cantons (real Swiss homonyms: Wald, Buchs, Reinach, …), the resolver
 returns ``confidence="ambiguous"`` with the matching candidates.
 """
 
-from .resolver import resolve, list_countries, list_regions
+from .resolver import resolve, list_countries, list_regions, freshness
 
-__all__ = ["resolve", "list_countries", "list_regions"]
+__all__ = ["resolve", "list_countries", "list_regions", "freshness"]

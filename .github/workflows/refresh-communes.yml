@@ -1,0 +1,107 @@
+# W18 — Monthly refresh of the official Swiss commune register.
+#
+# The Federal Statistical Office (BFS) updates the register whenever
+# commune mergers happen (mostly January 1st but smaller adjustments any
+# time of year). We pull the snapshot once a month, regenerate the
+# committed JSON, and open a PR when the file moved. The PR carries the
+# diff so a human can eyeball any surprising change before it lands.
+#
+# Manual trigger via the workflow_dispatch button is also exposed in case
+# someone needs an off-schedule refresh (e.g., a known mid-year merger).
+name: refresh-communes
+
+on:
+  schedule:
+    # 06:00 UTC on the 5th of every month — early enough to surface a
+    # January 1st mutation, late enough that BFS has updated their
+    # register by then.
+    - cron: "0 6 5 * *"
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Snapshot date (D-M-YYYY). Defaults to today."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Run refresh
+        run: |
+          if [ -n "${{ inputs.date }}" ]; then
+            python pilot/refresh_communes.py --date "${{ inputs.date }}"
+          else
+            python pilot/refresh_communes.py
+          fi
+
+      - name: Report diff
+        id: diff
+        run: |
+          if git diff --quiet aedifica/jurisdictions/data/ch_communes.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "OFS register unchanged since last snapshot."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            # Pretty-print the structural diff so the PR body shows what
+            # actually moved (commune count per canton + total).
+            python - <<'PY' > /tmp/refresh_summary.md
+          import json, subprocess
+          prev_raw = subprocess.check_output(
+              ["git", "show", "HEAD:aedifica/jurisdictions/data/ch_communes.json"],
+              text=True,
+          )
+          prev = json.loads(prev_raw)
+          new = json.load(open("aedifica/jurisdictions/data/ch_communes.json", encoding="utf-8"))
+          lines = [
+              "## Snapshot delta",
+              "",
+              f"- Snapshot date: `{prev.get('snapshot_date')}` → `{new.get('snapshot_date')}`",
+              f"- Total communes: **{prev.get('n_communes')}** → **{new.get('n_communes')}** "
+              f"({new.get('n_communes', 0) - prev.get('n_communes', 0):+d})",
+              "",
+              "### Per-canton",
+              "",
+              "| Canton | Before | After | Δ |",
+              "| --- | ---: | ---: | ---: |",
+          ]
+          all_codes = sorted(set(prev.get("canton_counts", {})) | set(new.get("canton_counts", {})))
+          for c in all_codes:
+              b = prev.get("canton_counts", {}).get(c, 0)
+              a = new.get("canton_counts", {}).get(c, 0)
+              if b == a:
+                  continue
+              lines.append(f"| {c} | {b} | {a} | {a - b:+d} |")
+          if len(lines) == len(all_codes) + 7 - sum(1 for c in all_codes
+                                                   if prev.get("canton_counts", {}).get(c, 0) ==
+                                                   new.get("canton_counts", {}).get(c, 0)):
+              pass
+          if all(prev.get("canton_counts", {}).get(c, 0) == new.get("canton_counts", {}).get(c, 0)
+                 for c in all_codes):
+              lines.append("| *(no per-canton change — content-only delta)* | | | |")
+          print("\n".join(lines))
+          PY
+          fi
+
+      - name: Open PR
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: "ci/refresh-communes"
+          commit-message: "chore(jurisdictions): refresh OFS commune register"
+          title: "chore(jurisdictions): refresh OFS commune register"
+          body-path: /tmp/refresh_summary.md
+          labels: |
+            jurisdictions
+            automated
+          delete-branch: true

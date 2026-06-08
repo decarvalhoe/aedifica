@@ -1,4 +1,11 @@
-"""W17 — commune → canton resolver + project creation without canton."""
+"""W17/W18 — commune → canton resolver backed by the official OFS register
+and project creation without explicit canton.
+
+The dataset comes from
+``aedifica/jurisdictions/data/ch_communes.json``, refreshed via
+``pilot/refresh_communes.py`` against the BFS AGVCH REST API. These tests
+exercise the live snapshot, so a refresh that drops a famous commune would
+surface here immediately."""
 from __future__ import annotations
 
 
@@ -20,14 +27,27 @@ def test_resolver_normalises_diacritics_and_case():
         assert r["canton"] == "GE", raw
 
 
-def test_resolver_ambiguous_homonyms():
-    """Wald is a real Swiss homonym across cantons — resolver must NOT
-    silently pick one."""
+def test_resolver_bilingual_aliases():
+    """OFS uses the local-language canonical (Bern, not Berne; Biel/Bienne,
+    not Bienne). The Aedifica alias layer keeps French speakers in flow."""
+    from aedifica import jurisdictions
+    for raw, expected in (("Berne", "BE"), ("Bienne", "BE"), ("Genf", "GE"),
+                          ("Saint-Gall", "SG"), ("Sankt Gallen", "SG"),
+                          ("Coire", "GR"), ("Soleure", "SO")):
+        r = jurisdictions.resolve("CH", raw)
+        assert r["confidence"] == "exact", raw
+        assert r["canton"] == expected, raw
+
+
+def test_resolver_ambiguous_homonyms_via_ofs_suffix():
+    """OFS register disambiguates with parenthetical suffixes — 'Wald (AR)',
+    'Wald (BE)', 'Wald (ZH)'. Typing just 'Wald' must surface all three so
+    we never silently pick one."""
     from aedifica import jurisdictions
     r = jurisdictions.resolve("CH", "Wald")
     assert r["confidence"] == "ambiguous"
     codes = {c["canton"] for c in r["candidates"]}
-    assert "ZH" in codes and "AR" in codes
+    assert codes == {"ZH", "BE", "AR"}
 
 
 def test_resolver_buchs_three_cantons():
@@ -138,3 +158,39 @@ def test_create_project_ambiguous_works_with_explicit_canton(client, owner):
     r = _create(client, owner["headers"], project_id="W17B", commune="Wald", canton="ZH")
     assert r.status_code == 201
     assert r.json()["created"]["jurisdiction"]["canton"] == "ZH"
+
+
+# --- W18: live OFS snapshot freshness ------------------------------------- #
+
+
+def test_freshness_endpoint_reports_ofs_snapshot(client, owner):
+    """The /freshness endpoint must expose the source URL + snapshot date so
+    the UI can show "Données OFS au 1.1.2025". Confirms the JSON shipped
+    in the repo is parseable + has the expected metadata fields."""
+    r = client.get("/api/jurisdictions/freshness?country=CH").json()
+    assert r["country"] == "CH"
+    assert "bfs.admin.ch" in (r.get("source") or "")
+    assert r.get("snapshot_date")  # non-empty
+    # ~2'100 communes is the order of magnitude — alert if a refresh blew
+    # the dataset away.
+    assert r.get("n_communes", 0) > 1900
+    assert r.get("n_cantons") == 26
+
+
+def test_dataset_covers_every_canton(client, owner):
+    """Sanity check the full OFS dump landed: at least one well-known
+    commune resolves for every one of the 26 cantons."""
+    from aedifica import jurisdictions
+    capitals = {
+        "AG": "Aarau", "AI": "Appenzell", "AR": "Herisau", "BE": "Bern",
+        "BL": "Liestal", "BS": "Basel", "FR": "Fribourg", "GE": "Genève",
+        "GL": "Glarus", "GR": "Chur", "JU": "Delémont", "LU": "Luzern",
+        "NE": "Neuchâtel", "NW": "Stans", "OW": "Sarnen", "SG": "St. Gallen",
+        "SH": "Schaffhausen", "SO": "Solothurn", "SZ": "Schwyz", "TG": "Frauenfeld",
+        "TI": "Bellinzona", "UR": "Altdorf", "VD": "Lausanne", "VS": "Sion",
+        "ZG": "Zug", "ZH": "Zürich",
+    }
+    for code, commune in capitals.items():
+        r = jurisdictions.resolve("CH", commune)
+        assert r["confidence"] == "exact", commune
+        assert r["canton"] == code, f"{commune}: expected {code}, got {r.get('canton')}"

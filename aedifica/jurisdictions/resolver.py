@@ -43,3 +43,11 @@ def list_regions(country: str) -> list[dict]:
     if code == "CH":
         return swiss.list_swiss_cantons()
     return []
+
+
+def freshness(country: str = "CH") -> dict:
+    """Snapshot metadata so the UI can show 'Données OFS au 1.1.2025'."""
+    code = (country or "CH").strip().upper()
+    if code == "CH":
+        return {"country": "CH", **swiss.freshness()}
+    return {"country": code, "source": None}
