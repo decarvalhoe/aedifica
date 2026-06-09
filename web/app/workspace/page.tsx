@@ -77,9 +77,29 @@ const TRUST: Record<string, [string, string]> = {
   conflict: ["is-conflict", "Conflit"], present: ["is-sourced", "Fourni"], missing: ["is-assume", "Manquant"],
   satisfied: ["is-sourced", "Satisfait"], action_required: ["is-assume", "Action requise"], decision: ["is-decision", "Décision"],
 };
+const TRUST_TIER: Record<string, [string, string]> = {
+  certified: ["is-sourced", "Certifié"],
+  indicative: ["is-computed", "Indicatif"],
+  unverified: ["is-unknown", "Non vérifié"],
+};
+const PROVENANCE: Record<string, [string, string]> = {
+  official: ["is-sourced", "Officiel"],
+  metier_bible: ["is-computed", "Bible métier"],
+  user_promoted: ["is-decision", "Promu atelier"],
+};
 function Trust({ state, label }: { state: string; label?: string }) {
   const [c, l] = TRUST[state] || ["is-unknown", state];
   return <span className={`ds-ts ${c}`}><span className="dot" />{label || l}</span>;
+}
+function TrustMeta({ trustTier, provenance }: { trustTier?: string; provenance?: string }) {
+  const [tc, tl] = TRUST_TIER[trustTier || "unverified"] || ["is-unknown", trustTier || "Non vérifié"];
+  const [pc, pl] = PROVENANCE[provenance || "official"] || ["is-assume", provenance || "Origine inconnue"];
+  return (
+    <div className="trust-meta">
+      <span className={`ds-ts ${tc}`}><span className="dot" />{tl}</span>
+      <span className={`ds-ts ${pc}`}><span className="dot" />{pl}</span>
+    </div>
+  );
 }
 const EVENT: Record<string, string> = { adapter_dry_run: "Aperçu", approval: "Validation", adapter_execution: "Modification", decision: "Décision", brief: "Brief" };
 function human(e: any): string {
@@ -1069,10 +1089,12 @@ function Terrain({ claims, mode, support, commune, onLookup, onRequest, initialQ
   if (!claims) return <p className="spin">Chargement…</p>;
   const lookup = async () => { if (!q.trim()) return; setB("l"); try { await onLookup(q.trim()); } catch { } finally { setB(""); } };
   const usable = support ? support.usable : true;
+  const val = (v: any) => v == null ? "Non disponible — à confirmer sur le règlement communal" : typeof v === "object" ? JSON.stringify(v) : String(v);
   return (
     <>
       <div className="vh"><div className="row" style={{ gap: 10, alignItems: "center" }}><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" style={{ color: "var(--ink-60)" }}><use href="/assets/functional-icons.svg#ic-datum-north" /></svg><h2 style={{ margin: 0 }}>Terrain &amp; zonage</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>Ce que la parcelle autorise — sourcé sur une base officielle, ou marqué « à vérifier ». Le datum géographique du projet : tout part d&apos;ici.</p></div>
       {(regAlerts || []).map((r: any) => <div className="banner bad" key={r.id} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style={{ flex: "0 0 16px", marginTop: 2 }}><use href="/assets/functional-icons.svg#ic-warning" /></svg><div><b>Règlement à l&apos;étude</b> — {r.content}{r.source_ref ? ` (${r.source_ref})` : ""}. Les règles (hauteurs, densités) peuvent changer en cours de projet.</div></div>)}
+      <div className="banner warn"><b>Pas une autorité.</b> Les niveaux ci-dessous qualifient les sources et la provenance; la décision reste à l&apos;architecte.</div>
       {support && !usable && <IngestionPanel commune={commune} support={support} onRequest={onRequest} />}
       <div className="searchrow"><input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && lookup()} placeholder="Adresse ou parcelle — ex. Place de la Palud, Lausanne" /><button onClick={lookup}>{b ? "…" : "Rechercher (live)"}</button></div>
       {mode === "offline" && <p className="note" style={{ marginBottom: 12 }}>Recherche live indisponible — données de référence affichées.</p>}
@@ -1080,7 +1102,7 @@ function Terrain({ claims, mode, support, commune, onLookup, onRequest, initialQ
         <div className="placeholder"><h4>Aucune parcelle analysée</h4><p>Lancez une recherche d&apos;adresse pour résoudre la parcelle.</p></div>
       ) : (
         <div className="card">{claims.map((c: any) => (
-          <div className="claim" key={c.claim_id}><Trust state={c.state} /><div><div className="ttl">{c.title}</div><div className="val">{c.value == null ? "Non disponible — à confirmer sur le règlement communal" : String(c.value)}</div></div></div>
+          <div className="claim" key={c.claim_id}><Trust state={c.state} /><div><div className="ttl">{c.title}</div><div className="val">{val(c.value)}</div><TrustMeta trustTier={c.trust_tier} provenance={c.provenance} /></div></div>
         ))}</div>
       )}
     </>

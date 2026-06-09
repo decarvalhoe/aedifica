@@ -161,6 +161,9 @@ def claims_for(session, project: m.Project) -> list[dict]:
             "value": c.value,
             "confidence": c.confidence,
             "source_refs": c.source_refs,
+            "trust_tier": c.trust_tier,
+            "provenance": c.provenance,
+            "facets": c.facets or {},
         }
         for c in rows
     ]
