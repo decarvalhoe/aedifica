@@ -283,6 +283,17 @@ class IngestionJob(Base):
 # --------------------------------------------------------------------------- #
 VALIDATION_LEVELS = ("pending", "canonical", "indicative", "refused")
 ACCESS_LEVELS = ("read", "write")
+DOCUMENT_ACCESS_FIELDS = (
+    "official_name",
+    "category",
+    "validation_level",
+    "confidential",
+    "note",
+    "validated_by",
+    "validated_at",
+    "versions",
+    "latest",
+)
 
 
 class IntervenantGroup(Base):
@@ -355,6 +366,9 @@ class AccessGrant(Base):
     group_id: Mapped[int | None] = mapped_column(ForeignKey("intervenant_group.id"), nullable=True)
     intervenant_id: Mapped[int | None] = mapped_column(ForeignKey("intervenant.id"), nullable=True)
     level: Mapped[str] = mapped_column(String(20), default="read")  # read | write
+    # None means "full document". A non-empty list limits what an external
+    # recipient can see down to explicit document fields.
+    field_scope: Mapped[list | None] = mapped_column(JSON, nullable=True)
     document: Mapped["Document"] = relationship(back_populates="grants")
 
 
