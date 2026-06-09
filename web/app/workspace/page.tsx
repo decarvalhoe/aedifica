@@ -1908,11 +1908,24 @@ function Intervenants({ data, token, projectId, onAddGroup, onDelGroup, onAdd, o
 
 /* ===================== DOCUMENTS & SOURCES (W9) ===================== */
 const VLEVEL: Record<string, [string, string]> = { canonical: ["is-sourced", "Canonique"], indicative: ["is-computed", "Indicatif"], refused: ["is-conflict", "Refusé"], pending: ["is-unknown", "À valider"] };
+const DOC_FIELD_OPTIONS: { id: string; label: string }[] = [
+  { id: "official_name", label: "Nom" },
+  { id: "category", label: "Catégorie" },
+  { id: "validation_level", label: "Validation" },
+  { id: "confidential", label: "LPD" },
+  { id: "note", label: "Note" },
+  { id: "validated_by", label: "Validé par" },
+  { id: "validated_at", label: "Date validation" },
+  { id: "versions", label: "Versions" },
+  { id: "latest", label: "Dernière version" },
+];
 function Documents({ docs, summary, intervenants, token, pid, onAdd, onRefresh, onValidate, onPatch, onDel, onGrant, onRevoke }: any) {
   const [f, setF] = useState<any>({ official_name: "", category: "general", source: "manual", confidential: false });
   const [busy, setBusy] = useState("");
   const [grantFor, setGrantFor] = useState<number | null>(null);
   const [grantSel, setGrantSel] = useState("");
+  const [grantMode, setGrantMode] = useState<"all" | "fields">("all");
+  const [grantFields, setGrantFields] = useState<string[]>(["official_name", "category"]);
   // W14.B — bulk import: pick multiple files; we POST a Document row per file
   // and attach the file as an upload to that document via /attachments/upload.
   const [bulkFiles, setBulkFiles] = useState<File[]>([]);
@@ -1956,7 +1969,19 @@ function Documents({ docs, summary, intervenants, token, pid, onAdd, onRefresh, 
   const pName = (id: number) => people.find((p) => p.id === id)?.name || `personne ${id}`;
   const submit = async () => { if (!f.official_name.trim()) return; setBusy("add"); try { await onAdd(f); setF({ official_name: "", category: "general", source: "manual", confidential: false }); } catch { } finally { setBusy(""); } };
   const act = async (p: Promise<any>, id: string) => { setBusy(id); try { await p; } catch { } finally { setBusy(""); } };
-  const grant = async (docId: number) => { if (!grantSel) return; const [t, id] = grantSel.split(":"); setBusy("g" + docId); try { await onGrant(docId, t === "g" ? { group_id: Number(id) } : { intervenant_id: Number(id) }); setGrantFor(null); setGrantSel(""); } catch { } finally { setBusy(""); } };
+  const fieldLabel = (id: string) => DOC_FIELD_OPTIONS.find((f) => f.id === id)?.label || id;
+  const toggleGrantField = (field: string) => setGrantFields((cur) => cur.includes(field) ? cur.filter((f) => f !== field) : [...cur, field]);
+  const resetGrant = () => { setGrantFor(null); setGrantSel(""); setGrantMode("all"); setGrantFields(["official_name", "category"]); };
+  const grant = async (docId: number) => {
+    if (!grantSel || (grantMode === "fields" && grantFields.length === 0)) return;
+    const [t, id] = grantSel.split(":");
+    const body = t === "g" ? { group_id: Number(id) } : { intervenant_id: Number(id) };
+    setBusy("g" + docId);
+    try {
+      await onGrant(docId, grantMode === "fields" ? { ...body, field_scope: grantFields } : body);
+      resetGrant();
+    } catch { } finally { setBusy(""); }
+  };
   const s = summary || { total: 0, pending: 0, by_level: {} };
   return (
     <>
@@ -2014,19 +2039,33 @@ function Documents({ docs, summary, intervenants, token, pid, onAdd, onRefresh, 
               <span className="mono" style={{ fontSize: 10 }}>Accès :</span>
               {(dd.grants || []).length === 0 && <span className="mono" style={{ fontSize: 10, color: dd.confidential ? "var(--ts-conflict)" : "var(--mut)" }}>{dd.confidential ? "confidentiel — restreint" : "aucun (atelier seul)"}</span>}
               {(dd.grants || []).map((gr: any) => (
-                <span key={gr.id} className="chip" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>{gr.group_id ? gName(gr.group_id) : pName(gr.intervenant_id)}<button className="signout" style={{ padding: 0 }} onClick={() => act(onRevoke(dd.id, gr.id), `r${gr.id}`)}>✕</button></span>
+                <span key={gr.id} className="chip" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>{gr.group_id ? gName(gr.group_id) : pName(gr.intervenant_id)}{Array.isArray(gr.field_scope) && gr.field_scope.length > 0 && <small> · {gr.field_scope.map(fieldLabel).join(", ")}</small>}<button className="signout" style={{ padding: 0 }} onClick={() => act(onRevoke(dd.id, gr.id), `r${gr.id}`)}>✕</button></span>
               ))}
               {grantFor === dd.id ? (
-                <span className="row" style={{ gap: 4 }}>
+                <span className="row" style={{ gap: 6, flexWrap: "wrap" }}>
                   <select className="fld" style={{ margin: 0, padding: "4px 8px", width: "auto" }} value={grantSel} onChange={(e) => setGrantSel(e.target.value)}>
                     <option value="">— qui ? —</option>
                     {groups.map((g) => <option key={"g" + g.id} value={"g:" + g.id}>Groupe · {g.name}</option>)}
                     {people.map((p) => <option key={"p" + p.id} value={"p:" + p.id}>{p.name}</option>)}
                   </select>
-                  <button className="toggle" disabled={!grantSel} onClick={() => grant(dd.id)}>OK</button>
-                  <button className="signout" style={{ padding: 0 }} onClick={() => setGrantFor(null)}>annuler</button>
+                  <select className="fld" style={{ margin: 0, padding: "4px 8px", width: "auto" }} value={grantMode} onChange={(e) => setGrantMode(e.target.value as "all" | "fields")}>
+                    <option value="all">Tout le document</option>
+                    <option value="fields">Champs ciblés</option>
+                  </select>
+                  {grantMode === "fields" && (
+                    <span className="row" style={{ gap: 4, flexWrap: "wrap" }}>
+                      {DOC_FIELD_OPTIONS.map((opt) => (
+                        <label key={opt.id} className="chip" style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+                          <input type="checkbox" checked={grantFields.includes(opt.id)} onChange={() => toggleGrantField(opt.id)} />
+                          {opt.label}
+                        </label>
+                      ))}
+                    </span>
+                  )}
+                  <button className="toggle" disabled={!grantSel || (grantMode === "fields" && grantFields.length === 0)} onClick={() => grant(dd.id)}>OK</button>
+                  <button className="signout" style={{ padding: 0 }} onClick={resetGrant}>annuler</button>
                 </span>
-              ) : <button className="toggle" style={{ padding: "3px 8px" }} onClick={() => { setGrantFor(dd.id); setGrantSel(""); }}>+ accès</button>}
+              ) : <button className="toggle" style={{ padding: "3px 8px" }} onClick={() => { setGrantFor(dd.id); setGrantSel(""); setGrantMode("all"); }}>+ accès</button>}
             </div>
             {token && pid && <AttachField token={token} projectId={pid} ownerKind="document" ownerId={dd.id} />}
           </div>

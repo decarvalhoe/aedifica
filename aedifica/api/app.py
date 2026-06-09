@@ -329,25 +329,40 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
                 "meta": _json.loads(e.meta_json) if e.meta_json else None,
                 "timestamp": e.timestamp.isoformat() if e.timestamp else None}
 
-    def _docs_visible_to_external(session: Session, project: m.Project, user: m.User):
-        """Filter documents to those the external user has an AccessGrant on (via
-        their linked intervenant, directly or through any of its groups)."""
+    def _merge_document_grants(grants: list[m.AccessGrant]) -> dict[int, dict]:
+        merged: dict[int, dict] = {}
+        for gr in grants:
+            slot = merged.setdefault(gr.document_id, {"level": "read", "field_scope": []})
+            if gr.level == "write":
+                slot["level"] = "write"
+            if gr.field_scope is None:
+                slot["field_scope"] = None
+            elif slot["field_scope"] is not None:
+                for field in gr.field_scope:
+                    if field not in slot["field_scope"]:
+                        slot["field_scope"].append(field)
+        return merged
+
+    def _external_document_access(session: Session, project: m.Project, user: m.User) -> tuple[list[m.Document], dict[int, dict]]:
+        """Return documents visible to an external user plus merged grant details."""
         if not user.linked_intervenant_id:
-            return []
+            return [], {}
         iv = session.query(m.Intervenant).filter_by(id=user.linked_intervenant_id, project_id=project.id).first()
         if not iv:
-            return []
+            return [], {}
         gids = [iv.group_id] if iv.group_id else []
         from sqlalchemy import or_ as _or
         grants = session.query(m.AccessGrant).filter(
             _or(m.AccessGrant.intervenant_id == iv.id,
                 m.AccessGrant.group_id.in_(gids) if gids else False)
         ).all()
-        doc_ids = {g.document_id for g in grants}
+        access = _merge_document_grants(grants)
+        doc_ids = set(access.keys())
         if not doc_ids:
-            return []
-        return session.query(m.Document).filter(m.Document.project_id == project.id,
-                                                 m.Document.id.in_(doc_ids)).order_by(m.Document.id).all()
+            return [], {}
+        docs = session.query(m.Document).filter(m.Document.project_id == project.id,
+                                                m.Document.id.in_(doc_ids)).order_by(m.Document.id).all()
+        return docs, {d.id: access[d.id] for d in docs if d.id in access}
 
     # ---- public ---------------------------------------------------------- #
     @app.get("/api/health")
@@ -560,13 +575,51 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def _group_dict(g: m.IntervenantGroup) -> dict:
         return {"id": g.id, "name": g.name, "kind": g.kind, "parent_id": g.parent_id}
 
-    def _doc_dict(d: m.Document) -> dict:
+    def _grant_dict(gr: m.AccessGrant) -> dict:
+        return {"id": gr.id, "group_id": gr.group_id, "intervenant_id": gr.intervenant_id,
+                "level": gr.level, "field_scope": gr.field_scope}
+
+    def _doc_full_dict(d: m.Document) -> dict:
         return {"id": d.id, "official_name": d.official_name, "category": d.category,
                 "validation_level": d.validation_level, "confidential": d.confidential, "note": d.note,
                 "validated_by": d.validated_by, "validated_at": d.validated_at,
                 "versions": [{"label": v.label, "source": v.source, "file_ref": v.file_ref} for v in d.versions],
                 "latest": (d.versions[-1].label if d.versions else None),
-                "grants": [{"id": gr.id, "group_id": gr.group_id, "intervenant_id": gr.intervenant_id, "level": gr.level} for gr in d.grants]}
+                "grants": [_grant_dict(gr) for gr in d.grants]}
+
+    def _doc_dict(d: m.Document, *, field_scope: list[str] | None = None,
+                  access_level: str | None = None) -> dict:
+        full = _doc_full_dict(d)
+        if access_level is None:
+            return full
+        fields = list(m.DOCUMENT_ACCESS_FIELDS if field_scope is None else field_scope)
+        out = {"id": d.id, "access_level": access_level,
+               "access_fields": "all" if field_scope is None else fields}
+        for field in fields:
+            if field in full:
+                out[field] = full[field]
+        return out
+
+    def _normalise_doc_field_scope(raw) -> list[str] | None:
+        if raw is None:
+            return None
+        if not isinstance(raw, list):
+            raise _err(400, "BAD_FIELD_SCOPE", "field_scope must be a list of document fields")
+        fields: list[str] = []
+        for value in raw:
+            if not isinstance(value, str):
+                raise _err(400, "BAD_FIELD_SCOPE", "field_scope entries must be strings")
+            field = value.strip()
+            if field and field not in fields:
+                fields.append(field)
+        if not fields:
+            raise _err(400, "BAD_FIELD_SCOPE", "field_scope cannot be empty")
+        bad = [f for f in fields if f not in m.DOCUMENT_ACCESS_FIELDS]
+        if bad:
+            raise _err(400, "BAD_FIELD_SCOPE",
+                       f"unknown document field(s): {', '.join(bad)}",
+                       extra={"allowed": list(m.DOCUMENT_ACCESS_FIELDS)})
+        return fields
 
     @app.get("/api/projects/{project_id}/intervenants")
     def list_intervenants(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
@@ -725,12 +778,20 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
             p = session.query(m.Project).filter_by(org_id=user.org_id, project_id=project_id).first()
             if p is None:
                 raise _err(404, "PROJECT_NOT_FOUND", project_id)
-            docs = _docs_visible_to_external(session, p, user)
+            docs, access = _external_document_access(session, p, user)
             counts: dict = {lvl: 0 for lvl in m.VALIDATION_LEVELS}
+            hidden_validation = 0
             for d in docs:
-                counts[d.validation_level] = counts.get(d.validation_level, 0) + 1
-            return {"documents": [_doc_dict(d) for d in docs],
-                    "summary": {"total": len(docs), "by_level": counts, "pending": counts.get("pending", 0)},
+                scope = access.get(d.id, {}).get("field_scope")
+                if scope is None or "validation_level" in scope:
+                    counts[d.validation_level] = counts.get(d.validation_level, 0) + 1
+                else:
+                    hidden_validation += 1
+            return {"documents": [_doc_dict(d, field_scope=access[d.id]["field_scope"],
+                                            access_level=access[d.id]["level"]) for d in docs],
+                    "summary": {"total": len(docs), "by_level": counts,
+                                "pending": counts.get("pending", 0),
+                                "hidden_validation": hidden_validation},
                     "scoped": "external"}
         require(user, "project.read")
         p = _project(session, user, project_id)
@@ -1203,8 +1264,13 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         d = session.query(m.Document).filter_by(project_id=p.id, id=document_id).first()
         if not d:
             raise _err(404, "DOCUMENT_NOT_FOUND", str(document_id))
+        level = body.get("level", "read")
+        if level not in m.ACCESS_LEVELS:
+            raise _err(400, "BAD_LEVEL", f"level must be one of {m.ACCESS_LEVELS}")
+        field_scope = _normalise_doc_field_scope(body.get("field_scope"))
         gr = m.AccessGrant(document_id=d.id, group_id=body.get("group_id"),
-                           intervenant_id=body.get("intervenant_id"), level=body.get("level", "read"))
+                           intervenant_id=body.get("intervenant_id"), level=level,
+                           field_scope=field_scope)
         session.add(gr); session.flush()
         # W11.F audit — track who got access to what
         target_label = []
@@ -1215,8 +1281,9 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
             g = session.query(m.IntervenantGroup).filter_by(id=body["group_id"]).first()
             target_label.append(f"group:{g.name if g else body['group_id']}")
         _audit(session, user, "access_granted",
-               f"{d.official_name} → {' + '.join(target_label) or 'unknown'} (level={gr.level})",
+               f"{d.official_name} → {' + '.join(target_label) or 'unknown'} (level={gr.level}, fields={field_scope or 'all'})",
                project=p, meta={"document_id": d.id, "grant_id": gr.id, "level": gr.level,
+                                "field_scope": field_scope,
                                 "intervenant_id": body.get("intervenant_id"), "group_id": body.get("group_id")})
         session.commit()
         return {"document": _doc_dict(d)}
@@ -2096,17 +2163,10 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     @app.get("/api/external/me/documents")
     def external_my_documents(user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         """Documents I have access to via AccessGrant (group or person)."""
-        iv, p = _external_scope(user, session)
-        my_group_ids = [iv.group_id] if iv.group_id else []
-        grants = session.query(m.AccessGrant).filter(
-            (m.AccessGrant.intervenant_id == iv.id)
-            | (m.AccessGrant.group_id.in_(my_group_ids) if my_group_ids else False)
-        ).all()
-        doc_ids = {g.document_id: g.level for g in grants}
-        docs = session.query(m.Document).filter(m.Document.id.in_(doc_ids.keys())).all() if doc_ids else []
-        out = [{"id": d.id, "official_name": d.official_name, "category": d.category,
-                "validation_level": d.validation_level, "confidential": d.confidential,
-                "access_level": doc_ids.get(d.id, "read")} for d in docs]
+        _iv, p = _external_scope(user, session)
+        docs, access = _external_document_access(session, p, user)
+        out = [_doc_dict(d, field_scope=access[d.id]["field_scope"],
+                         access_level=access[d.id]["level"]) for d in docs]
         return {"documents": out, "count": len(out)}
 
     # ---- W11.B: attachments (upload OR external link) ----------------------- #

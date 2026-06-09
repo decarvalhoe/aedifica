@@ -188,3 +188,52 @@ def test_external_documents_scope_via_access_grants(client, owner):
     titles = {d["official_name"] for d in seen["documents"]}
     assert "Plan civil v1" in titles and "PV interne" not in titles
     assert seen["count"] == 1
+
+
+def test_external_document_field_scope_hides_ungranted_data(client, owner):
+    """A document grant can now be scoped down to specific fields."""
+    h = owner["headers"]
+    pid = _project(client, h, "W10G")
+    iv = client.post(f"/api/projects/{pid}/intervenants",
+                     json={"name": "M. Client", "role": "maître de l'ouvrage"},
+                     headers=h).json()["intervenant"]
+    inv = client.post(f"/api/projects/{pid}/intervenants/{iv['id']}/invite",
+                      json={"email": "client-scope@example.org"}, headers=h).json()
+    client.post("/api/auth/accept-invite",
+                json={"token": inv["invite_token"], "password": "pw1!", "name": "Client"})
+    login = client.post("/api/auth/login",
+                        json={"email": "client-scope@example.org", "password": "pw1!"}).json()
+    ext_h = {"Authorization": f"Bearer {login['token']}"}
+
+    doc = client.post(
+        f"/api/projects/{pid}/documents",
+        json={
+            "official_name": "Contrat confidentiel",
+            "category": "contrat",
+            "note": "Montant interne à masquer",
+            "confidential": True,
+            "version_label": "v2",
+            "file_ref": "s3://secret/contrat.pdf",
+        },
+        headers=h,
+    ).json()["document"]
+    granted = client.post(
+        f"/api/projects/{pid}/documents/{doc['id']}/grants",
+        json={"intervenant_id": iv["id"], "level": "read", "field_scope": ["official_name", "category"]},
+        headers=h,
+    )
+    assert granted.status_code == 201, granted.text
+    assert granted.json()["document"]["grants"][0]["field_scope"] == ["official_name", "category"]
+
+    seen = client.get("/api/external/me/documents", headers=ext_h).json()
+    scoped = seen["documents"][0]
+    assert scoped["official_name"] == "Contrat confidentiel"
+    assert scoped["category"] == "contrat"
+    assert scoped["access_fields"] == ["official_name", "category"]
+    assert "note" not in scoped
+    assert "confidential" not in scoped
+    assert "validation_level" not in scoped
+    assert "versions" not in scoped
+
+    project_scoped = client.get(f"/api/projects/{pid}/documents", headers=ext_h).json()
+    assert project_scoped["documents"][0] == scoped
