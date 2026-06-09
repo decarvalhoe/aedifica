@@ -113,6 +113,9 @@ class Source(Base):
     valid_as_of: Mapped[str | None] = mapped_column(String(40), nullable=True)
     retrieved_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
     sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    trust_tier: Mapped[str | None] = mapped_column(String(20), nullable=True, default="unverified")
+    provenance: Mapped[str | None] = mapped_column(String(40), nullable=True, default="official")
+    facets: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=dict)
     project: Mapped[Project] = relationship(back_populates="sources")
 
 
@@ -143,6 +146,9 @@ class Claim(Base):
     formula: Mapped[str | None] = mapped_column(String(300), nullable=True)
     next_action: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_refs: Mapped[list] = mapped_column(JSON, default=list)
+    trust_tier: Mapped[str | None] = mapped_column(String(20), nullable=True, default="unverified")
+    provenance: Mapped[str | None] = mapped_column(String(40), nullable=True, default="official")
+    facets: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=dict)
     project: Mapped[Project] = relationship(back_populates="claims")
 
 
