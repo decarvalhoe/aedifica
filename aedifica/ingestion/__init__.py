@@ -14,6 +14,7 @@ from .service import (
     seed_from_static,
     support_state,
 )
+from .nomos_bundle import NomosBundleError, import_nomos_bundle
 
 __all__ = [
     "request_commune",
@@ -22,4 +23,6 @@ __all__ = [
     "support_state",
     "seed_from_static",
     "list_packs",
+    "NomosBundleError",
+    "import_nomos_bundle",
 ]

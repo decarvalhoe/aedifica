@@ -260,6 +260,7 @@ svg.i { fill:none; stroke:currentColor; stroke-width:1.4; stroke-linejoin:round;
 .claim .ttl { font-weight:500; font-size:13.5px; }
 .claim .val { font-family:var(--font-mono); font-size:13px; margin-top:2px; }
 .claim small { display:block; color:var(--mut); font-family:var(--font-mono); font-size:10.5px; margin-top:3px; }
+.claim .trust-meta { display:flex; flex-wrap:wrap; gap:6px; margin-top:7px; }
 .row-line { display:flex; gap:12px; align-items:center; border-top:1px solid var(--line); padding:11px 0; }
 .row-line:first-of-type { border-top:0; }
 .row-line .grow { flex:1; }
@@ -307,4 +308,18 @@ svg.i { fill:none; stroke:currentColor; stroke-width:1.4; stroke-linejoin:round;
   .search { margin-inline:20px; } .home__how, .home__hint { margin-inline:20px; } .home__sec { padding-inline:20px; }
   .login__box { padding:28px 22px; }
   .vh h2 { font-size:23px; }
+}
+
+/* W16.C — fine-grained read-only mode.
+   When a collaborator has surface = "read", the surface render is wrapped in
+   <fieldset disabled className="ws-surface-wrap">; fieldset[disabled] propagates
+   :disabled to every descendant <button|input|select|textarea>. The CSS below
+   only resets the native fieldset chrome and gives a clear visual cue.
+   Individual surface components don't need a readonly prop. */
+fieldset.ws-surface-wrap { border:0; padding:0; margin:0; min-inline-size:0; display:block; }
+fieldset.ws-surface-wrap[disabled] button:disabled,
+fieldset.ws-surface-wrap[disabled] input:disabled,
+fieldset.ws-surface-wrap[disabled] select:disabled,
+fieldset.ws-surface-wrap[disabled] textarea:disabled {
+  cursor:not-allowed; opacity:.55;
 }

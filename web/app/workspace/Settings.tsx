@@ -91,9 +91,21 @@ export function Settings({ token, projectId, projectName, projectLlmMode, onToke
   // --- Audit log ----------------------------------------------------------
   const [audit, setAudit] = useState<AuditEv[] | null>(null);
   const [auditErr, setAuditErr] = useState<string | null>(null);
+  // W16.D — filter by event family. Each family maps to a prefix/list to keep
+  // the dropdown legible (e.g. "Permissions" covers W10 access_* + W16 scope_*).
+  type AuditFamily = "all" | "scope" | "access" | "invite" | "token" | "llm";
+  const AUDIT_FAMILY: Record<AuditFamily, { label: string; match: (et: string) => boolean }> = {
+    all: { label: "Tous", match: () => true },
+    scope: { label: "Permissions collaborateurs (W16)", match: (et) => et.startsWith("scope_") },
+    access: { label: "Partages documents (W10)", match: (et) => et.startsWith("access_") },
+    invite: { label: "Invitations", match: (et) => et.startsWith("invite_") },
+    token: { label: "Jetons API", match: (et) => et.startsWith("token_") },
+    llm: { label: "LLM (mode + appels)", match: (et) => et.startsWith("llm_") },
+  };
+  const [auditFamily, setAuditFamily] = useState<AuditFamily>("all");
   async function loadAudit() {
     try {
-      const r = await api<any>("/orgs/audit?limit=50", { token });
+      const r = await api<any>("/orgs/audit?limit=200", { token });
       setAudit(r.events || []);
     } catch (e: any) {
       setAudit([]);
@@ -104,6 +116,101 @@ export function Settings({ token, projectId, projectName, projectLlmMode, onToke
     }
   }
   useEffect(() => { loadAudit(); /* eslint-disable-next-line */ }, []);
+  const visibleAudit = audit ? audit.filter((e) => AUDIT_FAMILY[auditFamily].match(e.event_type)) : null;
+
+  // --- W16: Permissions collaborateurs ------------------------------------
+  type Scope = { id: number; user_id: number; project_id: number | null; surface: string | null; level: string };
+  type AppUser = { id: number; email: string; name: string; role: string };
+  type AppProj = { project_id: string; name: string };
+  const [orgUsers, setOrgUsers] = useState<AppUser[]>([]);
+  const [orgProjects, setOrgProjects] = useState<AppProj[]>([]);
+  const [orgProjectsRaw, setOrgProjectsRaw] = useState<{ project_id: string; db_id?: number; name: string }[]>([]);
+  const [scopes, setScopes] = useState<Scope[]>([]);
+  const [selectedUser, setSelectedUser] = useState<number | null>(null);
+  const [aclBusy, setAclBusy] = useState(false);
+  const [aclErr, setAclErr] = useState<string | null>(null);
+  const SCOPED_SURFACES = [
+    "dashboard", "foresight", "taches", "checklist", "terrain", "copilote", "memoire",
+    "coordination", "intervenants", "documents", "brs",
+    "permis", "opposition", "conformite",
+    "couts", "chantier",
+  ];
+  const SURFACE_FR: Record<string, string> = {
+    dashboard: "Tableau de bord", foresight: "Foresight", taches: "Tâches",
+    checklist: "Checklist SIA", terrain: "Terrain & zonage", copilote: "Copilote",
+    memoire: "Mémoire", coordination: "Coordination", intervenants: "Intervenants",
+    documents: "Documents", brs: "Exigences (BRS)", permis: "Permis",
+    opposition: "Risque d'opposition", conformite: "Conformité",
+    couts: "Coûts", chantier: "Chantier",
+  };
+  async function loadACL() {
+    try {
+      const [u, p, s] = await Promise.all([
+        api<any>("/orgs/users", { token }).catch(() => ({ users: [] })),
+        api<any>("/projects", { token }).catch(() => ({ projects: [] })),
+        api<any>("/orgs/scopes", { token }).catch(() => ({ scopes: [] })),
+      ]);
+      setOrgUsers(u.users || []);
+      // /projects returns project_id strings; fetch each to get db id.
+      const pids: string[] = p.projects || [];
+      const projs = await Promise.all(pids.map((pid) =>
+        api<any>(`/projects/${pid}`, { token }).then((r) => r.project).catch(() => null)
+      ));
+      const arr = projs.filter(Boolean).map((pr: any) => ({
+        project_id: pr.project_id, name: pr.name,
+        // The summary doesn't expose db_id; we'll match scope rows below by
+        // letting the user pick a project_id (string) and looking up via the
+        // membership row… Actually scope rows store the DB id directly. We
+        // need it on the client. The workaround: use the index in the list
+        // and resolve via the scope-grant response.
+      }));
+      setOrgProjects(arr);
+      setOrgProjectsRaw(arr);
+      setScopes(s.scopes || []);
+    } catch (e: any) { setAclErr(e?.message || "Échec chargement ACL"); }
+  }
+  useEffect(() => { loadACL(); /* eslint-disable-next-line */ }, []);
+  // Pick the first non-owner user if any.
+  useEffect(() => {
+    if (selectedUser === null && orgUsers.length > 0) {
+      const firstNonOwner = orgUsers.find((u) => u.role !== "owner") || null;
+      if (firstNonOwner) setSelectedUser(firstNonOwner.id);
+    }
+  }, [orgUsers, selectedUser]);
+
+  function levelOf(userId: number, projectIdDb: number | null, surface: string | null): string {
+    // Resolution: exact → project-wide → surface-wide → user-default → role-default
+    const r = scopes.find((s) => s.user_id === userId && s.project_id === projectIdDb && s.surface === surface);
+    if (r) return r.level;
+    if (projectIdDb !== null && surface !== null) {
+      const r2 = scopes.find((s) => s.user_id === userId && s.project_id === projectIdDb && s.surface === null);
+      if (r2) return r2.level;
+    }
+    if (surface !== null) {
+      const r3 = scopes.find((s) => s.user_id === userId && s.project_id === null && s.surface === surface);
+      if (r3) return r3.level;
+    }
+    const r4 = scopes.find((s) => s.user_id === userId && s.project_id === null && s.surface === null);
+    if (r4) return r4.level;
+    const u = orgUsers.find((u) => u.id === userId);
+    return u?.role === "viewer" ? "read" : "write";
+  }
+  async function setLevel(userId: number, surface: string | null, level: string) {
+    setAclBusy(true); setAclErr(null);
+    try {
+      // Find existing exact scope to potentially delete (level === "default")
+      await api("/orgs/scopes", { method: "PUT", token,
+        body: { user_id: userId, surface, level } });
+      await loadACL();
+    } catch (e: any) { setAclErr(e?.message || "Échec"); }
+    finally { setAclBusy(false); }
+  }
+  async function deleteScope(scopeId: number) {
+    setAclBusy(true); setAclErr(null);
+    try { await api(`/orgs/scopes/${scopeId}`, { method: "DELETE", token }); await loadACL(); }
+    catch (e: any) { setAclErr(e?.message || "Échec"); }
+    finally { setAclBusy(false); }
+  }
 
   return (
     <>
@@ -194,16 +301,35 @@ export function Settings({ token, projectId, projectName, projectLlmMode, onToke
       <div className="card">
         <div className="row" style={{ alignItems: "baseline" }}>
           <h3 style={{ margin: 0 }}>Journal de sécurité</h3>
-          <small style={{ color: "var(--mut)", marginLeft: 8 }}>append-only, 50 derniers événements</small>
+          <small style={{ color: "var(--mut)", marginLeft: 8 }}>append-only, 200 derniers événements</small>
         </div>
         <p style={{ marginTop: 4, color: "var(--mut)" }}>
           Invitations émises et acceptées, droits d&apos;accès accordés/révoqués, rotations de jeton, changements de mode LLM. Visible par les owners de l&apos;atelier (les externes n&apos;y ont pas accès).
         </p>
+        {/* W16.D — filtre par famille d'événements */}
+        <div className="row" style={{ marginTop: 8, alignItems: "center", gap: 8 }}>
+          <label className="lbl" style={{ margin: 0 }}>Filtrer</label>
+          <select className="fld" style={{ maxWidth: 320 }}
+                  value={auditFamily}
+                  onChange={(e) => setAuditFamily(e.target.value as AuditFamily)}>
+            {(Object.keys(AUDIT_FAMILY) as AuditFamily[]).map((k) => (
+              <option key={k} value={k}>{AUDIT_FAMILY[k].label}</option>
+            ))}
+          </select>
+          {audit && (
+            <small style={{ color: "var(--mut)" }}>
+              {visibleAudit?.length || 0} / {audit.length} événement{(visibleAudit?.length || 0) === 1 ? "" : "s"}
+            </small>
+          )}
+        </div>
         {auditErr && <small style={{ color: "var(--ts-conflict)", display: "block", marginTop: 6 }}>{auditErr}</small>}
         <div style={{ marginTop: 10 }}>
           {audit === null && <small className="spin">Chargement…</small>}
           {audit && audit.length === 0 && <small style={{ color: "var(--mut)" }}>Aucun événement consigné pour l&apos;instant.</small>}
-          {audit?.map((e) => (
+          {audit && audit.length > 0 && visibleAudit && visibleAudit.length === 0 && (
+            <small style={{ color: "var(--mut)" }}>Aucun événement dans cette famille — choisissez « Tous » pour voir l&apos;intégralité.</small>
+          )}
+          {visibleAudit?.map((e) => (
             <div key={e.id} className="row-line">
               <span className="ds-ts is-decision" style={{ fontSize: 10 }}><span className="dot" />{e.event_type}</span>
               <span className="grow">
@@ -213,6 +339,99 @@ export function Settings({ token, projectId, projectName, projectLlmMode, onToke
             </div>
           ))}
         </div>
+      </div>
+
+      {/* --- W16: Permissions collaborateurs ---------------------------- */}
+      <div className="card" style={{ marginTop: 14 }}>
+        <div className="row" style={{ alignItems: "baseline" }}>
+          <h3 style={{ margin: 0 }}>Permissions collaborateurs</h3>
+          <small style={{ color: "var(--mut)", marginLeft: 8 }}>per-surface · per-projet · 3 niveaux</small>
+        </div>
+        <p style={{ marginTop: 4, color: "var(--mut)" }}>
+          Pour chaque collaborateur interne (<i>member</i> ou <i>viewer</i>), réglez l&apos;accès <b>none / read / write</b> par surface. Owner reste full-write. Les externes sont gérés via les invitations intervenant (scoping documentaire).
+        </p>
+        {aclErr && <small style={{ color: "var(--ts-conflict)", display: "block", marginTop: 6 }}>{aclErr}</small>}
+        {orgUsers.filter((u) => u.role !== "owner" && u.role !== "external").length === 0 && (
+          <small className="spin" style={{ display: "block", marginTop: 8 }}>
+            Aucun member/viewer dans l&apos;atelier — invitez-en via la surface Équipe pour leur attribuer des permissions ici.
+          </small>
+        )}
+        {orgUsers.filter((u) => u.role !== "owner" && u.role !== "external").length > 0 && (
+          <>
+            <div className="row" style={{ gap: 8, alignItems: "center", marginTop: 10, flexWrap: "wrap" }}>
+              <label className="mono" style={{ fontSize: 11, color: "var(--mut)" }}>Collaborateur</label>
+              <select className="fld" style={{ margin: 0, padding: "5px 9px", width: "auto" }}
+                      value={selectedUser ?? ""} onChange={(e) => setSelectedUser(Number(e.target.value))}>
+                {orgUsers.filter((u) => u.role !== "owner" && u.role !== "external").map((u) => (
+                  <option key={u.id} value={u.id}>{u.name || u.email} — {u.role}</option>
+                ))}
+              </select>
+            </div>
+            {selectedUser !== null && (
+              <div style={{ marginTop: 12 }}>
+                {/* Default for all surfaces (org-wide row, project=NULL surface=NULL) */}
+                <div className="row-line">
+                  <span className="ttl" style={{ flex: 1 }}>Niveau par défaut (toutes surfaces, tous projets)</span>
+                  <span className="row" style={{ gap: 4 }}>
+                    {["none", "read", "write"].map((lvl) => (
+                      <button key={lvl}
+                              className={`toggle ${levelOf(selectedUser, null, null) === lvl ? "on" : ""}`}
+                              disabled={aclBusy}
+                              style={{ padding: "3px 9px", fontSize: 11 }}
+                              onClick={() => setLevel(selectedUser, null, lvl)}>
+                        {lvl}
+                      </button>
+                    ))}
+                  </span>
+                </div>
+                {/* Per-surface (project=NULL surface=X) */}
+                <div className="mono" style={{ fontSize: 10, color: "var(--mut)", letterSpacing: ".08em", textTransform: "uppercase", marginTop: 14, marginBottom: 4 }}>
+                  Niveau par surface (override le défaut)
+                </div>
+                {SCOPED_SURFACES.map((surface) => {
+                  const lvl = levelOf(selectedUser, null, surface);
+                  return (
+                    <div className="row-line" key={surface}>
+                      <span className="grow">
+                        <span className="ttl" style={{ fontSize: 13 }}>{SURFACE_FR[surface] || surface}</span>
+                        <small style={{ color: "var(--mut)" }}>{surface}</small>
+                      </span>
+                      <span className="row" style={{ gap: 4 }}>
+                        {["none", "read", "write"].map((opt) => (
+                          <button key={opt}
+                                  className={`toggle ${lvl === opt ? "on" : ""}`}
+                                  disabled={aclBusy}
+                                  style={{ padding: "3px 9px", fontSize: 11 }}
+                                  onClick={() => setLevel(selectedUser, surface, opt)}>
+                            {opt}
+                          </button>
+                        ))}
+                      </span>
+                    </div>
+                  );
+                })}
+                {/* List scope rows for transparency + manual delete */}
+                <div className="mono" style={{ fontSize: 10, color: "var(--mut)", letterSpacing: ".08em", textTransform: "uppercase", marginTop: 14, marginBottom: 4 }}>
+                  Règles actives ({scopes.filter((s) => s.user_id === selectedUser).length})
+                </div>
+                {scopes.filter((s) => s.user_id === selectedUser).length === 0 && (
+                  <small style={{ color: "var(--mut)" }}>Aucune — le collaborateur a son niveau par défaut sur tout.</small>
+                )}
+                {scopes.filter((s) => s.user_id === selectedUser).map((s) => (
+                  <div className="row-line" key={s.id}>
+                    <span className="ds-ts is-computed" style={{ fontSize: 10 }}><span className="dot" />{s.level}</span>
+                    <span className="grow">
+                      <span className="ttl" style={{ fontSize: 13 }}>
+                        {s.project_id ? `projet#${s.project_id}` : "tous projets"} · {s.surface || "toutes surfaces"}
+                      </span>
+                    </span>
+                    <button className="signout" style={{ padding: 0 }} disabled={aclBusy} onClick={() => deleteScope(s.id)} title="Retirer la règle (le collaborateur retombe sur le niveau moins spécifique)">✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </div>
     </>
   );

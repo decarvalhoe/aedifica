@@ -65,7 +65,6 @@ export function GanttView({ tasks, onPatch }: {
   onPatch: (project_id: string, task_id: number, body: any) => Promise<any>;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const scrollerRef = useRef<HTMLDivElement>(null);
   const styleRef = useRef<HTMLStyleElement | null>(null);
   // W15 — `onPatch` is a fresh closure on every parent render. If we put it
   // in the mount-effect deps, the Gantt remounts every render → setInterval
@@ -140,6 +139,7 @@ export function GanttView({ tasks, onPatch }: {
 
   useEffect(() => {
     let cancelled = false;
+    let scrollTimer: ReturnType<typeof setInterval> | null = null;
     if (!ref.current || rows.length === 0) return;
     (async () => {
       const mod: any = await import("frappe-gantt");
@@ -171,21 +171,24 @@ export function GanttView({ tasks, onPatch }: {
       });
       // W15 — KEY: frappe-gantt creates its OWN `<div class="gantt-container">`
       // wrapper with overflow:auto, inserted INSIDE our `ref` div. The outer
-      // `scrollerRef` div is NOT the actual scroller — its scrollWidth ==
+      // overflow wrapper is NOT the actual scroller — its scrollWidth ==
       // clientWidth because the inner gantt-container clips first.
       // We must target the inner `.gantt-container` to scroll meaningfully.
       // Verified via debug-gantt-manual-scroll.mjs:
-      //   scroller.className = "gantt-container"  (not scrollerRef!)
+      //   scroller.className = "gantt-container"
       //   setting its scrollLeft works and persists.
       let attempts = 0;
-      const intv = setInterval(() => {
+      scrollTimer = setInterval(() => {
         attempts++;
-        if (cancelled || attempts > 30) { clearInterval(intv); return; }
+        if (cancelled || attempts > 30) {
+          if (scrollTimer) clearInterval(scrollTimer);
+          return;
+        }
         const scroller = ref.current?.querySelector(".gantt-container") as HTMLDivElement | null;
         const firstBar = svg.querySelector(".bar") as SVGRectElement | null;
         if (!scroller || !firstBar) return;
         if (scroller.scrollWidth <= scroller.clientWidth) {
-          clearInterval(intv);
+          if (scrollTimer) clearInterval(scrollTimer);
           return;
         }
         const barRect = firstBar.getBoundingClientRect();
@@ -195,11 +198,14 @@ export function GanttView({ tasks, onPatch }: {
         if (Math.abs(scroller.scrollLeft - target) > 10) {
           scroller.scrollLeft = target;
         } else if (attempts > 8) {
-          clearInterval(intv);
+          if (scrollTimer) clearInterval(scrollTimer);
         }
       }, 80);
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (scrollTimer) clearInterval(scrollTimer);
+    };
     // W15 — Deps deliberately use rowsKey (content) instead of rows
     // (reference). `tasks` prop is a new array on every parent render
     // (computed via filter in AtelierPilotage), which propagated into
@@ -210,8 +216,8 @@ export function GanttView({ tasks, onPatch }: {
 
   // W15 — Belt-and-suspenders one-shot scroll on mount. Same target as the
   // polling interval above: frappe-gantt's `.gantt-container` (NOT our
-  // outer scrollerRef wrapper, which has no overflow because the inner
-  // gantt-container clips at its own width first).
+  // outer wrapper, which has no overflow because the inner gantt-container
+  // clips at its own width first).
   useEffect(() => {
     const t = setTimeout(() => {
       const scroller = ref.current?.querySelector(".gantt-container") as HTMLDivElement | null;
@@ -283,7 +289,7 @@ export function GanttView({ tasks, onPatch }: {
       {/* The Gantt itself — explicit min-height so a single-row plan doesn't
           collapse, and forced horizontal overflow with a visible scrollbar
           so the architect can scroll long timelines. */}
-      <div ref={scrollerRef} style={{
+      <div style={{
         overflow: "auto",
         minHeight: Math.max(220, rows.length * 36 + 80),
         border: "1px solid var(--line)",

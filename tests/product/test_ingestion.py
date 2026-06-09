@@ -12,6 +12,7 @@ if ROOT not in sys.path:
 
 from aedifica.db import Base, make_engine, make_session_factory  # noqa: E402
 from aedifica.ingestion import service as ingestion  # noqa: E402
+from aedifica.api.config import get_settings  # noqa: E402
 
 
 @pytest.fixture()
@@ -62,3 +63,40 @@ def test_commune_api_lifecycle(client, owner):
     new_id = ing.json()["ingested"]["id"]
     assert client.post(f"/api/communes/{new_id}/promote", headers=h).json()["promoted"]["status"] == "supported"
     assert client.get("/api/communes/Vevey/VD/support", headers=h).json()["support"]["usable"] is True
+
+
+def test_nomos_flag_off_preserves_commune_ingestion_lifecycle(monkeypatch, session):
+    monkeypatch.setenv("AEDIFICA_NOMOS_ENABLED", "0")
+    assert get_settings().nomos_enabled is False
+
+    requested = ingestion.request_commune(session, "Montreux", "VD")
+    session.commit()
+    assert requested.status == "seed"
+    assert requested.data == {}
+
+    seed_state = ingestion.support_state(session, "Montreux", "VD")
+    assert seed_state["state"] == "seed"
+    assert seed_state["usable"] is False
+    assert seed_state["required_inputs"] == ingestion.REQUIRED_INPUTS
+
+    ingested = ingestion.ingest_pack(
+        session,
+        "Montreux",
+        "VD",
+        "RCC-2024",
+        {"Zone centre": {"ius": 0.7}},
+        "Commune de Montreux",
+        "2026-06-01",
+        "2026-12-01",
+        sources=[{"locator": "https://example.test/rcc.pdf", "sha256": "a" * 64}],
+    )
+    session.commit()
+    assert ingested.status == "ingested"
+    assert ingested.data == {"zones": {"Zone centre": {"ius": 0.7}}}
+    assert ingestion.support_state(session, "Montreux", "VD")["usable"] is False
+
+    ingestion.promote(session, ingested.id)
+    session.commit()
+    supported = ingestion.support_state(session, "Montreux", "VD")
+    assert supported["state"] == "supported"
+    assert supported["usable"] is True

@@ -63,6 +63,51 @@ def test_sourced_claim_with_source_refs_persists(session):
     assert got.state == "sourced" and got.source_refs[0]["source_id"] == "VD-OEREB"
 
 
+def test_claim_and_source_facets_have_safe_defaults(session):
+    project = _project(session)
+    source = Source(project_id=project.id, source_id="VD-OEREB", title="OEREB", kind="api_extract")
+    claim = Claim(
+        project_id=project.id,
+        claim_id="C-FACET",
+        title="Zone",
+        claim_type="regulatory",
+        state="sourced",
+        value="Zone X",
+        source_refs=[{"source_id": "VD-OEREB"}],
+    )
+    session.add_all([source, claim])
+    session.commit()
+
+    got_source = session.query(Source).filter_by(source_id="VD-OEREB").one()
+    got_claim = session.query(Claim).filter_by(claim_id="C-FACET").one()
+    assert got_source.trust_tier == "unverified"
+    assert got_source.provenance == "official"
+    assert got_source.facets == {}
+    assert got_claim.trust_tier == "unverified"
+    assert got_claim.provenance == "official"
+    assert got_claim.facets == {}
+
+
+def test_user_promoted_provenance_is_distinct_from_official(session):
+    project = _project(session)
+    source = Source(
+        project_id=project.id,
+        source_id="ATELIER-DETAIL-001",
+        title="Detail releve par atelier",
+        kind="project_document",
+        trust_tier="indicative",
+        provenance="user_promoted",
+        facets={"nature": "project", "confidentiality": "project"},
+    )
+    session.add(source)
+    session.commit()
+
+    got = session.query(Source).filter_by(source_id="ATELIER-DETAIL-001").one()
+    assert got.provenance == "user_promoted"
+    assert got.provenance != "official"
+    assert got.facets["confidentiality"] == "project"
+
+
 def test_unknown_claim_without_source_refs_is_allowed(session):
     project = _project(session)
     session.add(Claim(project_id=project.id, claim_id="C2", title="SBP", claim_type="regulatory", state="unknown", value=None, source_refs=[], next_action="vérifier le règlement"))

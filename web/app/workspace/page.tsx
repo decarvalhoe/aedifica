@@ -9,8 +9,9 @@ import { PhaseTasks } from "./PhaseTasks";
 import { Foresight } from "./Foresight";
 import { Settings } from "./Settings";
 
-const REF_ID = "DEMO-LAUSANNE-PALUD";
-const REF = { name: "Place de la Palud", commune: "Lausanne" };
+// W17 — the Place de la Palud reference dataset used to be auto-seeded on
+// every new atelier; it's now only available via pilot/seed_etienne.py for
+// marketing demos. New ateliers start empty.
 
 /* ---- SIA phase model (official sub-phases SIA 112/102) ---- */
 const PHASES: [string, string][] = [
@@ -77,9 +78,29 @@ const TRUST: Record<string, [string, string]> = {
   conflict: ["is-conflict", "Conflit"], present: ["is-sourced", "Fourni"], missing: ["is-assume", "Manquant"],
   satisfied: ["is-sourced", "Satisfait"], action_required: ["is-assume", "Action requise"], decision: ["is-decision", "Décision"],
 };
+const TRUST_TIER: Record<string, [string, string]> = {
+  certified: ["is-sourced", "Certifié"],
+  indicative: ["is-computed", "Indicatif"],
+  unverified: ["is-unknown", "Non vérifié"],
+};
+const PROVENANCE: Record<string, [string, string]> = {
+  official: ["is-sourced", "Officiel"],
+  metier_bible: ["is-computed", "Bible métier"],
+  user_promoted: ["is-decision", "Promu atelier"],
+};
 function Trust({ state, label }: { state: string; label?: string }) {
   const [c, l] = TRUST[state] || ["is-unknown", state];
   return <span className={`ds-ts ${c}`}><span className="dot" />{label || l}</span>;
+}
+function TrustMeta({ trustTier, provenance }: { trustTier?: string; provenance?: string }) {
+  const [tc, tl] = TRUST_TIER[trustTier || "unverified"] || ["is-unknown", trustTier || "Non vérifié"];
+  const [pc, pl] = PROVENANCE[provenance || "official"] || ["is-assume", provenance || "Origine inconnue"];
+  return (
+    <div className="trust-meta">
+      <span className={`ds-ts ${tc}`}><span className="dot" />{tl}</span>
+      <span className={`ds-ts ${pc}`}><span className="dot" />{pl}</span>
+    </div>
+  );
 }
 const EVENT: Record<string, string> = { adapter_dry_run: "Aperçu", approval: "Validation", adapter_execution: "Modification", decision: "Décision", brief: "Brief" };
 function human(e: any): string {
@@ -207,6 +228,11 @@ export default function App() {
   const [users, setUsers] = useState<any[] | null>(null);
   const [atelier, setAtelier] = useState<any>(null);
   const [atelierAlerts, setAtelierAlerts] = useState<any[]>([]);
+  // W16 — fine-grained ACL map for the current user. Populated by loadAccess()
+  // on verify. Used to hide NAV items the user can't see and to mark surfaces
+  // read-only when they have read but not write. Owners get role="owner"
+  // and skip the lookups entirely.
+  const [access, setAccess] = useState<any | null>(null);
   // W10: external (client / mandataire) user state. When set, the entire workspace is
   // replaced by the External scoped view.
   const [ext, setExt] = useState<any | null>(null);
@@ -229,8 +255,14 @@ export default function App() {
   async function verify(t: string) {
     // Try the external scope first — if 200, the token belongs to an external user.
     try { const me = await api<any>("/external/me", { token: t }); await loadExternal(t, me); setToken(t); setReady(true); return; } catch { /* not external */ }
-    try { await loadProjects(t); await loadUsers(t); loadAtelier(t); setToken(t); }
+    try { await loadProjects(t); await loadUsers(t); loadAtelier(t); await loadAccess(t); setToken(t); }
     catch { localStorage.removeItem("aedifica_token"); } finally { setReady(true); }
+  }
+  // W16 — fine-grained ACL map for the current user. Keys: role, default
+  // (global level), projects[project_id]: { default, surfaces[name]: level }.
+  async function loadAccess(t: string) {
+    try { setAccess(await api<any>("/auth/me/access", { token: t })); }
+    catch { setAccess(null); }
   }
   async function loadExternal(t: string, me?: any) {
     const meR = me || await api<any>("/external/me", { token: t });
@@ -294,14 +326,15 @@ export default function App() {
     const t = (await api<any>("/orgs", { method: "POST", body: { org_name: "Atelier démo", user_email: "demo@aedifica.ch" } })).token;
     localStorage.setItem("aedifica_token", t); setToken(t); return t;
   }
-  async function seedReference(t: string) {
-    try { await api("/projects", { method: "POST", token: t, body: { project_id: REF_ID, name: REF.name, commune: REF.commune, seed_reports: true } }); } catch { /* exists */ }
-    try { const c = ((await api<any>(`/projects/${REF_ID}/claims`, { token: t })).claims) || []; if (!c.length) await api(`/projects/${REF_ID}/intake`, { method: "POST", token: t, body: { query: `${REF.name}, ${REF.commune}`, live: false } }); } catch { /* */ }
-  }
+  // W17 — seedReference() used to auto-create the Place de la Palud demo
+  // project inside every new atelier, which broke the "vierge" promise of
+  // the registration flow. The demo dataset is still available via the
+  // standalone /pilot/seed_etienne.py script for marketing demos; new
+  // ateliers now start empty so the user owns their first project.
   async function register(orgName: string, email: string, password: string) {
     setBusy(true); setErr("");
     try { const t = (await api<any>("/orgs", { method: "POST", body: { org_name: orgName, user_email: email, password } })).token as string;
-      localStorage.setItem("aedifica_token", t); await seedReference(t); await loadProjects(t); await loadUsers(t); loadAtelier(t); setToken(t);
+      localStorage.setItem("aedifica_token", t); await loadProjects(t); await loadUsers(t); loadAtelier(t); setToken(t);
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   }
   async function login(email: string, password: string) {
@@ -319,10 +352,17 @@ export default function App() {
   }
   function signOut() { localStorage.removeItem("aedifica_token"); setToken(null); setProjects(null); setActive(null); setD({}); setFlashKey(null); setFlash(null); setUsers(null); setExt(null); }
 
-  async function createProject(name: string, commune: string) {
+  async function createProject(name: string, commune: string, canton: string | null) {
     const id = (name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40)) || `PROJ-${(projects?.length ?? 0) + 1}`;
     setBusy(true); setErr("");
-    try { await api("/projects", { method: "POST", token: token!, body: { project_id: id, name, commune } }); const sums = await loadProjects(token!); const p = sums.find((s) => s.project_id === id); if (p) await openProject(p); }
+    try {
+      // W17 — explicit canton when picked; otherwise let the backend run the
+      // resolver and report back if it can't decide.
+      const body: any = { project_id: id, name, commune };
+      if (canton) body.canton = canton;
+      await api("/projects", { method: "POST", token: token!, body });
+      const sums = await loadProjects(token!); const p = sums.find((s) => s.project_id === id); if (p) await openProject(p);
+    }
     catch (e: any) { setErr(e.message?.includes("exists") ? "Un projet porte déjà ce nom." : e.message); } finally { setBusy(false); }
   }
   async function openProject(p: Project) {
@@ -433,6 +473,24 @@ export default function App() {
   // Terrain & zonage on each project, which avoids the duplicate search box
   // on the intermediate Home page (now removed entirely).
 
+  // W16 — given a NAV view id, returns the effective level ("none" | "read" |
+  // "write") for the current project. Falls back to "write" for owners,
+  // project-agnostic views, or when no access map is loaded yet.
+  function levelFor(viewId: View): "none" | "read" | "write" {
+    if (!access || access.role === "owner") return "write";
+    // Project-agnostic surfaces aren't scoped at the surface level; they're
+    // gated only by role-default (member/viewer = write/read).
+    if (PROJECT_AGNOSTIC.includes(viewId)) return (access.default || "read") as any;
+    const pid = active?.project_id;
+    if (!pid) return (access.default || "read") as any;
+    const proj = access.projects?.[pid];
+    if (!proj) return (access.default || "read") as any;
+    const lvl = proj.surfaces?.[viewId];
+    return (lvl || proj.default || access.default || "read") as any;
+  }
+  const currentLevel = levelFor(view);
+  const readonly = currentLevel === "read";
+
   if (!ready) return <div className="center"><span className="spin">Chargement…</span></div>;
   if (!token) return <Login busy={busy} err={err} onRegister={register} onLogin={login} onJoin={joinWithKey} onAcceptInvite={acceptInvite} />;
   if (ext) return <ExternalView ext={ext} onTick={tickExternal} onSignOut={signOut} />;
@@ -469,14 +527,19 @@ export default function App() {
                 // W13: per-project surfaces are disabled until a project is
                 // selected. Atelier · global stays clickable.
                 const disabled = !active && !PROJECT_AGNOSTIC.includes(n.id);
+                // W16: hide views the user has no access to.
+                const lvl = levelFor(n.id);
+                if (lvl === "none") return null;
                 return (
                   <button key={n.id}
                           className={`titem ${view === n.id ? "on" : ""}`}
                           disabled={disabled}
-                          title={disabled ? "Sélectionnez un projet" : undefined}
+                          title={disabled ? "Sélectionnez un projet" : (lvl === "read" ? "Lecture seule" : undefined)}
                           style={disabled ? { opacity: 0.4, cursor: "not-allowed" } : undefined}
                           onClick={() => { if (!disabled) { setView(n.id); setFlash(null); setSideOpen(false); } }}>
-                    <Icon n={n.ico} /><span className="lb">{n.lb}</span>{n.ph && <span className="ph">{n.ph}</span>}
+                    <Icon n={n.ico} /><span className="lb">{n.lb}</span>
+                    {lvl === "read" && <span className="ph" title="Lecture seule">RO</span>}
+                    {n.ph && <span className="ph">{n.ph}</span>}
                   </button>
                 );
               })}
@@ -519,6 +582,7 @@ export default function App() {
           <button className="ws__nav-toggle" aria-label="Menu" onClick={() => setSideOpen((v) => !v)}>☰ Menu</button>
           <span className="t-nm">{cur.lb}</span>
           {j && <span className="chip">{j.commune}</span>}
+          {readonly && <span className="chip" style={{ borderColor: "var(--ts-assume)", color: "var(--ts-assume)" }} title="Vous avez un accès en lecture seule à cette surface">Lecture seule</span>}
           <span className="sp" />
           <span className="chip">L&apos;IA propose — l&apos;architecte décide</span>
         </div>
@@ -531,15 +595,31 @@ export default function App() {
             </div>
           )}
 
+          {/* W16.C — wrap surface render in a disabled fieldset when the user
+              has read-only access. fieldset[disabled] natively propagates to
+              every descendant button/input/select/textarea, so individual
+              surface components don't need a readonly prop. */}
+
           {/* Project-agnostic views (always renderable). */}
           {view === "atelier" && (
-            atelier ? <AtelierPilotage atelier={atelier} onOpen={openProject} projects={projects}
+            atelier ? (
+              <fieldset disabled={readonly} className="ws-surface-wrap" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
+                <AtelierPilotage atelier={atelier} onOpen={openProject} projects={projects}
                                        pendingFilter={pendingPlanningFilter}
                                        onClearPending={() => setPendingPlanningFilter(null)}
                                        onPatchTask={patchAtelierTask} onDelTask={delAtelierTask} />
-                    : <p className="spin">Chargement de l&apos;atelier…</p>
+              </fieldset>
+            ) : <p className="spin">Chargement de l&apos;atelier…</p>
           )}
-          {view === "equipe" && <Team users={users} onAdd={addUser} onSetRole={setUserRole} />}
+          {view === "equipe" && (
+            <fieldset disabled={readonly} className="ws-surface-wrap" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
+              <Team users={users} onAdd={addUser} onSetRole={setUserRole} />
+            </fieldset>
+          )}
+          {/* Settings is intentionally NOT wrapped: the user must always be
+              able to reach their account/preferences screen even when their
+              project access is read-only. The owner-only sub-panels enforce
+              their own gates server-side. */}
           {view === "settings" && token && (
             <Settings token={token}
                       projectId={active?.project_id || null}
@@ -563,7 +643,7 @@ export default function App() {
           )}
 
           {!projectAgnostic && !projectViewBlocked && active && (
-            <>
+            <fieldset disabled={readonly} className="ws-surface-wrap" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
               {view === "dashboard" && <Dashboard d={d} project={active} go={setView} alerts={atelierAlerts} onOpenAtelierPlanning={openAtelierPlanning} />}
               {view === "taches" && <Taches data={d.tasks} token={token!} pid={active.project_id} onAdd={addTask} onPatch={patchTask} onDel={delTask} onAddDep={addDep} onDelDep={delDep} onPredict={predictTask} />}
               {view === "checklist" && <Checklist data={d.checklist} entryPhase={active.phase_code} token={token!} pid={active.project_id} onSeed={seedChecklist} onPatch={patchChecklist} onAdd={addChecklistItem} onDel={delChecklistItem} />}
@@ -580,7 +660,7 @@ export default function App() {
               {view === "couts" && <Couts d={d.cost} onFee={feeEstimate} tasks={d.tasks?.tasks || []} projectPhase={active.phase_code} projectId={active.project_id} token={token!} onOpenAtelierPlanning={openAtelierPlanning} />}
               {view === "chantier" && <Chantier d={d.site} tasks={d.tasks?.tasks || []} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
               {view === "foresight" && token && <Foresight token={token} pid={active.project_id} />}
-            </>
+            </fieldset>
           )}
           {err && <p className="note err" style={{ marginTop: 16 }}>{err}</p>}
         </div>
@@ -810,17 +890,83 @@ function AtelierPilotage({ atelier, onOpen, projects, pendingFilter, onClearPend
 // active one, and an inline "+ Nouveau projet" form at the bottom. Pattern
 // borrowed from Notion / Linear / Figma workspace switchers: stay in the
 // workspace, never bounce to a separate page.
+// W17 — commune→canton resolver hook. Debounces the input so we hit the
+// /jurisdictions/resolve endpoint at most every 250ms while the user types.
+function useCantonResolve(commune: string, country: string = "CH") {
+  const [verdict, setVerdict] = useState<any | null>(null);
+  useEffect(() => {
+    const c = commune.trim();
+    if (!c) { setVerdict(null); return; }
+    let cancelled = false;
+    const id = setTimeout(async () => {
+      try {
+        const r = await api<any>(`/jurisdictions/resolve?country=${encodeURIComponent(country)}&commune=${encodeURIComponent(c)}`, {});
+        if (!cancelled) setVerdict(r);
+      } catch { if (!cancelled) setVerdict(null); }
+    }, 250);
+    return () => { cancelled = true; clearTimeout(id); };
+  }, [commune, country]);
+  return verdict;
+}
+
+// W17 — full canton list for the manual fallback. Loaded once per session.
+function useCantonList(country: string = "CH") {
+  const [list, setList] = useState<{ canton: string; name: string }[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await api<any>(`/jurisdictions/regions?country=${encodeURIComponent(country)}`, {});
+        if (!cancelled) setList(r.regions || []);
+      } catch { /* swallow */ }
+    })();
+    return () => { cancelled = true; };
+  }, [country]);
+  return list;
+}
+
+// W18 — surface the OFS snapshot date in the UI so users see the dataset
+// is live + official, not hand-rolled. Loaded once per session.
+function useFreshness(country: string = "CH") {
+  const [meta, setMeta] = useState<{ snapshot_date?: string; n_communes?: number; source?: string } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await api<any>(`/jurisdictions/freshness?country=${encodeURIComponent(country)}`, {});
+        if (!cancelled) setMeta(r);
+      } catch { /* swallow */ }
+    })();
+    return () => { cancelled = true; };
+  }, [country]);
+  return meta;
+}
+
 function ProjectSwitcher({ active, projects, onOpen, onCreate, busy }: {
   active: Project | null; projects: Project[] | null;
   onOpen: (p: Project) => void;
-  onCreate: (name: string, commune: string) => Promise<void> | void;
+  onCreate: (name: string, commune: string, canton: string | null) => Promise<void> | void;
   busy: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
-  const [commune, setCommune] = useState("Lausanne");
+  const [commune, setCommune] = useState("");
+  // W17 — user-selected canton (null until resolver returns "exact" or the
+  // user picks one explicitly).
+  const [canton, setCanton] = useState<string | null>(null);
+  const verdict = useCantonResolve(commune);
+  const cantonList = useCantonList("CH");
+  const freshness = useFreshness("CH");
+  // When the resolver returns exact, accept it. When it goes ambiguous or
+  // unknown, drop the previous auto-pick so we don't silently submit a
+  // stale canton.
+  useEffect(() => {
+    if (!verdict) { setCanton(null); return; }
+    if (verdict.confidence === "exact") setCanton(verdict.canton);
+    else setCanton(null);
+  }, [verdict]);
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     function onDoc(e: MouseEvent) {
@@ -837,10 +983,14 @@ function ProjectSwitcher({ active, projects, onOpen, onCreate, busy }: {
 
   const list = (projects || []).slice();
   const filtered = q.trim() ? list.filter((p) => `${p.name} ${p.jurisdiction.commune}`.toLowerCase().includes(q.toLowerCase())) : list;
+  // W17 — gate the Créer button on (name + commune + canton). Canton can
+  // come from the resolver (auto) or from the user (manual pick).
+  const cantonReady = !!canton;
+  const canCreate = !!name.trim() && !!commune.trim() && cantonReady && !busy;
   const create = async () => {
-    if (!name.trim()) return;
-    await onCreate(name, commune);
-    setCreating(false); setName(""); setOpen(false);
+    if (!canCreate) return;
+    await onCreate(name, commune, canton);
+    setCreating(false); setName(""); setCommune(""); setCanton(null); setOpen(false);
   };
   return (
     <div className="psw-wrap" ref={ref}>
@@ -886,10 +1036,53 @@ function ProjectSwitcher({ active, projects, onOpen, onCreate, busy }: {
           ) : (
             <div className="psw-form">
               <input className="fld" placeholder="Nom du projet" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
-              <input className="fld" placeholder="Commune" value={commune} onChange={(e) => setCommune(e.target.value)} />
+              <input className="fld" placeholder="Commune (ex: Neuchâtel, Lausanne, Sion…)" value={commune} onChange={(e) => setCommune(e.target.value)} />
+              {/* W18 — surface the OFS snapshot date so users see the
+                  dataset is the official register, not a guess. */}
+              {freshness?.snapshot_date && (
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--mut)", marginTop: -6, marginBottom: 6 }}>
+                  Source : OFS · {freshness.n_communes?.toLocaleString() || "?"} communes · au {freshness.snapshot_date}
+                </div>
+              )}
+              {/* W17 — three resolver outcomes drive three different UIs.
+                  Empty + still typing → tiny hint
+                  Exact → auto-fill chip
+                  Ambiguous → required dropdown of candidates only
+                  Unknown → full 26-canton dropdown */}
+              {commune.trim() && verdict && (
+                <div className="psw-canton" style={{ marginBottom: 10 }}>
+                  {verdict.confidence === "exact" && canton && (
+                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--ts-sourced)" }}>
+                      Canton détecté : <b>{canton}</b> · {verdict.candidates?.[0]?.name}
+                    </div>
+                  )}
+                  {verdict.confidence === "ambiguous" && (
+                    <>
+                      <label className="lbl">Plusieurs cantons portent ce nom — choisissez :</label>
+                      <select className="fld" value={canton || ""} onChange={(e) => setCanton(e.target.value || null)}>
+                        <option value="">— Sélectionner —</option>
+                        {(verdict.candidates || []).map((c: any) => (
+                          <option key={c.canton} value={c.canton}>{c.canton} · {c.name}</option>
+                        ))}
+                      </select>
+                    </>
+                  )}
+                  {verdict.confidence === "unknown" && (
+                    <>
+                      <label className="lbl">Commune inconnue de notre base — choisissez le canton :</label>
+                      <select className="fld" value={canton || ""} onChange={(e) => setCanton(e.target.value || null)}>
+                        <option value="">— Sélectionner —</option>
+                        {cantonList.map((c) => (
+                          <option key={c.canton} value={c.canton}>{c.canton} · {c.name}</option>
+                        ))}
+                      </select>
+                    </>
+                  )}
+                </div>
+              )}
               <div className="row" style={{ gap: 6 }}>
-                <button className="ds-btn" disabled={busy || !name} onClick={create}>{busy ? "…" : "Créer"}</button>
-                <button className="ds-btn ghost" onClick={() => setCreating(false)}>Annuler</button>
+                <button className="ds-btn" disabled={!canCreate} onClick={create}>{busy ? "…" : "Créer"}</button>
+                <button className="ds-btn ghost" onClick={() => { setCreating(false); setName(""); setCommune(""); setCanton(null); }}>Annuler</button>
               </div>
             </div>
           )}
@@ -1034,10 +1227,12 @@ function Terrain({ claims, mode, support, commune, onLookup, onRequest, initialQ
   if (!claims) return <p className="spin">Chargement…</p>;
   const lookup = async () => { if (!q.trim()) return; setB("l"); try { await onLookup(q.trim()); } catch { } finally { setB(""); } };
   const usable = support ? support.usable : true;
+  const val = (v: any) => v == null ? "Non disponible — à confirmer sur le règlement communal" : typeof v === "object" ? JSON.stringify(v) : String(v);
   return (
     <>
       <div className="vh"><div className="row" style={{ gap: 10, alignItems: "center" }}><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" style={{ color: "var(--ink-60)" }}><use href="/assets/functional-icons.svg#ic-datum-north" /></svg><h2 style={{ margin: 0 }}>Terrain &amp; zonage</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>Ce que la parcelle autorise — sourcé sur une base officielle, ou marqué « à vérifier ». Le datum géographique du projet : tout part d&apos;ici.</p></div>
       {(regAlerts || []).map((r: any) => <div className="banner bad" key={r.id} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style={{ flex: "0 0 16px", marginTop: 2 }}><use href="/assets/functional-icons.svg#ic-warning" /></svg><div><b>Règlement à l&apos;étude</b> — {r.content}{r.source_ref ? ` (${r.source_ref})` : ""}. Les règles (hauteurs, densités) peuvent changer en cours de projet.</div></div>)}
+      <div className="banner warn"><b>Pas une autorité.</b> Les niveaux ci-dessous qualifient les sources et la provenance; la décision reste à l&apos;architecte.</div>
       {support && !usable && <IngestionPanel commune={commune} support={support} onRequest={onRequest} />}
       <div className="searchrow"><input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && lookup()} placeholder="Adresse ou parcelle — ex. Place de la Palud, Lausanne" /><button onClick={lookup}>{b ? "…" : "Rechercher (live)"}</button></div>
       {mode === "offline" && <p className="note" style={{ marginBottom: 12 }}>Recherche live indisponible — données de référence affichées.</p>}
@@ -1045,7 +1240,7 @@ function Terrain({ claims, mode, support, commune, onLookup, onRequest, initialQ
         <div className="placeholder"><h4>Aucune parcelle analysée</h4><p>Lancez une recherche d&apos;adresse pour résoudre la parcelle.</p></div>
       ) : (
         <div className="card">{claims.map((c: any) => (
-          <div className="claim" key={c.claim_id}><Trust state={c.state} /><div><div className="ttl">{c.title}</div><div className="val">{c.value == null ? "Non disponible — à confirmer sur le règlement communal" : String(c.value)}</div></div></div>
+          <div className="claim" key={c.claim_id}><Trust state={c.state} /><div><div className="ttl">{c.title}</div><div className="val">{val(c.value)}</div><TrustMeta trustTier={c.trust_tier} provenance={c.provenance} /></div></div>
         ))}</div>
       )}
     </>

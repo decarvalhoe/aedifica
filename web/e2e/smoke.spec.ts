@@ -1,9 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
 
 // Register a fresh atelier with email + password (the real auth front door).
-// W13: registration now lands DIRECTLY in the unified workspace — the
-// reference project ("Place de la Palud") is auto-selected, the SIA phase
-// rail is visible immediately, no intermediate Home page to click through.
+// W17: fresh ateliers are intentionally empty. The project is created
+// explicitly below before exercising project-bound flows.
 async function register(page: Page, org: string, email: string) {
   await page.goto("/workspace");
   await page.getByRole("button", { name: "Créer un atelier" }).click(); // switch to register tab
@@ -11,14 +10,30 @@ async function register(page: Page, org: string, email: string) {
   await page.getByPlaceholder("vous@atelier.ch").fill(email);
   await page.getByPlaceholder("6 caractères minimum").fill("motdepasse1");
   await page.getByRole("button", { name: "Créer l'atelier" }).click();
-  // The seeded project is auto-selected, the workspace shell renders directly.
+  await expect(page.getByText("Créer votre premier projet")).toBeVisible();
+  await expect(page.locator(".psw-cur .nm")).toHaveText("Aucun projet");
+}
+
+async function createProject(page: Page, name: string, commune: string) {
+  await page.locator(".psw-btn").click();
+  await page.getByRole("button", { name: /Nouveau projet/ }).click();
+  await page.getByPlaceholder("Nom du projet").fill(name);
+  const communeField = page.getByPlaceholder("Commune");
+  await communeField.fill("");
+  await communeField.fill(commune);
+  await expect(page.getByText(/Canton détecté/)).toBeVisible();
+  const create = page.getByRole("button", { name: "Créer", exact: true });
+  await expect(create).toBeEnabled();
+  await create.click();
+  await expect(page.locator(".psw-cur .nm")).toHaveText(name);
   await expect(page.getByText("Parcours SIA du projet")).toBeVisible();
 }
 
-// End-to-end smoke: register, ride the action loop on the seeded reference
-// project (auto-selected by W13), preview → approval → apply with the safety gate.
+// End-to-end smoke: register, create a project, ride the action loop,
+// preview → approval → apply with the safety gate.
 test("auth → project → action loop", async ({ page }) => {
   await register(page, "E2E Atelier", "e2e@test.ch");
+  await createProject(page, "E2E Projet", "Lausanne");
 
   // Open the Copilote IA surface (task nav) and run the action loop.
   await page.locator(".ws__side").getByRole("button", { name: /Copilote/ }).click();
