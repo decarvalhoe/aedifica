@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from ..db import Base, make_engine, make_session_factory, models as m, repository
 from ..ingestion import service as ingestion
+from ..ingestion.nomos_bundle import NomosBundleError, import_nomos_bundle
 from . import actions, auth, orchestration
 from .config import get_settings
 
@@ -97,6 +98,11 @@ class CommuneIngestIn(BaseModel):
     valid_as_of: str
     review_due: str
     sources: list | None = None
+
+
+class NomosImportIn(BaseModel):
+    bundle: dict
+    activate: bool = False
 
 
 # ---- W9 operating layer ---------------------------------------------------- #
@@ -1800,6 +1806,31 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
             "claim_state_summary": sorted({c["state"] for c in brief.get("claims", [])}),
             "project": repository.project_summary(session, project),
         }
+
+    @app.post("/api/projects/{project_id}/nomos/import")
+    def import_nomos_bundle_endpoint(
+        project_id: str,
+        body: NomosImportIn,
+        user: m.User = Depends(current_user),
+        session: Session = Depends(get_session),
+    ):
+        require(user, "project.write")
+        if not settings.nomos_enabled:
+            raise _err(403, "NOMOS_DISABLED", "NOMOS bundle import is disabled")
+        project = _project(session, user, project_id)
+        try:
+            imported = import_nomos_bundle(
+                session,
+                project,
+                body.bundle,
+                nomos_enabled=settings.nomos_enabled,
+                activate=body.activate,
+            )
+        except NomosBundleError as exc:
+            session.rollback()
+            raise _err(422, "NOMOS_BUNDLE_INVALID", str(exc))
+        session.commit()
+        return {"imported": imported, "project": repository.project_summary(session, project)}
 
     # ---- communes (shared cache; write-gated) ---------------------------- #
     @app.get("/api/communes")
