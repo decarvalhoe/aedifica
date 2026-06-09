@@ -61,7 +61,11 @@ class ProjectIn(BaseModel):
     name: str
     commune: str = "Lausanne"
     country: str = "CH"
-    canton: str = "VD"
+    # W17 — canton is now optional. When omitted, the backend tries to derive
+    # it from (country, commune) via the jurisdiction resolver. If the commune
+    # is unknown or matches several cantons, the request fails with a 400
+    # carrying the candidates so the client can prompt the user.
+    canton: str | None = None
     phase_code: str = "0"
     seed_reports: bool = False
 
@@ -243,8 +247,11 @@ class AcceptInviteIn(BaseModel):
     name: str | None = None
 
 
-def _err(status: int, code: str, message: str) -> HTTPException:
-    return HTTPException(status_code=status, detail={"code": code, "message": message})
+def _err(status: int, code: str, message: str, extra: dict | None = None) -> HTTPException:
+    detail: dict = {"code": code, "message": message}
+    if extra:
+        detail.update(extra)
+    return HTTPException(status_code=status, detail=detail)
 
 
 def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
@@ -458,6 +465,34 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         session.commit()
         return {"user": {"id": target.id, "email": target.email, "role": target.role}}
 
+    # ---- W17: jurisdiction resolver (commune → canton) ------------------- #
+    # Used by the ProjectSwitcher to pre-fill the canton field as the user
+    # types the commune. Three outcomes: exact (auto-fill), ambiguous
+    # (homonym — show candidates), unknown (manual canton pick). No auth
+    # gate: it's a pure read of a curated public dataset.
+    @app.get("/api/jurisdictions/resolve")
+    def jurisdiction_resolve(commune: str, country: str = "CH"):
+        from .. import jurisdictions
+        return jurisdictions.resolve(country, commune)
+
+    @app.get("/api/jurisdictions/regions")
+    def jurisdiction_regions(country: str = "CH"):
+        from .. import jurisdictions
+        return {"country": country, "regions": jurisdictions.list_regions(country)}
+
+    @app.get("/api/jurisdictions/countries")
+    def jurisdiction_countries():
+        from .. import jurisdictions
+        return {"countries": jurisdictions.list_countries()}
+
+    @app.get("/api/jurisdictions/freshness")
+    def jurisdiction_freshness(country: str = "CH"):
+        """W18 — snapshot metadata so the UI can surface a "Données OFS au
+        {date}" chip and reassure users that the dataset is live, not
+        hand-curated."""
+        from .. import jurisdictions
+        return jurisdictions.freshness(country)
+
     # ---- projects (org-scoped) ------------------------------------------- #
     @app.get("/api/projects")
     def list_projects(user: m.User = Depends(current_user), session: Session = Depends(get_session)):
@@ -470,9 +505,24 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         require(user, "project.write")
         if session.query(m.Project).filter_by(org_id=user.org_id, project_id=body.project_id).first():
             raise _err(409, "PROJECT_EXISTS", f"{body.project_id} already exists")
+        # W17 — resolve canton when client omitted it. Honour an explicit
+        # canton (frontend may have shown a picker for ambiguous/unknown
+        # cases). Otherwise call the jurisdiction resolver and reject the
+        # request when the result isn't exact, so we never silently land
+        # a project in the wrong canton.
+        from .. import jurisdictions
+        canton = (body.canton or "").strip().upper() or None
+        if canton is None:
+            verdict = jurisdictions.resolve(body.country, body.commune)
+            if verdict.get("confidence") == "exact":
+                canton = verdict["canton"]
+            else:
+                raise _err(400, "CANTON_REQUIRED",
+                           f"commune '{body.commune}' is {verdict.get('confidence')} — pick a canton",
+                           extra={"resolver": verdict})
         project = repository.create_project(
             session, user.org_id, body.project_id, body.name,
-            commune=body.commune, country=body.country, canton=body.canton, phase_code=body.phase_code,
+            commune=body.commune, country=body.country, canton=canton, phase_code=body.phase_code,
         )
         if body.seed_reports:
             from . import reports

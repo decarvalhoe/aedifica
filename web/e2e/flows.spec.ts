@@ -1,8 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
-// W13: register lands DIRECTLY in the unified workspace — the seeded
-// reference project is auto-selected and the SIA phase rail is visible
-// immediately. No intermediate "Vos projets" heading.
+// W17: register lands directly in the workspace, but new ateliers are empty.
+// The first stable post-registration state is the first-project placeholder.
 async function register(page: Page, org: string, email: string) {
   await page.goto("/workspace");
   await page.getByRole("button", { name: "Créer un atelier" }).click();
@@ -10,14 +9,15 @@ async function register(page: Page, org: string, email: string) {
   await page.getByPlaceholder("vous@atelier.ch").fill(email);
   await page.getByPlaceholder("6 caractères minimum").fill("motdepasse1");
   await page.getByRole("button", { name: "Créer l'atelier" }).click();
-  await expect(page.getByText("Parcours SIA du projet")).toBeVisible();
+  await expect(page.getByText("Créer votre premier projet")).toBeVisible();
+  await expect(page.locator(".psw-cur .nm")).toHaveText("Aucun projet");
 }
 
 // W13: project creation now lives in the sidebar ProjectSwitcher popover.
 // Open the switcher (button-card at the top of the sidebar), click
 // "+ Nouveau projet", fill the inline form, submit. The new project becomes
 // active and the workspace re-renders for it.
-async function createProject(page: Page, name: string, commune: string) {
+async function createProject(page: Page, name: string, commune: string, canton?: string) {
   await page.locator(".psw-btn").click();
   await page.getByRole("button", { name: /Nouveau projet/ }).click();
   await page.getByPlaceholder("Nom du projet").fill(name);
@@ -25,7 +25,15 @@ async function createProject(page: Page, name: string, commune: string) {
   const communeField = page.getByPlaceholder("Commune");
   await communeField.fill("");
   await communeField.fill(commune);
-  await page.getByRole("button", { name: "Créer", exact: true }).click();
+  if (canton) {
+    await expect(page.getByText(/Commune inconnue|Plusieurs cantons/)).toBeVisible();
+    await page.locator(".psw-canton select").selectOption(canton);
+  } else {
+    await expect(page.getByText(/Canton détecté/)).toBeVisible();
+  }
+  const create = page.getByRole("button", { name: "Créer", exact: true });
+  await expect(create).toBeEnabled();
+  await create.click();
   // The active project flips to the new one; the switcher shows its name.
   await expect(page.locator(".psw-cur .nm")).toHaveText(name);
   await expect(page.getByText("Parcours SIA du projet")).toBeVisible();
@@ -67,7 +75,7 @@ test("team: an owner can invite a member", async ({ page }) => {
 // commune → no fabricated data" — is now exercised inside Terrain itself.
 test("unsupported commune → honest dossier, no fabricated data", async ({ page }) => {
   await register(page, "Search Atelier", "search@test.ch");
-  await createProject(page, "Fontaine 904", "Fontainemelon");
+  await createProject(page, "Fontaine 904", "Glubzy-sur-Mer", "NE");
   await page.locator(".ws__side").getByRole("button", { name: /Terrain/ }).click();
   // Empty Terrain on the freshly-created project: no claims, banner about
   // commune not supported, NEVER fabricated.
