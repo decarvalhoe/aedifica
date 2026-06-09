@@ -90,6 +90,7 @@ class Project(Base):
     sources: Mapped[list["Source"]] = relationship(back_populates="project", cascade="all, delete-orphan")
     evidence: Mapped[list["Evidence"]] = relationship(back_populates="project", cascade="all, delete-orphan")
     claims: Mapped[list["Claim"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    knowledge_chunks: Mapped[list["ProjectKnowledgeChunk"]] = relationship(back_populates="project", cascade="all, delete-orphan")
     reports: Mapped[list["Report"]] = relationship(back_populates="project", cascade="all, delete-orphan")
     ledger_entries: Mapped[list["LedgerEntry"]] = relationship(back_populates="project", cascade="all, delete-orphan")
     routes: Mapped[list["RegulatoryRoute"]] = relationship(back_populates="project", cascade="all, delete-orphan")
@@ -131,6 +132,47 @@ class Evidence(Base):
     valid_as_of: Mapped[str | None] = mapped_column(String(40), nullable=True)
     retrieved_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
     project: Mapped[Project] = relationship(back_populates="evidence")
+
+
+class JurisdictionKnowledgeChunk(Base):
+    """Shared retrieval chunk pool scoped by jurisdiction, not by project."""
+
+    __tablename__ = "jurisdiction_knowledge_chunk"
+    __table_args__ = (UniqueConstraint("country", "canton", "commune", "chunk_id", name="uq_jurisdiction_chunk_scope"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    country: Mapped[str] = mapped_column(String(8), default="CH")
+    canton: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    commune: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    chunk_id: Mapped[str] = mapped_column(String(160))
+    text: Mapped[str] = mapped_column(Text)
+    source_hash: Mapped[str] = mapped_column(String(64))
+    source_path: Mapped[str] = mapped_column(String(500))
+    span: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    facets: Mapped[dict] = mapped_column(JSON, default=dict)
+    trust_tier: Mapped[str | None] = mapped_column(String(20), nullable=True, default="unverified")
+    provenance: Mapped[str | None] = mapped_column(String(40), nullable=True, default="official")
+    embedding: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[_dt.datetime] = _TS()
+
+
+class ProjectKnowledgeChunk(Base):
+    """Project-private retrieval chunk silo; Postgres RLS is added by migration."""
+
+    __tablename__ = "project_knowledge_chunk"
+    __table_args__ = (UniqueConstraint("project_id", "chunk_id", name="uq_project_chunk_scope"),)
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    chunk_id: Mapped[str] = mapped_column(String(160))
+    text: Mapped[str] = mapped_column(Text)
+    source_hash: Mapped[str] = mapped_column(String(64))
+    source_path: Mapped[str] = mapped_column(String(500))
+    span: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    facets: Mapped[dict] = mapped_column(JSON, default=dict)
+    trust_tier: Mapped[str | None] = mapped_column(String(20), nullable=True, default="unverified")
+    provenance: Mapped[str | None] = mapped_column(String(40), nullable=True, default="user_promoted")
+    embedding: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[_dt.datetime] = _TS()
+    project: Mapped[Project] = relationship(back_populates="knowledge_chunks")
 
 
 class Claim(Base):
