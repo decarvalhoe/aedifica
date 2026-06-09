@@ -11,7 +11,7 @@ if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
 from aedifica import workspace  # noqa: E402  (engine facade over pilot)
-from aedifica.db import Base, make_engine, make_session_factory  # noqa: E402
+from aedifica.db import Base, Claim, make_engine, make_session_factory  # noqa: E402
 from aedifica.db import repository  # noqa: E402
 
 DEMO = os.path.join(ROOT, "pilot", "projects", "demo_lausanne_palud")
@@ -67,3 +67,29 @@ def test_report_and_ledger_persist(session):
     session.commit()
     summary = repository.project_summary(session, project)
     assert summary["reports"] == 1 and summary["ledger_entries"] == 1
+
+
+def test_claims_for_exposes_trust_tier_and_provenance(session):
+    org = repository.get_or_create_org(session)
+    project = repository.create_project(session, org.id, "P-NOMOS", "P-NOMOS", commune="Lausanne")
+    session.add(
+        Claim(
+            project_id=project.id,
+            claim_id="C-TRUST",
+            title="Zone centre",
+            claim_type="regulatory",
+            state="sourced",
+            value={"ius": 0.7},
+            source_refs=[{"source_id": "NOMOS-RPGA", "source_hash": "a" * 64}],
+            trust_tier="certified",
+            provenance="user_promoted",
+            facets={"nature": "regulatory"},
+        )
+    )
+    session.commit()
+
+    [claim] = repository.claims_for(session, project)
+
+    assert claim["trust_tier"] == "certified"
+    assert claim["provenance"] == "user_promoted"
+    assert claim["facets"] == {"nature": "regulatory"}
