@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from ..db import Base, make_engine, make_session_factory, models as m, repository
 from ..ingestion import service as ingestion
 from ..ingestion.nomos_bundle import NomosBundleError, import_nomos_bundle
+from ..retrieval.doctrine import NomosDoctrineError, answer_doctrine_question
 from . import actions, auth, orchestration
 from .config import get_settings
 
@@ -103,6 +104,11 @@ class CommuneIngestIn(BaseModel):
 class NomosImportIn(BaseModel):
     bundle: dict
     activate: bool = False
+
+
+class NomosDoctrineIn(BaseModel):
+    question: str
+    lens: dict | None = None
 
 
 # ---- W9 operating layer ---------------------------------------------------- #
@@ -1771,6 +1777,28 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def project_next_step(project_id: str, phase: str | None = None, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "project.read")
         return orchestration.next_step(session, _project(session, user, project_id), phase)
+
+    @app.post("/api/projects/{project_id}/copilote/nomos")
+    def copilote_nomos_doctrine(
+        project_id: str,
+        body: NomosDoctrineIn,
+        user: m.User = Depends(current_user),
+        session: Session = Depends(get_session),
+    ):
+        require(user, "project.read")
+        if not settings.nomos_enabled:
+            raise _err(403, "NOMOS_DISABLED", "NOMOS doctrine retriever is disabled")
+        project = _project(session, user, project_id)
+        try:
+            return answer_doctrine_question(
+                session,
+                project,
+                body.question,
+                nomos_enabled=settings.nomos_enabled,
+                lens=body.lens,
+            )
+        except NomosDoctrineError as exc:
+            raise _err(422, "NOMOS_DOCTRINE_INVALID", str(exc))
 
     @app.post("/api/projects/{project_id}/brief")
     def generate_brief(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
