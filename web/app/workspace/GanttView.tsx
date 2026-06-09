@@ -66,10 +66,16 @@ export function GanttView({ tasks, onPatch }: {
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const styleRef = useRef<HTMLStyleElement | null>(null);
+  // W15 — `onPatch` is a fresh closure on every parent render. If we put it
+  // in the mount-effect deps, the Gantt remounts every render → setInterval
+  // races to reset scrollLeft to 0 forever. We keep a stable ref to it and
+  // call ref.current(...) inside the frappe-gantt callbacks.
+  const onPatchRef = useRef(onPatch);
+  useEffect(() => { onPatchRef.current = onPatch; }, [onPatch]);
   const [viewMode, setViewMode] = useState<ViewMode | "auto">("auto");
 
-  const plotted = tasks.filter((t) => !!t.due_date);
-  const skipped = tasks.filter((t) => !t.due_date);
+  const plotted = useMemo(() => tasks.filter((t) => !!t.due_date), [tasks]);
+  const skipped = useMemo(() => tasks.filter((t) => !t.due_date), [tasks]);
 
   // Group projects so we can stamp per-project CSS rules into the doc head.
   const palette: Record<string, string> = useMemo(() => {
@@ -103,6 +109,15 @@ export function GanttView({ tasks, onPatch }: {
     };
   }), [plotted]);
 
+  // W15 — stable content-based key so the mount effect re-runs ONLY when
+  // the actual data changed, not when the parent re-renders with a new
+  // `tasks` array reference (very common: a state change anywhere in App
+  // recreates `scoped`/`tasks` even though the data is unchanged).
+  const rowsKey = useMemo(
+    () => rows.map((r) => `${r.id}|${r.start}|${r.end}|${r.progress}|${r.dependencies}|${r.custom_class}|${r.name}`).join(";"),
+    [rows]
+  );
+
   const effectiveMode: ViewMode = viewMode === "auto" ? autoViewMode(rows) : viewMode;
 
   useEffect(() => {
@@ -124,6 +139,7 @@ export function GanttView({ tasks, onPatch }: {
 
   useEffect(() => {
     let cancelled = false;
+    let scrollTimer: ReturnType<typeof setInterval> | null = null;
     if (!ref.current || rows.length === 0) return;
     (async () => {
       const mod: any = await import("frappe-gantt");
@@ -141,7 +157,7 @@ export function GanttView({ tasks, onPatch }: {
           const tid = parseInt(tidRaw, 10);
           if (!pid || isNaN(tid)) return;
           const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
-          try { await onPatch(pid, tid, { due_date: toISODate(end), estimate_hours: days * 8 }); }
+          try { await onPatchRef.current(pid, tid, { due_date: toISODate(end), estimate_hours: days * 8 }); }
           catch { /* surfaced by parent */ }
         },
         on_progress_change: async (task: any, progress: number) => {
@@ -149,36 +165,73 @@ export function GanttView({ tasks, onPatch }: {
           const tid = parseInt(tidRaw, 10);
           if (!pid || isNaN(tid)) return;
           const status = progress >= 100 ? "done" : progress >= 70 ? "blocked" : progress > 0 ? "doing" : "todo";
-          try { await onPatch(pid, tid, { status }); }
+          try { await onPatchRef.current(pid, tid, { status }); }
           catch { }
         },
       });
-      // W15 fix — frappe-gantt's SVG is much wider than the visible
-      // container (it covers the whole project span); by default it
-      // shows from "today + start_padding", which can leave the only
-      // bar off-screen to the right. Auto-scroll the overflow container
-      // so the first bar sits in the left third of the viewport.
-      // Delay by one frame so the SVG is fully painted.
-      requestAnimationFrame(() => {
-        if (cancelled || !ref.current) return;
+      // W15 — KEY: frappe-gantt creates its OWN `<div class="gantt-container">`
+      // wrapper with overflow:auto, inserted INSIDE our `ref` div. The outer
+      // overflow wrapper is NOT the actual scroller — its scrollWidth ==
+      // clientWidth because the inner gantt-container clips first.
+      // We must target the inner `.gantt-container` to scroll meaningfully.
+      // Verified via debug-gantt-manual-scroll.mjs:
+      //   scroller.className = "gantt-container"
+      //   setting its scrollLeft works and persists.
+      let attempts = 0;
+      scrollTimer = setInterval(() => {
+        attempts++;
+        if (cancelled || attempts > 30) {
+          if (scrollTimer) clearInterval(scrollTimer);
+          return;
+        }
+        const scroller = ref.current?.querySelector(".gantt-container") as HTMLDivElement | null;
         const firstBar = svg.querySelector(".bar") as SVGRectElement | null;
-        if (!firstBar) return;
-        // The scrollable container is the parent of ref (we wrap the
-        // <div ref> in an `overflow: auto` div in JSX below).
-        const scroller = ref.current.parentElement;
-        if (!scroller || scroller.scrollWidth <= scroller.clientWidth) return;
+        if (!scroller || !firstBar) return;
+        if (scroller.scrollWidth <= scroller.clientWidth) {
+          if (scrollTimer) clearInterval(scrollTimer);
+          return;
+        }
         const barRect = firstBar.getBoundingClientRect();
         const scRect = scroller.getBoundingClientRect();
-        // Distance from the visible left edge to the bar.
         const offset = (barRect.left - scRect.left) + scroller.scrollLeft;
-        // Position the bar at ~1/4 of the viewport (gives the user some
-        // history context to the left + plenty of room to the right).
         const target = Math.max(0, offset - scroller.clientWidth * 0.25);
-        scroller.scrollLeft = target;
-      });
+        if (Math.abs(scroller.scrollLeft - target) > 10) {
+          scroller.scrollLeft = target;
+        } else if (attempts > 8) {
+          if (scrollTimer) clearInterval(scrollTimer);
+        }
+      }, 80);
     })();
-    return () => { cancelled = true; };
-  }, [rows, effectiveMode, onPatch]);
+    return () => {
+      cancelled = true;
+      if (scrollTimer) clearInterval(scrollTimer);
+    };
+    // W15 — Deps deliberately use rowsKey (content) instead of rows
+    // (reference). `tasks` prop is a new array on every parent render
+    // (computed via filter in AtelierPilotage), which propagated into
+    // rows → useEffect → mount → cleanup → mount loop, resetting
+    // scrollLeft to 0 forever. onPatch lives in a ref for the same reason.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowsKey, effectiveMode]);
+
+  // W15 — Belt-and-suspenders one-shot scroll on mount. Same target as the
+  // polling interval above: frappe-gantt's `.gantt-container` (NOT our
+  // outer wrapper, which has no overflow because the inner gantt-container
+  // clips at its own width first).
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const scroller = ref.current?.querySelector(".gantt-container") as HTMLDivElement | null;
+      if (!scroller) return;
+      const bar = scroller.querySelector(".bar") as SVGRectElement | null;
+      if (!bar) return;
+      if (scroller.scrollWidth <= scroller.clientWidth) return;
+      const barRect = bar.getBoundingClientRect();
+      const scRect = scroller.getBoundingClientRect();
+      const offset = (barRect.left - scRect.left) + scroller.scrollLeft;
+      scroller.scrollLeft = Math.max(0, offset - scroller.clientWidth * 0.25);
+    }, 1500);
+    return () => clearTimeout(t);
+  }, []);
 
   if (rows.length === 0) {
     return (
