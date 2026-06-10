@@ -55,6 +55,12 @@ track, scheduled after the first proof points rather than removed from scope.
 9. [`../pitch/aedifica-one-pager.html`](../pitch/aedifica-one-pager.html) — the viewport-fit visual one-pager (FR) to show the partner office.
 10. [`../design-system/aedifica-brand-book.html`](../design-system/aedifica-brand-book.html) — the canonical corrected Datum brand book export: identity defense, fracture, tokens, design system and surface rules.
 
+## Doctrine & pivot NOMOS (ajouts 2026-06)
+
+- [`development-approach.md`](development-approach.md) — **doctrine formelle de développement** (NOMOS × Aedifica) : zéro-régression, claim-boundary, pas de _done_ sans preuve adversariale. Compagnon côté moteur : `NOMOS docs/43-development-doctrine.md`.
+- [`nomos-pivot-masterplan.md`](nomos-pivot-masterplan.md) · [`nomos-knowledge-mesh-and-built-environment.md`](nomos-knowledge-mesh-and-built-environment.md) · [`nomos-state-of-the-art-positioning.md`](nomos-state-of-the-art-positioning.md) · [`nomos-capitalization-and-improvement-plan.md`](nomos-capitalization-and-improvement-plan.md) — le pivot Canonical Knowledge Mesh, le positionnement honnête, la capitalisation.
+- [`nomos-implementation-audit.md`](nomos-implementation-audit.md) · [`hardening-discipline.md`](hardening-discipline.md) — l'audit d'implémentation réel + la discipline de durcissement.
+
 ## Relationship to the rest of the repo
 
 - **Corrections already spotted** (issue hygiene, missing domains, doc inconsistencies) live in
