@@ -25,7 +25,7 @@ son moteur Go.**
 
 ---
 
-## 1. Aedifica W19 — la bonne surprise (6/7 REAL, prouvé end-to-end)
+## 1. Aedifica W19 — la bonne surprise (7/7 REAL, prouvé end-to-end)
 
 Hot-path prouvé contre le vrai FastAPI via HTTP : bundle → mapping champ-par-champ réel,
 rollback transactionnel, refus des mauvais bundles, cite-or-abstain discriminant.
@@ -35,7 +35,7 @@ rollback transactionnel, refus des mauvais bundles, cite-or-abstain discriminant
 | W19-00 Keep-shipping guardrail | **REAL** | `nomos_enabled=False` par défaut ; 182 verts flag-off ; cycle OFS seed→ingest→promote inchangé ; endpoints renvoient `403 NOMOS_DISABLED` avant DB |
 | W19-01 Bundle import adapter | **REAL** | `import_nomos_bundle` : mapping réel feeds/nodes → CommunePack/Source/Evidence/Claim (valeur IUS, spans, trace) ; `begin_nested()` rollback ; mauvais bundle → 422, **0 ligne fuitée** |
 | W19-02 Facet-aware fields | **REAL** | Migration **additive nullable** (`trust_tier`/`provenance`/`facets` sur source+claim) ; colonnes **réellement lues** par import/doctrine/repository |
-| W19-03 Lens-scoped retrieval | **PARTIAL** | Filtrage par facettes **réel** (WHERE include/exclude ; exclut un chunk confidentiel) **mais** `embedding vector(1536)` + pgvector + RLS **créés et jamais interrogés** → ranking **lexical**, pas sémantique |
+| W19-03 Lens-scoped retrieval | **REAL** (durci W19-H1 #295) | Facettes **réelles** **+** ranking **sémantique réel** : colonne `embedding` peuplée (`backfill_embeddings`) **et interrogée** — pgvector `<=>` sur Postgres, cosinus Python sur SQLite ; preuve adversariale : un synonyme (`autorisation`~`permis`, 0 token commun) est trouvé en sémantique mais **abstenu** en lexical, et retirer l'embedding le refait disparaître. RLS projet **exercée sur Postgres réel** (rôle non-propriétaire + GUC ; RLS OFF → fuite ⇒ le test a des dents). Flag OFF ⇒ 182 inchangés. *Claim-boundary* : embeddings **déterministes concept-hashing locaux** (LPD-safe, **pas** neural/LLM), embedder **pluggable** |
 | W19-04 Cite-or-abstain doctrine | **REAL** | Branche d'abstention réelle, forme 4-clés spec-exacte ; cite avec source_path+span+trust_tier ; s'abstient sur question sans recouvrement |
 | W19-05 Trust-tier UI | **REAL** | `claims_for` expose trust_tier/provenance ; UI map certified/indicative/unverified + bandeau « Pas une autorité » (rendu visuel non testé navigateur) |
 | W19-06 Design note → NOMOS core | **REAL** (doc) | `docs/strategy/w19-06-nomos-core-feedback.md` (116 l.) |
@@ -111,7 +111,7 @@ Priorisé par enjeu. Toujours **additif / zéro-régression**. Matérialisé : e
 | 4 | Émetteur de bundle Go `nomos bundle` (produit le contrat CKM-13) | [CKM-H4 #522](https://github.com/RBOKproject/NOMOS/issues/522) | NOMOS |
 | 5 | Un connecteur suisse **live** end-to-end (OFS ou Fedlex/ELI), hash réel | [CKM-H5 #523](https://github.com/RBOKproject/NOMOS/issues/523) | NOMOS |
 | 6 | Recalculer la *faithfulness* dans la gate cite-or-abstain (ne pas faire confiance à l'auto-déclaré) | [CKM-H6 #524](https://github.com/RBOKproject/NOMOS/issues/524) | NOMOS |
-| 7 | Retrieval **sémantique** réel pour le lens (brancher pgvector ; RLS exercé sur Postgres) | [W19-H1 #295](https://github.com/decarvalhoe/aedifica/issues/295) | Aedifica |
+| 7 | ✅ **fait & audité** — pgvector `<=>` interrogé (cosinus), RLS **exercée sur Postgres réel** (preuve adversariale RLS-off → fuite), embeddings concept-hashing déterministes locaux ; flag OFF ⇒ 182 inchangés | [W19-H1 #295](https://github.com/decarvalhoe/aedifica/issues/295) | Aedifica |
 
 Secondaires (notés, non bloquants) : CKM-12 enforcer la disjonction en CUE (pas que
 Python) ; CKM-04 faire **tourner** un corpus métier dans le pipeline au lieu de

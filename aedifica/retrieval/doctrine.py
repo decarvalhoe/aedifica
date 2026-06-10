@@ -6,7 +6,15 @@ import unicodedata
 from typing import Any
 
 from ..db import models as m
+from .embedding import ConceptHashingEmbedder
 from .lens import KnowledgeLens, jurisdiction_pool_query, project_chunk_query
+from .semantic import semantic_chunk_search
+
+# Below this cosine, a chunk is treated as non-entailing and the engine abstains.
+# Calibrated against the concept-aware embedder: a synonym match (e.g. the query
+# "autorisation" vs a "permis" chunk) scores ~0.23 while unrelated chunks score
+# <0.07 — see test_semantic_retrieval for the adversarial proof.
+SEMANTIC_MIN_SIMILARITY = 0.12
 
 
 class NomosDoctrineError(ValueError):
@@ -83,6 +91,52 @@ def _ranked_matches(question: str, rows: list[tuple[str, Any]], limit: int) -> l
     return [(scope, row) for _, scope, row in scored[:limit]]
 
 
+def _semantic_matches(
+    session,
+    project: m.Project,
+    question: str,
+    lens: KnowledgeLens | dict | None,
+    embedder: ConceptHashingEmbedder,
+    limit: int,
+) -> list[tuple[str, Any]]:
+    """Rank lens-scoped chunks by embedding similarity, then abstain below floor.
+
+    The facet filtering still happens in SQL (``*_query``); this only orders and
+    truncates the survivors by cosine similarity (pgvector on Postgres, Python
+    cosine elsewhere). Below ``SEMANTIC_MIN_SIMILARITY`` a chunk is dropped, so an
+    unrelated corpus still yields the legitimate abstention answer.
+    """
+    query_vector = embedder.embed(question)
+    pools = (
+        ("project", project_chunk_query(session, project.id, lens), m.ProjectKnowledgeChunk),
+        (
+            "jurisdiction",
+            jurisdiction_pool_query(
+                session,
+                country=project.country,
+                canton=project.canton,
+                commune=project.commune,
+                lens=lens,
+            ),
+            m.JurisdictionKnowledgeChunk,
+        ),
+    )
+    scored: list[tuple[float, str, Any]] = []
+    for scope, base_query, model in pools:
+        for row, similarity in semantic_chunk_search(
+            session,
+            base_query,
+            model,
+            query_vector=query_vector,
+            question=question,
+            limit=limit,
+        ):
+            if similarity >= SEMANTIC_MIN_SIMILARITY:
+                scored.append((similarity, scope, row))
+    scored.sort(key=lambda item: (-item[0], item[1], item[2].id))
+    return [(scope, row) for _, scope, row in scored[:limit]]
+
+
 def answer_doctrine_question(
     session,
     project: m.Project,
@@ -91,28 +145,38 @@ def answer_doctrine_question(
     nomos_enabled: bool = False,
     lens: KnowledgeLens | dict | None = None,
     limit: int = 3,
+    embedder: ConceptHashingEmbedder | None = None,
 ) -> dict:
-    """Return a sourced answer shape, or abstain when no source entails it."""
+    """Return a sourced answer shape, or abstain when no source entails it.
+
+    When ``embedder`` is provided the ranking is **semantic** (embedding cosine,
+    via pgvector on Postgres); when it is ``None`` the legacy lexical token-overlap
+    ranker is used unchanged — that keeps the flag-OFF / non-embedded path
+    byte-for-byte identical for the existing suite.
+    """
     if not nomos_enabled:
         raise NomosDoctrineError("NOMOS doctrine retriever is disabled")
     if not question.strip():
         raise NomosDoctrineError("question is required")
 
-    rows: list[tuple[str, Any]] = [
-        ("project", row)
-        for row in project_chunk_query(session, project.id, lens).all()
-    ]
-    rows.extend(
-        ("jurisdiction", row)
-        for row in jurisdiction_pool_query(
-            session,
-            country=project.country,
-            canton=project.canton,
-            commune=project.commune,
-            lens=lens,
-        ).all()
-    )
-    matches = _ranked_matches(question, rows, limit)
+    if embedder is not None:
+        matches = _semantic_matches(session, project, question, lens, embedder, limit)
+    else:
+        rows: list[tuple[str, Any]] = [
+            ("project", row)
+            for row in project_chunk_query(session, project.id, lens).all()
+        ]
+        rows.extend(
+            ("jurisdiction", row)
+            for row in jurisdiction_pool_query(
+                session,
+                country=project.country,
+                canton=project.canton,
+                commune=project.commune,
+                lens=lens,
+            ).all()
+        )
+        matches = _ranked_matches(question, rows, limit)
     if not matches:
         return {
             "answer": "Abstention: aucune source NOMOS entailante n'a ete trouvee pour cette question.",

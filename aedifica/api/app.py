@@ -21,6 +21,7 @@ from ..db import Base, make_engine, make_session_factory, models as m, repositor
 from ..ingestion import service as ingestion
 from ..ingestion.nomos_bundle import NomosBundleError, import_nomos_bundle
 from ..retrieval.doctrine import NomosDoctrineError, answer_doctrine_question
+from ..retrieval.embedding import get_default_embedder
 from . import actions, auth, orchestration
 from .config import get_settings
 
@@ -1970,6 +1971,7 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
                 body.question,
                 nomos_enabled=settings.nomos_enabled,
                 lens=body.lens,
+                embedder=get_default_embedder(),
             )
         except NomosDoctrineError as exc:
             raise _err(422, "NOMOS_DOCTRINE_INVALID", str(exc))
