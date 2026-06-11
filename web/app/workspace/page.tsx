@@ -454,7 +454,9 @@ export default function App() {
   async function patchIntervenant(id: number, b: any) { await api2(`/intervenants/${id}`, b, "PATCH"); await refreshInterv(); }
   async function delIntervenant(id: number) { await api2(`/intervenants/${id}`, undefined, "DELETE"); await refreshInterv(); }
   async function addDocument(b: any) { await api2("/documents", b); await refreshDocs(); }
-  async function validateDocument(id: number, level: string) { await api2(`/documents/${id}/validate`, { level }); await refreshDocs(); }
+  // W22-1 — canonical carries the citable extract (promotion into the project
+  // knowledge silo); any other level retracts the chunk server-side.
+  async function validateDocument(id: number, level: string, citable_text?: string) { await api2(`/documents/${id}/validate`, { level, citable_text }); await refreshDocs(); }
   async function patchDocument(id: number, b: any) { await api2(`/documents/${id}`, b, "PATCH"); await refreshDocs(); }
   async function delDocument(id: number) { await api2(`/documents/${id}`, undefined, "DELETE"); await refreshDocs(); }
   async function refreshLedger() { if (!active) return; const [ledger, unknowns] = await Promise.all([api<any>(`/projects/${active.project_id}/ledger`, { token: token! }), api<any>(`/projects/${active.project_id}/memory/unknowns`, { token: token! })]); setD((x) => ({ ...x, ledger: ledger.ledger, unknowns: unknowns.unknowns })); }
@@ -2140,6 +2142,10 @@ const DOC_FIELD_OPTIONS: { id: string; label: string }[] = [
 function Documents({ docs, summary, intervenants, token, pid, onAdd, onRefresh, onValidate, onPatch, onDel, onGrant, onRevoke, nomos }: any) {
   const [f, setF] = useState<any>({ official_name: "", category: "general", source: "manual", confidential: false });
   const [busy, setBusy] = useState("");
+  // W22-1 — promotion canonique: inline citable-extract editor (séance §E —
+  // l'architecte maître valide ET fournit le passage sur lequel il s'appuie).
+  const [promoFor, setPromoFor] = useState<number | null>(null);
+  const [promoText, setPromoText] = useState("");
   const [grantFor, setGrantFor] = useState<number | null>(null);
   const [grantSel, setGrantSel] = useState("");
   const [grantMode, setGrantMode] = useState<"all" | "fields">("all");
@@ -2244,15 +2250,29 @@ function Documents({ docs, summary, intervenants, token, pid, onAdd, onRefresh, 
           <div key={dd.id} style={{ borderTop: "1px solid var(--line)", paddingTop: 11, marginTop: 11 }}>
             <div className="row-line" style={{ border: 0, padding: 0 }}>
               <span className={`ds-ts ${c}`}><span className="dot" />{l}</span>
-              <span className="grow"><span className="ttl">{dd.official_name}{dd.confidential && <small style={{ display: "inline", color: "var(--ts-conflict)" }}> · confidentiel</small>}</span><small>{[dd.category, dd.latest, dd.validated_by ? `validé par ${dd.validated_by}` : null].filter(Boolean).join(" · ")}</small></span>
+              <span className="grow"><span className="ttl">{dd.official_name}{dd.confidential && <small style={{ display: "inline", color: "var(--ts-conflict)" }}> · confidentiel</small>}{dd.citable && <span className="ds-ts is-computed" style={{ marginLeft: 8 }} data-testid={`citable-${dd.id}`}><span className="dot" />Citable · promu atelier</span>}</span><small>{[dd.category, dd.latest, dd.validated_by ? `validé par ${dd.validated_by}` : null].filter(Boolean).join(" · ")}</small></span>
               <span className="row" style={{ gap: 6 }}>
-                <button className={`toggle ${dd.validation_level === "canonical" ? "on" : ""}`} disabled={busy === `v${dd.id}`} onClick={() => act(onValidate(dd.id, "canonical"), `v${dd.id}`)}>Canonique</button>
+                <button className={`toggle ${dd.validation_level === "canonical" ? "on" : ""}`} disabled={busy === `v${dd.id}`} onClick={() => { setPromoFor(dd.id); setPromoText(dd.note || ""); }}>Canonique</button>
                 <button className={`toggle ${dd.validation_level === "indicative" ? "on" : ""}`} disabled={busy === `v${dd.id}`} onClick={() => act(onValidate(dd.id, "indicative"), `v${dd.id}`)}>Indicatif</button>
                 <button className={`toggle ${dd.validation_level === "refused" ? "on" : ""}`} disabled={busy === `v${dd.id}`} onClick={() => act(onValidate(dd.id, "refused"), `v${dd.id}`)}>Refusé</button>
                 <button className={`toggle ${dd.confidential ? "on" : ""}`} onClick={() => act(onPatch(dd.id, { confidential: !dd.confidential }), `c${dd.id}`)}>{dd.confidential ? "Confidentiel (LPD)" : "Rendre confidentiel"}</button>
                 <button className="signout" style={{ padding: 0 }} onClick={() => act(onDel(dd.id), `x${dd.id}`)}>✕</button>
               </span>
             </div>
+            {/* W22-1 — la validation canonique EST l'acte de promotion : l'extrait
+                fourni devient citable par la doctrine (Indicatif · Promu atelier —
+                un promu n'usurpe jamais le certifié officiel). */}
+            {promoFor === dd.id && (
+              <div className="card" style={{ marginTop: 8, borderLeft: "3px solid var(--ts-computed)" }} data-testid={`promo-${dd.id}`}>
+                <label className="lbl">Extrait citable — le passage exact sur lequel vous vous appuyez</label>
+                <textarea className="fld" rows={3} style={{ width: "100%", fontFamily: "var(--font-ui)" }} placeholder="ex. La hauteur maximale au faîte est limitée à 9 m en zone village (art. 12 RPGA)." value={promoText} onChange={(e) => setPromoText(e.target.value)} />
+                <small style={{ color: "var(--mut)", display: "block", margin: "4px 0 8px" }}>Sans extrait, le niveau passe en canonique mais <b>rien n&apos;est citable</b> — la doctrine ne peut pas s&apos;appuyer sur la pièce.</small>
+                <div className="row" style={{ gap: 6 }}>
+                  <button className="ds-btn" disabled={busy === `v${dd.id}`} onClick={() => { act(onValidate(dd.id, "canonical", promoText.trim() || undefined), `v${dd.id}`); setPromoFor(null); }}>Promouvoir en canonique</button>
+                  <button className="ds-btn ghost" onClick={() => setPromoFor(null)}>Annuler</button>
+                </div>
+              </div>
+            )}
             <div className="row" style={{ gap: 6, marginTop: 7, flexWrap: "wrap" }}>
               <span className="mono" style={{ fontSize: 10 }}>Accès :</span>
               {(dd.grants || []).length === 0 && <span className="mono" style={{ fontSize: 10, color: dd.confidential ? "var(--ts-conflict)" : "var(--mut)" }}>{dd.confidential ? "confidentiel — restreint" : "aucun (atelier seul)"}</span>}
@@ -2289,7 +2309,7 @@ function Documents({ docs, summary, intervenants, token, pid, onAdd, onRefresh, 
           </div>
         ); })}
       </div>
-      {nomos && <CorpusNomos token={token} pid={pid} />}
+      {nomos && <CorpusNomos token={token} pid={pid} bump={(docs || []).filter((x: any) => x.citable).length} />}
     </>
   );
 }
@@ -2299,7 +2319,9 @@ function Documents({ docs, summary, intervenants, token, pid, onAdd, onRefresh, 
 // actually see for this project's jurisdiction (same scoped pools), plus the
 // bundle import that feeds it. Flag-gated end to end — absent when
 // features.nomos=false; the server enforces 403 NOMOS_DISABLED regardless.
-function CorpusNomos({ token, pid }: { token: string; pid: string }) {
+// `bump` re-fetches the corpus when the promoted-piece count changes (W22-1):
+// a canonical validation moves the Projet counter without leaving the view.
+function CorpusNomos({ token, pid, bump }: { token: string; pid: string; bump?: number }) {
   const [corpus, setCorpus] = useState<any>(null);
   const [file, setFile] = useState<File | null>(null);
   const [activate, setActivate] = useState(true);
@@ -2311,7 +2333,7 @@ function CorpusNomos({ token, pid }: { token: string; pid: string }) {
     catch { setCorpus(null); }
   }
   /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  useEffect(() => { load(); }, [pid]);
+  useEffect(() => { load(); }, [pid, bump]);
   async function importBundle() {
     if (!file || busy) return;
     setBusy(true); setMsg(""); setErr("");

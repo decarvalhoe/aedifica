@@ -9,19 +9,20 @@ api.auth). Errors are structured: HTTP status + {"detail": {"code", "message"}}.
 from __future__ import annotations
 
 import datetime as _dt
+import hashlib
 import os
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from sqlalchemy import text
+from sqlalchemy import null, text
 from sqlalchemy.orm import Session
 
 from ..db import Base, make_engine, make_session_factory, models as m, repository
 from ..ingestion import service as ingestion
 from ..ingestion.nomos_bundle import NomosBundleError, import_nomos_bundle
 from ..retrieval.doctrine import NomosDoctrineError, answer_doctrine_question
-from ..retrieval.embedding import get_default_embedder
+from ..retrieval.embedding import backfill_embeddings, get_default_embedder
 from ..retrieval.lens import jurisdiction_pool_query, project_chunk_query
 from . import actions, auth, orchestration
 from .config import get_settings
@@ -162,6 +163,9 @@ class DocumentPatch(BaseModel):
 
 class ValidateIn(BaseModel):
     level: str  # canonical | indicative | refused | pending
+    # W22-1 — the citable extract promoted with a canonical validation: the
+    # exact passage the atelier relies on, becoming retrievable by the doctrine.
+    citable_text: str | None = None
 
 
 class BrsIn(BaseModel):
@@ -801,7 +805,16 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         counts: dict = {lvl: 0 for lvl in m.VALIDATION_LEVELS}
         for d in docs:
             counts[d.validation_level] = counts.get(d.validation_level, 0) + 1
-        return {"documents": [_doc_dict(d) for d in docs],
+        # W22-1 — which documents are promoted into the project knowledge silo
+        # (citable by the doctrine). One query, annotated per document.
+        citable_ids = {row.chunk_id for row in
+                       session.query(m.ProjectKnowledgeChunk.chunk_id).filter_by(project_id=p.id).all()}
+        documents = []
+        for d in docs:
+            dd = _doc_dict(d)
+            dd["citable"] = f"doc:{d.id}" in citable_ids
+            documents.append(dd)
+        return {"documents": documents,
                 "summary": {"total": len(docs), "by_level": counts, "pending": counts.get("pending", 0)}}
 
     # ---- W11.F: audit log endpoints --------------------------------------- #
@@ -1231,8 +1244,46 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
             raise _err(404, "DOCUMENT_NOT_FOUND", str(document_id))
         d.validation_level = body.level
         d.validated_by = user.name if body.level != "pending" else None
+        # W22-1 — canonical-first: the master architect's canonical validation
+        # IS the promotion act (séance §E). The citable extract becomes a
+        # project-silo knowledge chunk the doctrine can retrieve and cite.
+        # Trust honnête (development-approach §3): a promoted source never
+        # usurps the official `certified` — tier capped at `indicative`,
+        # provenance `user_promoted`; confidential stays project-scoped by
+        # construction (the silo is per-project, RLS-gated on Postgres).
+        # Any non-canonical level RETRACTS the chunk (revert-and-confirm-able).
+        chunk_id = f"doc:{d.id}"
+        existing = (session.query(m.ProjectKnowledgeChunk)
+                    .filter_by(project_id=p.id, chunk_id=chunk_id).first())
+        text_ = (body.citable_text or "").strip() or (d.note or "").strip()
+        citable = False
+        if body.level == "canonical" and text_:
+            fields = {
+                "text": text_,
+                "source_hash": "sha256:" + hashlib.sha256(text_.encode("utf-8")).hexdigest(),
+                "source_path": d.official_name,
+                "span": None,
+                "facets": {"confidentiality": "confidential" if d.confidential else "public"},
+                "trust_tier": "indicative",
+                "provenance": "user_promoted",
+            }
+            if existing is None:
+                # embedding left UNSET on purpose: the column lands as SQL NULL,
+                # which is what backfill_embeddings scans for (an explicit None
+                # would be stored as JSON `null` — none_as_null gotcha — and the
+                # row would silently never get embedded).
+                session.add(m.ProjectKnowledgeChunk(project_id=p.id, chunk_id=chunk_id, **fields))
+            else:
+                for k, v in fields.items():
+                    setattr(existing, k, v)
+                existing.embedding = null()  # force SQL NULL so backfill re-embeds the new text
+            session.flush()
+            backfill_embeddings(session, embedder=get_default_embedder())
+            citable = True
+        elif existing is not None:
+            session.delete(existing)
         session.commit()
-        return {"document": _doc_dict(d)}
+        return {"document": _doc_dict(d), "citable": citable}
 
     @app.patch("/api/projects/{project_id}/documents/{document_id}")
     def patch_document(project_id: str, document_id: int, body: DocumentPatch, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
@@ -1255,6 +1306,9 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         d = session.query(m.Document).filter_by(project_id=p.id, id=document_id).first()
         if not d:
             raise _err(404, "DOCUMENT_NOT_FOUND", str(document_id))
+        # W22-1 — a deleted document leaves no orphan in the knowledge silo.
+        (session.query(m.ProjectKnowledgeChunk)
+         .filter_by(project_id=p.id, chunk_id=f"doc:{d.id}").delete())
         session.delete(d); session.commit()
         return {"deleted": document_id}
 
