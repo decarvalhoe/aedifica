@@ -131,10 +131,29 @@ def support_state(session, commune: str, canton: str) -> dict:
 
 
 def list_packs(session) -> list[dict]:
-    return [
-        {"id": p.id, "commune": p.commune, "canton": p.canton, "version": p.version, "status": p.status, "review_due": p.review_due}
-        for p in session.query(m.CommunePack).order_by(m.CommunePack.commune, m.CommunePack.id).all()
-    ]
+    """W22-2 — full traceability per pack: the official-source register
+    (authority, validity, review) + every ingestion job, so a pack can be
+    followed from the request to the promotion without touching the DB.
+    Superset of the historical shape (additive keys only)."""
+    out = []
+    for p in session.query(m.CommunePack).order_by(m.CommunePack.commune, m.CommunePack.id).all():
+        out.append({
+            "id": p.id, "commune": p.commune, "canton": p.canton, "version": p.version,
+            "status": p.status, "review_due": p.review_due,
+            "source_authority": p.source_authority,
+            "valid_as_of": p.valid_as_of,
+            "ingested_at": p.ingested_at,
+            # A pack fed by a NOMOS bundle (vs OFS-direct / manual capture).
+            "nomos": bool((p.data or {}).get("nomos")),
+            "n_zones": len((p.data or {}).get("zones") or {}),
+            "jobs": [
+                {"id": j.id, "status": j.status, "notes": j.notes,
+                 "requested_at": str(j.requested_at) if j.requested_at else None,
+                 "n_sources": len(j.sources or [])}
+                for j in sorted(p.jobs, key=lambda j: j.id)
+            ],
+        })
+    return out
 
 
 def seed_from_static(session) -> list[str]:

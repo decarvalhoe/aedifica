@@ -8,6 +8,7 @@ import { KanbanView } from "./KanbanView";
 import { PhaseTasks } from "./PhaseTasks";
 import { Foresight } from "./Foresight";
 import { Settings } from "./Settings";
+import { Communes } from "./Communes";
 
 // W17 — the Place de la Palud reference dataset used to be auto-seeded on
 // every new atelier; it's now only available via pilot/seed_etienne.py for
@@ -38,11 +39,11 @@ const phaseLabel = (code?: string) => {
 // SIA cost-precision convergence per phase (from the SIA Vaud chart)
 const COST_PRECISION: Record<string, string> = { "31": "± 15 %", "32": "± 10 %", "33": "± 10 %", "41": "ferme", "51": "ferme", "52": "ferme" };
 
-type View = "dashboard" | "taches" | "terrain" | "checklist" | "coordination" | "intervenants" | "documents" | "brs" | "permis" | "opposition" | "conformite" | "copilote" | "memoire" | "couts" | "chantier" | "equipe" | "foresight" | "atelier" | "settings";
+type View = "dashboard" | "taches" | "terrain" | "checklist" | "coordination" | "intervenants" | "documents" | "brs" | "permis" | "opposition" | "conformite" | "copilote" | "memoire" | "couts" | "chantier" | "equipe" | "foresight" | "atelier" | "communes" | "settings";
 // W13 + W15.B: views that don't strictly require an active project — they're
 // aggregated or org-level. Settings still uses the active project for the
 // LLM-mode panel but stays accessible without one.
-const PROJECT_AGNOSTIC: View[] = ["atelier", "equipe", "settings"];
+const PROJECT_AGNOSTIC: View[] = ["atelier", "equipe", "communes", "settings"];
 // W11 P0: every NAV icon references the official Datum sprite by symbol id —
 // `web/public/assets/functional-icons.svg#ic-*` — no more inline custom SVG.
 // Closest semantic match per surface, taken from the DS iconography page §05.
@@ -67,6 +68,9 @@ const NAV: { id: View; lb: string; ico: string; ph?: string; grp: string }[] = [
   // n'importe quel projet sans bouger la sélection courante.
   { id: "atelier", lb: "Atelier · multi-projet", ico: "ic-portfolio", grp: "Atelier · global" },
   { id: "equipe", lb: "Équipe", ico: "ic-claims", grp: "Atelier · global" },
+  // W22-2 — le cache partagé des référentiels communaux, pilotable (demande →
+  // ingestion tracée → promotion). Org-level comme Atelier/Équipe.
+  { id: "communes", lb: "Communes · référentiels", ico: "ic-source", grp: "Atelier · global" },
   // W15.B: settings — compte, LLM mode, benchmark, journal de sécurité
   { id: "settings", lb: "Réglages", ico: "ic-check", grp: "Atelier · global" },
 ];
@@ -632,6 +636,11 @@ export default function App() {
           {view === "equipe" && (
             <fieldset disabled={readonly} className="ws-surface-wrap" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
               <Team users={users} onAdd={addUser} onSetRole={setUserRole} />
+            </fieldset>
+          )}
+          {view === "communes" && token && (
+            <fieldset disabled={readonly} className="ws-surface-wrap" style={{ border: 0, padding: 0, margin: 0, minInlineSize: 0 }}>
+              <Communes token={token} />
             </fieldset>
           )}
           {/* Settings is intentionally NOT wrapped: the user must always be
