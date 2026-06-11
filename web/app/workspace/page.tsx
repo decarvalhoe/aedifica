@@ -653,7 +653,15 @@ export default function App() {
                       projectName={active?.name || null}
                       projectLlmMode={(active as any)?.llm_mode || null}
                       onTokenRotated={(nt) => { try { localStorage.setItem("aedifica_token", nt); } catch {} setToken(nt); }}
-                      onLlmModeChanged={(mode) => { if (active) setActive({ ...(active as any), llm_mode: mode }); }} />
+                      onLlmModeChanged={(mode) => { if (active) setActive({ ...(active as any), llm_mode: mode }); }}
+                      onProjectWithdrawn={async () => {
+                        // W23-5b — the scaffold is gone server-side; drop it
+                        // client-side and let the auto-open effect pick the
+                        // next project (or the empty state if none remains).
+                        try { localStorage.removeItem(LAST_PID_KEY); } catch {}
+                        setActive(null); setD({});
+                        await loadProjects(token!);
+                      }} />
           )}
 
           {/* Empty-state when no project exists at all. */}
