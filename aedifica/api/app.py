@@ -264,6 +264,27 @@ def _err(status: int, code: str, message: str, extra: dict | None = None) -> HTT
     return HTTPException(status_code=status, detail=detail)
 
 
+def _assert_commune_canton_pair(commune: str, canton: str) -> None:
+    """W22-2b / W23-5 — the register guard, shared by every entry point that
+    accepts a (commune, canton) pair (commune cache requests AND project
+    creation): a commune the OFS register KNOWS is refused under a
+    contradicting canton, with the registered canton(s) NAMED. Unknown
+    communes pass — the register is the authority only on what it contains."""
+    from .. import jurisdictions
+
+    verdict = jurisdictions.resolve("CH", commune)
+    if verdict.get("confidence") == "exact":
+        registered = verdict["candidates"][0]["canton"]
+        if registered != canton:
+            raise _err(422, "COMMUNE_CANTON_MISMATCH",
+                       f"selon le registre OFS, {commune} est dans le canton {registered}, pas {canton}")
+    elif verdict.get("confidence") == "ambiguous":
+        cantons = sorted({c["canton"] for c in verdict.get("candidates", [])})
+        if canton not in cantons:
+            raise _err(422, "COMMUNE_CANTON_MISMATCH",
+                       f"selon le registre OFS, {commune} existe dans {', '.join(cantons)} — pas {canton}")
+
+
 def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     settings = settings or get_settings()
     app = FastAPI(title="Aedifica API", version="0.1.0")
@@ -530,11 +551,12 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         require(user, "project.write")
         if session.query(m.Project).filter_by(org_id=user.org_id, project_id=body.project_id).first():
             raise _err(409, "PROJECT_EXISTS", f"{body.project_id} already exists")
-        # W17 — resolve canton when client omitted it. Honour an explicit
-        # canton (frontend may have shown a picker for ambiguous/unknown
-        # cases). Otherwise call the jurisdiction resolver and reject the
-        # request when the result isn't exact, so we never silently land
-        # a project in the wrong canton.
+        # W17 — resolve canton when client omitted it. An EXPLICIT canton is
+        # honoured for unknown/ambiguous communes (the frontend showed a
+        # picker), but W23-5 closes the historical hole: a commune the OFS
+        # register KNOWS can no longer land a PROJECT under a contradicting
+        # canton (the « Neuchâtel (VD) » project incident — same guard as the
+        # commune cache, w22-2b).
         from .. import jurisdictions
         canton = (body.canton or "").strip().upper() or None
         if canton is None:
@@ -545,6 +567,8 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
                 raise _err(400, "CANTON_REQUIRED",
                            f"commune '{body.commune}' is {verdict.get('confidence')} — pick a canton",
                            extra={"resolver": verdict})
+        else:
+            _assert_commune_canton_pair(body.commune, canton)
         project = repository.create_project(
             session, user.org_id, body.project_id, body.name,
             commune=body.commune, country=body.country, canton=canton, phase_code=body.phase_code,
@@ -2171,24 +2195,10 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     def request_commune(body: CommuneIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "commune.write")
         # W22-2b — the shared cache must never carry a register-contradicting
-        # pair (« Neuchâtel (VD) »): a commune the OFS register KNOWS must be
-        # requested under its registered canton(s). Unknown communes stay
-        # accepted (out-of-register / test communes), the register being the
-        # authority only on what it actually contains.
-        from .. import jurisdictions
-
-        verdict = jurisdictions.resolve("CH", body.commune)
+        # pair (« Neuchâtel (VD) ») — the guard is shared with project
+        # creation (W23-5), see _assert_commune_canton_pair.
         canton = body.canton.strip().upper()
-        if verdict.get("confidence") == "exact":
-            registered = verdict["candidates"][0]["canton"]
-            if registered != canton:
-                raise _err(422, "COMMUNE_CANTON_MISMATCH",
-                           f"selon le registre OFS, {body.commune} est dans le canton {registered}, pas {canton}")
-        elif verdict.get("confidence") == "ambiguous":
-            cantons = sorted({c["canton"] for c in verdict.get("candidates", [])})
-            if canton not in cantons:
-                raise _err(422, "COMMUNE_CANTON_MISMATCH",
-                           f"selon le registre OFS, {body.commune} existe dans {', '.join(cantons)} — pas {canton}")
+        _assert_commune_canton_pair(body.commune, canton)
         pack = ingestion.request_commune(session, body.commune, canton, body.source_authority)
         session.commit()
         return {"requested": {"id": pack.id, "commune": pack.commune, "status": pack.status}}
