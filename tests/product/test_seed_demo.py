@@ -109,7 +109,54 @@ def test_maybe_seed_demo_is_noop_without_the_flag(engine, monkeypatch):
 
 def test_maybe_seed_demo_runs_under_the_flag(engine, monkeypatch):
     monkeypatch.setenv("AEDIFICA_SEED_DEMO", "true")
+    monkeypatch.delenv("AEDIFICA_RESET_ATELIERS", raising=False)
     sf = _sf(engine)
     sd.maybe_seed_demo(sf, nomos_enabled=False)
     with sf() as s:
         assert s.query(m.User).filter_by(email=sd.DEMO_EMAIL).count() == 1
+
+
+def test_reset_others_wipes_every_pre_existing_atelier(engine):
+    """W23-6b clean slate: with reset_others, the rebuild purges ALL ateliers
+    (test orgs, ops orgs, the pilot — everything) and leaves only the demo."""
+    sf = _sf(engine)
+    with sf() as s:
+        for name, email in [("Atelier Pilote", "etienne.pilote@aedifica.ch"),
+                            ("Ops REFERENTIELS-CH", "ops@aedifica.ch"),
+                            ("Org de test", "probe@test.ch")]:
+            org = m.Org(name=name)
+            s.add(org)
+            s.flush()
+            s.add(m.User(org_id=org.id, email=email, name=name, role="owner",
+                         api_token=f"tok-{email}"))
+        s.commit()
+        assert s.query(m.Org).count() == 3
+
+    with sf() as s:
+        summary = sd.seed_demo(s, nomos_enabled=False, reset_others=True)
+    assert summary is not None
+
+    with sf() as s:
+        orgs = s.query(m.Org).all()
+        assert len(orgs) == 1  # only the demo survives
+        assert orgs[0].name == sd.DEMO_ORG_NAME
+        # the pilot and the test orgs are gone
+        assert s.query(m.User).filter_by(email="etienne.pilote@aedifica.ch").count() == 0
+        assert s.query(m.User).filter_by(email="probe@test.ch").count() == 0
+        assert s.query(m.User).filter_by(email=sd.DEMO_EMAIL).count() == 1
+
+
+def test_default_seed_does_not_wipe_other_ateliers(engine):
+    """Without reset_others, a non-demo atelier is never touched (the default
+    is conservative; only the opt-in Fly demo resets)."""
+    sf = _sf(engine)
+    with sf() as s:
+        org = m.Org(name="Vrai Atelier")
+        s.add(org)
+        s.flush()
+        s.add(m.User(org_id=org.id, email="real@atelier.ch", name="R", role="owner", api_token="tok-r"))
+        s.commit()
+    with sf() as s:
+        sd.seed_demo(s, nomos_enabled=False, reset_others=False)
+    with sf() as s:
+        assert s.query(m.User).filter_by(email="real@atelier.ch").count() == 1

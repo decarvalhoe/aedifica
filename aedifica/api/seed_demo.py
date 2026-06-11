@@ -38,7 +38,10 @@ from . import sia_checklist as _siacl
 log = logging.getLogger("aedifica.seed_demo")
 
 # Bump to force a clean rebuild of the demo atelier on the next boot.
-SEED_VERSION = "2026-06-11a"
+# 2026-06-11b — clean-slate reset: on this rebuild, when AEDIFICA_RESET_ATELIERS
+# is set (the Fly demo opts in), EVERY pre-existing atelier is purged so the
+# deployed demo holds only the current showcase, nothing created before the maj.
+SEED_VERSION = "2026-06-11b"
 DEMO_EMAIL = "demo@aedifica.ch"
 DEMO_PASSWORD = "demo123"
 DEMO_ORG_NAME = f"Atelier Démo Aedifica ({SEED_VERSION})"
@@ -64,16 +67,30 @@ def _is_current(orgs: list[m.Org]) -> bool:
     return any(o.name == DEMO_ORG_NAME for o in orgs)
 
 
-def seed_demo(session, *, nomos_enabled: bool) -> dict | None:
+def seed_demo(session, *, nomos_enabled: bool, reset_others: bool = False) -> dict | None:
     """Ensure the demo atelier reflects the current build. Returns a small
-    summary dict when it (re)built, None when already current."""
+    summary dict when it (re)built, None when already current.
+
+    When ``reset_others`` is set, the rebuild path ALSO purges every other
+    atelier (clean slate) — a deliberate, version-gated sweep that only fires
+    on a SEED_VERSION transition, never on a routine auto-start boot, so
+    ateliers a visitor creates after the sweep are never touched.
+    """
     existing = _demo_orgs(session)
     if _is_current(existing):
         return None
 
     # Version drift (or first boot): drop the old demo footprint, rebuild fresh.
-    for org in existing:
-        session.delete(org)
+    # With reset_others, drop EVERY atelier — the clean-slate reset.
+    if reset_others:
+        purged = 0
+        for org in session.execute(select(m.Org)).scalars():
+            session.delete(org)
+            purged += 1
+        log.info("demo seed: clean-slate reset purged %d atelier(s)", purged)
+    else:
+        for org in existing:
+            session.delete(org)
     session.flush()
 
     org = m.Org(name=DEMO_ORG_NAME)
@@ -198,13 +215,18 @@ def _pack_exists(session, commune: str, canton: str, status: str | None = None) 
     return session.query(q.exists()).scalar()
 
 
+def _flag(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
 def maybe_seed_demo(session_factory, *, nomos_enabled: bool) -> None:
     """Boot hook: run the seed in its own session, fail-soft. Never raises."""
-    if os.environ.get("AEDIFICA_SEED_DEMO", "").strip().lower() not in {"1", "true", "yes", "on"}:
+    if not _flag("AEDIFICA_SEED_DEMO"):
         return
+    reset_others = _flag("AEDIFICA_RESET_ATELIERS")
     try:
         with session_factory() as session:
-            result = seed_demo(session, nomos_enabled=nomos_enabled)
+            result = seed_demo(session, nomos_enabled=nomos_enabled, reset_others=reset_others)
         if result is None:
             log.info("demo seed: already current (%s)", SEED_VERSION)
     except Exception as exc:  # noqa: BLE001 - a demo seed must never break boot
