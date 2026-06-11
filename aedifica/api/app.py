@@ -95,7 +95,11 @@ class ExecuteIn(BaseModel):
 
 class CommuneIn(BaseModel):
     commune: str
-    canton: str = "VD"
+    # No silent default: the « Neuchâtel (VD) » incident came from a "VD"
+    # fallback gluing the wrong canton onto API calls that omitted it. The
+    # caller must say which canton it means; the endpoint then checks the pair
+    # against the OFS register.
+    canton: str
     source_authority: str | None = None
 
 
@@ -2166,9 +2170,44 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
     @app.post("/api/communes", status_code=201)
     def request_commune(body: CommuneIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
         require(user, "commune.write")
-        pack = ingestion.request_commune(session, body.commune, body.canton, body.source_authority)
+        # W22-2b — the shared cache must never carry a register-contradicting
+        # pair (« Neuchâtel (VD) »): a commune the OFS register KNOWS must be
+        # requested under its registered canton(s). Unknown communes stay
+        # accepted (out-of-register / test communes), the register being the
+        # authority only on what it actually contains.
+        from .. import jurisdictions
+
+        verdict = jurisdictions.resolve("CH", body.commune)
+        canton = body.canton.strip().upper()
+        if verdict.get("confidence") == "exact":
+            registered = verdict["candidates"][0]["canton"]
+            if registered != canton:
+                raise _err(422, "COMMUNE_CANTON_MISMATCH",
+                           f"selon le registre OFS, {body.commune} est dans le canton {registered}, pas {canton}")
+        elif verdict.get("confidence") == "ambiguous":
+            cantons = sorted({c["canton"] for c in verdict.get("candidates", [])})
+            if canton not in cantons:
+                raise _err(422, "COMMUNE_CANTON_MISMATCH",
+                           f"selon le registre OFS, {body.commune} existe dans {', '.join(cantons)} — pas {canton}")
+        pack = ingestion.request_commune(session, body.commune, canton, body.source_authority)
         session.commit()
         return {"requested": {"id": pack.id, "commune": pack.commune, "status": pack.status}}
+
+    @app.delete("/api/communes/{pack_id}")
+    def withdraw_commune_request(pack_id: int, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        """W22-2b — withdraw a request SCAFFOLD. Only `seed` packs are removable:
+        an ingested/supported pack is an immutable referential version, never
+        deleted (the capitalizable cache promise)."""
+        require(user, "commune.write")
+        pack = session.get(m.CommunePack, pack_id)
+        if pack is None:
+            raise _err(404, "PACK_NOT_FOUND", str(pack_id))
+        if pack.status != "seed":
+            raise _err(409, "PACK_NOT_SEED",
+                       f"pack {pack.commune} ({pack.canton}) v{pack.version} est {pack.status} — un référentiel ingéré est immuable, seules les demandes (seed) se retirent")
+        session.delete(pack)  # IngestionJobs cascade via the relationship
+        session.commit()
+        return {"withdrawn": pack_id}
 
     @app.post("/api/communes/{pack_id}/ingest")
     def ingest_commune(pack_id: int, body: CommuneIngestIn, user: m.User = Depends(current_user), session: Session = Depends(get_session)):

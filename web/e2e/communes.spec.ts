@@ -15,6 +15,31 @@ async function register(page: Page, org: string, email: string) {
   await expect(page.getByText("Créer votre premier projet")).toBeVisible();
 }
 
+test("communes: le registre OFS refuse un couple contradictoire, et une demande se retire", async ({ page }) => {
+  const run = Date.now();
+  await register(page, "Atelier Garde", `garde-${run}@test.ch`);
+  await page.locator(".ws__side").getByRole("button", { name: /Communes · référentiels/ }).click();
+  await expect(page.getByTestId("ofs-freshness")).toContainText("OFS");
+
+  // Le cas « Neuchâtel (VD) » : refusé, le canton du registre est NOMMÉ.
+  await page.getByPlaceholder("Commune (ex. Vevey)").fill("Neuchâtel");
+  await page.locator("select.fld").first().selectOption("VD");
+  await page.getByRole("button", { name: "Demander l'ingestion" }).click();
+  await expect(page.getByTestId("communes-err")).toContainText("canton NE");
+
+  // Une demande légitime se retire proprement (seed uniquement).
+  const COMMUNE = `E2E-Retrait-${run}`;
+  await page.getByPlaceholder("Commune (ex. Vevey)").fill(COMMUNE);
+  await page.locator("select.fld").first().selectOption("VD");
+  await page.getByRole("button", { name: "Demander l'ingestion" }).click();
+  await expect(page.getByTestId("communes-ok")).toContainText("Demande enregistrée");
+  const row = page.locator('[data-testid^="pack-"]', { hasText: COMMUNE });
+  await expect(row).toContainText("Demandé");
+  await row.getByRole("button", { name: "Retirer la demande" }).click();
+  await expect(page.getByTestId("communes-ok")).toContainText("Demande retirée");
+  await expect(page.locator('[data-testid^="pack-"]', { hasText: COMMUNE })).toHaveCount(0);
+});
+
 test("communes: demande → ingestion tracée → promotion, sans toucher la DB", async ({ page }) => {
   const run = Date.now();
   const COMMUNE = `E2E-Ref-${run}`;

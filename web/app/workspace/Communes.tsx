@@ -65,6 +65,18 @@ export function Communes({ token }: { token: string }) {
     finally { setBusy(""); }
   }
 
+  // W22-2b — withdraw a request scaffold (seed only; the server refuses
+  // anything ingested/supported — referential versions are immutable).
+  async function withdraw(id: number) {
+    setBusy(`w${id}`); setErr(""); setMsg("");
+    try {
+      await api(`/communes/${id}`, { method: "DELETE", token });
+      setMsg("Demande retirée.");
+      await load();
+    } catch (e: any) { setErr(e.message || "Retrait impossible."); }
+    finally { setBusy(""); }
+  }
+
   async function ingest(pack: any) {
     setBusy(`i${pack.id}`); setErr(""); setMsg("");
     try {
@@ -123,6 +135,7 @@ export function Communes({ token }: { token: string }) {
                 </span>
                 <span className="row" style={{ gap: 6 }}>
                   {p.status === "seed" && <button className="toggle" onClick={() => { setIngFor(ingFor === p.id ? null : p.id); setIng({ version: "", source_authority: p.source_authority || "", valid_as_of: "", review_due: "", zones: "" }); }}>{ingFor === p.id ? "Fermer" : "Ingestion manuelle…"}</button>}
+                  {p.status === "seed" && <button className="signout" style={{ padding: 0 }} disabled={busy === `w${p.id}`} onClick={() => withdraw(p.id)}>{busy === `w${p.id}` ? "…" : "Retirer la demande"}</button>}
                   {p.status === "ingested" && <button className="toggle" disabled={busy === `p${p.id}`} onClick={() => promote(p.id)}>{busy === `p${p.id}` ? "…" : "Promouvoir"}</button>}
                 </span>
               </div>
