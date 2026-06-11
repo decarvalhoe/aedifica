@@ -2511,6 +2511,15 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         session.delete(a); session.commit()
         return {"deleted": att_id}
 
+    # W23-6 — self-seeding demo: when AEDIFICA_SEED_DEMO is on, ensure the
+    # deployed workspace is a fully-functional showcase (login demo@aedifica.ch,
+    # a Lausanne project with the operating layer + NOMOS corpus), version-gated
+    # and fail-soft so it never blocks boot. No-op without the flag (tests).
+    @app.on_event("startup")
+    def _seed_demo_on_startup() -> None:
+        from .seed_demo import maybe_seed_demo
+        maybe_seed_demo(session_factory, nomos_enabled=settings.nomos_enabled)
+
     return app
 
 
