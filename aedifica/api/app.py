@@ -2034,7 +2034,9 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
             )
         except NomosBundleError as exc:
             session.rollback()
-            raise _err(422, "NOMOS_BUNDLE_INVALID", str(exc))
+            # exc.code distinguishes the schema gate (NOMOS_BUNDLE_SCHEMA_UNSUPPORTED)
+            # from a generally invalid payload (NOMOS_BUNDLE_INVALID).
+            raise _err(422, exc.code, str(exc))
         session.commit()
         return {"imported": imported, "project": repository.project_summary(session, project)}
 

@@ -35,3 +35,6 @@ include = ["aedifica*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests/product"]
+markers = [
+    "nomos_seam: W20 NOMOS->Aedifica seam gate over the vendored emitted bundle (runs by default in CI; must never be skipped)",
+]
