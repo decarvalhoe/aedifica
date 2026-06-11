@@ -15,6 +15,11 @@ contract (``ckm-bundle-v1``, cf. NOMOS specs/canonical-knowledge-bundle.cue):
 - ``rag_metadata`` is supported in the emitted bundle-level *list* form (joined
   to nodes by ``node_id``) in addition to the legacy feed-level dict; the joined
   per-node metadata is persisted (no silent ``{}`` loss).
+
+W20-2 (#301): importing a bundle also *bridges into retrieval* — every node
+becomes a ``JurisdictionKnowledgeChunk`` (text + traceability + facets) in the
+same transaction, then the deterministic local embedder backfills the new rows,
+so the doctrine endpoint can cite the imported corpus with zero external glue.
 """
 from __future__ import annotations
 
@@ -24,6 +29,7 @@ import re
 from typing import Any
 
 from ..db import models as m
+from ..retrieval.embedding import backfill_embeddings, get_default_embedder
 
 #: Bundle contract version this adapter understands (NOMOS SchemaVersion).
 SCHEMA_VERSION = "ckm-bundle-v1"
@@ -264,6 +270,56 @@ def _source_ref(source_id: str, parsed_node: dict) -> dict:
     }
 
 
+def _bridge_feed_chunks(session, feed: dict, seen_chunk_keys: set[tuple]) -> int:
+    """Bridge a validated feed's nodes into the retrieval chunk pool (W20-2).
+
+    Jurisdiction chunks — not project chunks — are the right home: a NOMOS feed
+    is shared regulatory/doctrine knowledge for a jurisdiction (the CommunePack
+    semantics: a capitalizable cache, never project-private). ProjectKnowledgeChunk
+    would silo identical corpus rows per project and defeat the shared pool; it
+    stays reserved for user-promoted, project-confidential knowledge.
+
+    Idempotent at chunk granularity: a (country, canton, commune, chunk_id) that
+    already exists is skipped, so re-importing the same content under a new feed
+    version does not duplicate the retrieval pool (NOMOS node ids are
+    content-addressed: changed content arrives under new ids and DOES insert).
+    """
+    scope = (feed["country"], feed["canton"], feed["commune"])
+    existing = {
+        chunk_id
+        for (chunk_id,) in session.query(m.JurisdictionKnowledgeChunk.chunk_id).filter_by(
+            country=feed["country"], canton=feed["canton"], commune=feed["commune"]
+        )
+    }
+    inserted = 0
+    for parsed_node in feed["nodes"]:
+        node = parsed_node["node"]
+        facets = dict(node.get("facets") or {})
+        rag_entry = feed["rag_metadata"].get(parsed_node["node_id"]) or {}
+        chunk_id = _slug(str(rag_entry.get("chunk_id") or f"nomos:{parsed_node['node_id']}"), 160)
+        key = scope + (chunk_id,)
+        if chunk_id in existing or key in seen_chunk_keys:
+            continue
+        seen_chunk_keys.add(key)
+        session.add(
+            m.JurisdictionKnowledgeChunk(
+                country=feed["country"],
+                canton=feed["canton"],
+                commune=feed["commune"],
+                chunk_id=chunk_id,
+                text=parsed_node["text"],
+                source_hash=parsed_node["source_hash"],
+                source_path=parsed_node["source_path"],
+                span=parsed_node["span"],
+                facets=facets,
+                trust_tier=facets.get("trust_tier", "unverified"),
+                provenance=facets.get("provenance", "official"),
+            )
+        )
+        inserted += 1
+    return inserted
+
+
 def import_nomos_bundle(
     session,
     project: m.Project,
@@ -283,7 +339,17 @@ def import_nomos_bundle(
     feeds = _validate_bundle(bundle, project=project)
     bundle_id = str(bundle.get("bundle_id") or "nomos-bundle")
     bundle_version = str(bundle.get("version") or bundle.get("generated_at") or "unknown")
-    imported = {"packs": 0, "sources": 0, "evidence": 0, "claims": 0, "activated": [], "versions": []}
+    imported = {
+        "packs": 0,
+        "sources": 0,
+        "evidence": 0,
+        "claims": 0,
+        "chunks": 0,
+        "embedded": 0,
+        "activated": [],
+        "versions": [],
+    }
+    seen_chunk_keys: set[tuple] = set()
 
     with session.begin_nested():
         for feed in feeds:
@@ -403,6 +469,16 @@ def import_nomos_bundle(
                     )
                 )
                 imported["claims"] += 1
+
+            # W20-2: same transaction, no external glue — nodes become
+            # retrievable chunks, so a corrupted bundle (422 above) can never
+            # leak partial chunk rows past the rollback.
+            imported["chunks"] += _bridge_feed_chunks(session, feed, seen_chunk_keys)
+
         session.flush()
+        # Embed what was just bridged: the default embedder is deterministic and
+        # local (pure hashing — LPD-safe, nothing leaves the process), so import
+        # leaves the corpus immediately queryable by the doctrine endpoint.
+        imported["embedded"] = backfill_embeddings(session, embedder=get_default_embedder())
 
     return imported

@@ -138,6 +138,99 @@ def test_emitted_bundle_imports_unmodified_with_golden_counts(seam, emitted_bund
         assert source.sha256 == node["source_hash"]
 
 
+# --------------------------------------------------------------------------- #
+# W20-2 (#301): import bridges into retrieval — doctrine cites with zero glue.  #
+# --------------------------------------------------------------------------- #
+def test_import_bridges_every_node_into_jurisdiction_chunks_with_embeddings(seam, emitted_bundle):
+    response = _import_bundle(seam, emitted_bundle)
+    assert response.status_code == 200, response.text
+    imported = response.json()["imported"]
+    assert imported["chunks"] == GOLDEN_NODES
+    assert imported["embedded"] >= GOLDEN_NODES
+
+    node = emitted_bundle["feeds"][0]["nodes"][0]
+    with seam["factory"]() as session:
+        chunks = session.query(JurisdictionKnowledgeChunk).all()
+        assert len(chunks) == GOLDEN_NODES
+        assert all(chunk.embedding is not None for chunk in chunks)
+        # The pool is jurisdiction-scoped on the project (CommunePack semantics).
+        assert {(c.country, c.canton, c.commune) for c in chunks} == {("CH", "VD", "Lausanne")}
+
+        bridged = session.query(JurisdictionKnowledgeChunk).filter_by(chunk_id=f"chunk:{node['node_id']}").one()
+        assert bridged.text == node["text"]
+        assert bridged.source_path == node["source_path"]
+        assert bridged.source_hash == node["source_hash"]
+        assert bridged.span == {"start_line": node["span"]["start_line"], "end_line": node["span"]["end_line"]}
+        assert bridged.trust_tier == node["facets"]["trust_tier"]
+        assert bridged.facets == node["facets"]
+
+
+def test_doctrine_cites_the_imported_corpus_end_to_end(seam, emitted_bundle):
+    """THE bridge proof. On main (no chunk bridge) the import creates zero chunks,
+    the doctrine retriever finds nothing and abstains, and the
+    ``assert body["citations"]`` below FAILS — this test is the regression gate
+    that the seam stays closed end-to-end (import -> retrieval -> citation)."""
+    assert _import_bundle(seam, emitted_bundle).status_code == 200
+
+    response = seam["client"].post(
+        "/api/projects/P-SEAM/copilote/nomos",
+        json={"question": "Which auditable fields does the evaluation record store?"},
+        headers=seam["headers"],
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["citations"], "bridge broken: imported corpus is not retrievable"
+    for citation in body["citations"]:
+        assert citation["scope"] == "jurisdiction"
+        assert citation["source_path"]
+        assert citation["span"] and "start_line" in citation["span"]
+        assert citation["trust_tier"] == "unverified"
+        assert citation["source_hash"].startswith("sha256:")
+    assert any("auditable fields" in fact["text"] for fact in body["structured_facts"])
+    # Unverified corpus: the engine cites but still demands a human decision
+    # (requires_human_decision only drops at certified — see facet_vocab notes).
+    assert body["requires_human_decision"] is True
+
+
+def test_doctrine_abstains_on_question_outside_the_corpus(seam, emitted_bundle):
+    assert _import_bundle(seam, emitted_bundle).status_code == 200
+
+    response = seam["client"].post(
+        "/api/projects/P-SEAM/copilote/nomos",
+        json={"question": "Quelle hauteur maximale au faitage pour la zone villa ?"},
+        headers=seam["headers"],
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["citations"] == []
+    assert body["structured_facts"] == []
+    assert body["requires_human_decision"] is True
+    assert body["answer"].startswith("Abstention")
+
+
+def test_corrupted_bundle_is_422_and_leaks_zero_chunks(seam, emitted_bundle):
+    """W20-2 adversarial: a bad bundle must not leave partial retrieval rows."""
+    blank_text = copy.deepcopy(emitted_bundle)
+    blank_text["feeds"][0]["nodes"][0]["text"] = "   "
+    response = _import_bundle(seam, blank_text)
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "NOMOS_BUNDLE_INVALID"
+
+    no_trace = copy.deepcopy(emitted_bundle)
+    del no_trace["trace_manifest"]
+    response = _import_bundle(seam, no_trace)
+    assert response.status_code == 422
+    assert "trace" in response.json()["detail"]["message"]
+
+    with seam["factory"]() as session:
+        assert session.query(JurisdictionKnowledgeChunk).count() == 0
+        assert session.query(ProjectKnowledgeChunk).count() == 0
+        assert session.query(CommunePack).count() == 0
+        assert session.query(Claim).count() == 0
+
+
 def test_schema_version_gate_rejects_unknown_bundle_via_api(seam, emitted_bundle):
     """W20-1 adversarial: strip/forge schema_version -> 422 with the explicit code."""
     absent = copy.deepcopy(emitted_bundle)
