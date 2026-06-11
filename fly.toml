@@ -27,6 +27,10 @@ kill_timeout = "5s"
   # demo@aedifica.ch / demo123). Version-gated + fail-soft; rebuilds on each
   # SEED_VERSION bump so the deployed workspace always reflects current dev.
   AEDIFICA_SEED_DEMO = "true"
+  # W23-6b — clean-slate reset: on a SEED_VERSION transition the rebuild purges
+  # EVERY pre-existing atelier so the demo holds only the current showcase.
+  # Fires only on a version bump (a deploy), never on routine auto-start boots.
+  AEDIFICA_RESET_ATELIERS = "true"
 
 [[mounts]]
   source = "aedifica_data"
