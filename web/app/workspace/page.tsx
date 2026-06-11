@@ -1230,10 +1230,20 @@ function IngestionPanel({ commune, support, onRequest }: { commune: string; supp
 
 function Terrain({ claims, mode, support, commune, onLookup, onRequest, initialQuery, regAlerts }: any) {
   const [q, setQ] = useState(initialQuery || ""); const [b, setB] = useState("");
+  // W21-3 — trier · retrouver appliqué au savoir: filter the claims by trust
+  // tier and provenance (the TrustMeta axes). "all" stays the default so the
+  // surface reads exactly as before until the architect reaches for a filter.
+  const [tf, setTf] = useState<string>("all");
+  const [pf, setPf] = useState<string>("all");
   if (!claims) return <p className="spin">Chargement…</p>;
   const lookup = async () => { if (!q.trim()) return; setB("l"); try { await onLookup(q.trim()); } catch { } finally { setB(""); } };
   const usable = support ? support.usable : true;
   const val = (v: any) => v == null ? "Non disponible — à confirmer sur le règlement communal" : typeof v === "object" ? JSON.stringify(v) : String(v);
+  const tierOf = (c: any) => c.trust_tier || "unverified";
+  const provOf = (c: any) => c.provenance || "official";
+  const tierCounts: Record<string, number> = {}; const provCounts: Record<string, number> = {};
+  for (const c of claims) { tierCounts[tierOf(c)] = (tierCounts[tierOf(c)] || 0) + 1; provCounts[provOf(c)] = (provCounts[provOf(c)] || 0) + 1; }
+  const filtered = claims.filter((c: any) => (tf === "all" || tierOf(c) === tf) && (pf === "all" || provOf(c) === pf));
   return (
     <>
       <div className="vh"><div className="row" style={{ gap: 10, alignItems: "center" }}><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" style={{ color: "var(--ink-60)" }}><use href="/assets/functional-icons.svg#ic-datum-north" /></svg><h2 style={{ margin: 0 }}>Terrain &amp; zonage</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>Ce que la parcelle autorise — sourcé sur une base officielle, ou marqué « à vérifier ». Le datum géographique du projet : tout part d&apos;ici.</p></div>
@@ -1245,9 +1255,24 @@ function Terrain({ claims, mode, support, commune, onLookup, onRequest, initialQ
       {claims.length === 0 ? (
         <div className="placeholder"><h4>Aucune parcelle analysée</h4><p>Lancez une recherche d&apos;adresse pour résoudre la parcelle.</p></div>
       ) : (
-        <div className="card">{claims.map((c: any) => (
-          <div className="claim" key={c.claim_id}><Trust state={c.state} /><div><div className="ttl">{c.title}</div><div className="val">{val(c.value)}</div><TrustMeta trustTier={c.trust_tier} provenance={c.provenance} /></div></div>
-        ))}</div>
+        <>
+          <div className="row" style={{ gap: 6, flexWrap: "wrap", marginBottom: 8 }} data-testid="terrain-filtres">
+            <button className={`toggle ${tf === "all" && pf === "all" ? "on" : ""}`} onClick={() => { setTf("all"); setPf("all"); }}>Tout · {claims.length}</button>
+            {Object.entries(tierCounts).map(([k, n]) => { const [, l] = TRUST_TIER[k] || ["is-unknown", k]; return (
+              <button key={`t-${k}`} className={`toggle ${tf === k ? "on" : ""}`} onClick={() => setTf(tf === k ? "all" : k)}>{l} · {n as number}</button>
+            ); })}
+            {Object.entries(provCounts).map(([k, n]) => { const [, l] = PROVENANCE[k] || ["is-assume", k]; return (
+              <button key={`p-${k}`} className={`toggle ${pf === k ? "on" : ""}`} onClick={() => setPf(pf === k ? "all" : k)}>{l} · {n as number}</button>
+            ); })}
+          </div>
+          {filtered.length === 0 ? (
+            <div className="placeholder" data-testid="terrain-filtre-vide"><h4>Rien sous ce filtre</h4><p>Aucune information {tf !== "all" ? `de niveau « ${(TRUST_TIER[tf] || [0, tf])[1]} »` : ""}{tf !== "all" && pf !== "all" ? " et " : ""}{pf !== "all" ? `de provenance « ${(PROVENANCE[pf] || [0, pf])[1]} »` : ""} sur cette parcelle.</p></div>
+          ) : (
+            <div className="card">{filtered.map((c: any) => (
+              <div className="claim" key={c.claim_id}><Trust state={c.state} /><div><div className="ttl">{c.title}</div><div className="val">{val(c.value)}</div><TrustMeta trustTier={c.trust_tier} provenance={c.provenance} /></div></div>
+            ))}</div>
+          )}
+        </>
       )}
     </>
   );
