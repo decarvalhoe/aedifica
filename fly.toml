@@ -23,6 +23,10 @@ kill_timeout = "5s"
   # W21-0 — the demo opts IN to the NOMOS knowledge layer (doctrine Q&A + bundle
   # import). Code default stays false (doctrine: flag OFF, OFS-direct safe default).
   AEDIFICA_NOMOS_ENABLED = "true"
+  # W23-6 — the demo opts IN to the self-seeding showcase atelier (login
+  # demo@aedifica.ch / demo123). Version-gated + fail-soft; rebuilds on each
+  # SEED_VERSION bump so the deployed workspace always reflects current dev.
+  AEDIFICA_SEED_DEMO = "true"
 
 [[mounts]]
   source = "aedifica_data"

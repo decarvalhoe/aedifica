@@ -36,6 +36,8 @@ class Settings:
     create_all: bool = field(default_factory=lambda: os.environ.get("AEDIFICA_CREATE_ALL") == "1")
     nomos_enabled: bool = field(default_factory=lambda: _bool("AEDIFICA_NOMOS_ENABLED", False))
     nomos_bundle_path: str | None = field(default_factory=lambda: _optional("AEDIFICA_NOMOS_BUNDLE_PATH"))
+    # W23-6 — seed a fully-functional demo atelier on boot (Fly demo opts in).
+    seed_demo: bool = field(default_factory=lambda: _bool("AEDIFICA_SEED_DEMO", False))
 
     @property
     def is_prod(self) -> bool:

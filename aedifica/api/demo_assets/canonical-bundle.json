@@ -1,0 +1,774 @@
+{
+  "schema_version": "ckm-bundle-v1",
+  "bundle_id": "aedifica-demo-aec",
+  "generated_at": "2026-06-11T14:10:50Z",
+  "producer": "nomos-aec-demo",
+  "claim_boundary": "Canonical bundle handoff only; no downstream import success or regulatory correctness claim.",
+  "feeds": [
+    {
+      "feed_id": "aedifica-demo-aec-feed",
+      "format": "nomos.canonical-knowledge-feed.v1",
+      "version": "aedifica-demo-aec@2026-06-11T14:10:50Z",
+      "jurisdiction": {
+        "country": "CH",
+        "canton": "VD",
+        "commune": "Lausanne"
+      },
+      "nodes": [
+        {
+          "node_id": "A-9F58B7CFE8126E15",
+          "text": "Conception — implantation et gabarits (corpus AEC synthétique)",
+          "source_path": "conception.md",
+          "source_hash": "sha256:51ab8bee9d7395f8fcdd7c49384e5980f030dfccfb5ef8a3a80a1250c131b062",
+          "span": {
+            "start_line": 1,
+            "end_line": 1
+          },
+          "parent_chain": [],
+          "facets": {
+            "nature": "rule",
+            "scope_level": "atom",
+            "trust_tier": "unverified",
+            "provenance": "source_backed"
+          }
+        },
+        {
+          "node_id": "A-3E2226495943EEDD",
+          "text": "Document synthétique license-safe (discipline du corpus portable) : aucune\nvaleur réglementaire réelle, aucune revendication de conformité.",
+          "source_path": "conception.md",
+          "source_hash": "sha256:51ab8bee9d7395f8fcdd7c49384e5980f030dfccfb5ef8a3a80a1250c131b062",
+          "span": {
+            "start_line": 3,
+            "end_line": 4
+          },
+          "parent_chain": [],
+          "facets": {
+            "nature": "rule",
+            "scope_level": "atom",
+            "trust_tier": "unverified",
+            "provenance": "source_backed"
+          }
+        },
+        {
+          "node_id": "A-81BC3F664AB3084A",
+          "text": "Implantation",
+          "source_path": "conception.md",
+          "source_hash": "sha256:51ab8bee9d7395f8fcdd7c49384e5980f030dfccfb5ef8a3a80a1250c131b062",
+          "span": {
+            "start_line": 6,
+            "end_line": 6
+          },
+          "parent_chain": [
+            "A-9F58B7CFE8126E15"
+          ],
+          "facets": {
+            "nature": "rule",
+            "scope_level": "atom",
+            "trust_tier": "unverified",
+            "provenance": "source_backed"
+          }
+        },
+        {
+          "node_id": "A-129EA30978A06237",
+          "text": "L'implantation de l'exemple respecte un recul fictif de 6 mètres sur la\nlimite nord de la parcelle d'étude.",
+          "source_path": "conception.md",
+          "source_hash": "sha256:51ab8bee9d7395f8fcdd7c49384e5980f030dfccfb5ef8a3a80a1250c131b062",
+          "span": {
+            "start_line": 8,
+            "end_line": 9
+          },
+          "parent_chain": [],
+          "facets": {
+            "nature": "rule",
+            "scope_level": "atom",
+            "trust_tier": "unverified",
+            "provenance": "source_backed"
+          }
+        },
+        {
+          "node_id": "A-AB8F8884F3B705D2",
+          "text": "Gabarits",
+          "source_path": "conception.md",
+          "source_hash": "sha256:51ab8bee9d7395f8fcdd7c49384e5980f030dfccfb5ef8a3a80a1250c131b062",
+          "span": {
+            "start_line": 11,
+            "end_line": 11
+          },
+          "parent_chain": [
+            "A-9F58B7CFE8126E15"
+          ],
+          "facets": {
+            "nature": "rule",
+            "scope_level": "atom",
+            "trust_tier": "unverified",
+            "provenance": "source_backed"
+          }
+        },
+        {
+          "node_id": "A-B1EB07DB7E6FC754",
+          "text": "Le gabarit d'étude retient une hauteur fictive de 9 mètres au faîte pour le\nvolume principal.",
+          "source_path": "conception.md",
+          "source_hash": "sha256:51ab8bee9d7395f8fcdd7c49384e5980f030dfccfb5ef8a3a80a1250c131b062",
+          "span": {
+            "start_line": 13,
+            "end_line": 14
+          },
+          "parent_chain": [],
+          "facets": {
+            "nature": "rule",
+            "scope_level": "atom",
+            "trust_tier": "unverified",
+            "provenance": "source_backed"
+          }
+        },
+        {
+          "node_id": "A-A529D77795654D0F",
+          "text": "Direction des travaux — suivi de chantier (corpus AEC synthétique)",
+          "source_path": "dt-chantier.md",
+          "source_hash": "sha256:8b240fa434ba4cddd35fd25c1aad0047fc8d0e9a228b656d6813a8f4de525cb3",
+          "span": {
+            "start_line": 1,
+            "end_line": 1
+          },
+          "parent_chain": [],
+          "facets": {
+            "nature": "rule",
+            "scope_level": "atom",
+            "trust_tier": "unverified",
+            "provenance": "source_backed"
+          }
+        },
+        {
+          "node_id": "A-814314B9C4DE7608",
+          "text": "Document synthétique license-safe : le journal illustre la FORME d'un suivi,\nsans rapporter aucun chantier réel.",
+          "source_path": "dt-chantier.md",
+          "source_hash": "sha256:8b240fa434ba4cddd35fd25c1aad0047fc8d0e9a228b656d6813a8f4de525cb3",
+          "span": {
+            "start_line": 3,
+            "end_line": 4
+          },
+          "parent_chain": [],
+          "facets": {
+            "nature": "rule",
+            "scope_level": "atom",
+            "trust_tier": "unverified",
+            "provenance": "source_backed"
+          }
+        },
+        {
+          "node_id": "A-EB64F2E7899135E4",
+          "text": "Journal",
+          "source_path": "dt-chantier.md",
+          "source_hash": "sha256:8b240fa434ba4cddd35fd25c1aad0047fc8d0e9a228b656d6813a8f4de525cb3",
+          "span": {
+            "start_line": 6,
+            "end_line": 6
+          },
+          "parent_chain": [
+            "A-A529D77795654D0F"
+          ],
+          "facets": {
+            "nature": "rule",
+            "scope_level": "atom",
+            "trust_tier": "unverified",
+            "provenance": "source_backed"
+          }
+        },
+        {
+          "node_id": "A-C08D9D5FD30C8E1E",
+          "text": "La séance de chantier fictive numéro trois consigne deux décisions d'exemple.",
+          "source_path": "dt-chantier.md",
+          "source_hash": "sha256:8b240fa434ba4cddd35fd25c1aad0047fc8d0e9a228b656d6813a8f4de525cb3",
+          "span": {
+            "start_line": 8,
+            "end_line": 8
+          },
+          "parent_chain": [],
+          "facets": {
+            "nature": "rule",
+            "scope_level": "atom",
+            "trust_tier": "unverified",
+            "provenance": "source_backed"
+          }
+        },
+        {
+          "node_id": "A-520688FD7C085A29",
+          "text": "Réception",
+          "source_path": "dt-chantier.md",
+          "source_hash": "sha256:8b240fa434ba4cddd35fd25c1aad0047fc8d0e9a228b656d6813a8f4de525cb3",
+          "span": {
+            "start_line": 10,
+            "end_line": 10
+          },
+          "parent_chain": [
+            "A-A529D77795654D0F"
+          ],
+          "facets": {
+            "nature": "rule",
+            "scope_level": "atom",
+            "trust_tier": "unverified",
+            "provenance": "source_backed"
+          }
+        },
+        {
+          "node_id": "A-0FEE09A95D8050B7",
+          "text": "La réception fictive de l'étape un est consignée avec une réserve d'exemple.",
+          "source_path": "dt-chantier.md",
+          "source_hash": "sha256:8b240fa434ba4cddd35fd25c1aad0047fc8d0e9a228b656d6813a8f4de525cb3",
+          "span": {
+            "start_line": 12,
+            "end_line": 12
+          },
+          "parent_chain": [],
+          "facets": {
+            "nature": "rule",
+            "scope_level": "atom",
+            "trust_tier": "unverified",
+            "provenance": "source_backed"
+          }
+        },
+        {
+          "node_id": "A-2D87E74F29330F24",
+          "text": "Journal interne — appréciations confidentielles (corpus AEC synthétique)",
+          "source_path": "journal-interne.md",
+          "source_hash": "sha256:8df888402edfab8caa13026427c62e825d6b3f93d8ea1e42e414e9b2cc06ce27",
+          "span": {
+            "start_line": 1,
+            "end_line": 1
+          },
+          "parent_chain": [],
+          "facets": {
+            "nature": "rule",
+            "scope_level": "atom",
+            "trust_tier": "unverified",
+            "provenance": "source_backed"
+          }
+        },
+        {
+          "node_id": "A-43804A51C8FEF687",
+          "text": "Document synthétique license-safe : un compte rendu interne fictif que le\npack marque confidentiel — il ne doit JAMAIS sortir par une lens publique,\nquel que soit son score lexical.",
+          "source_path": "journal-interne.md",
+          "source_hash": "sha256:8df888402edfab8caa13026427c62e825d6b3f93d8ea1e42e414e9b2cc06ce27",
+          "span": {
+            "start_line": 3,
+            "end_line": 5
+          },
+          "parent_chain": [],
+          "facets": {
+            "nature": "rule",
+            "scope_level": "atom",
+            "trust_tier": "unverified",
+            "provenance": "source_backed"
+          }
+        },
+        {
+          "node_id": "A-913DEE5C6221FE20",
+          "text": "Appréciation interne",
+          "source_path": "journal-interne.md",
+          "source_hash": "sha256:8df888402edfab8caa13026427c62e825d6b3f93d8ea1e42e414e9b2cc06ce27",
+          "span": {
+            "start_line": 7,
+            "end_line": 7
+          },
+          "parent_chain": [
+            "A-2D87E74F29330F24"
+          ],
+          "facets": {
+            "nature": "rule",
+            "scope_level": "atom",
+            "trust_tier": "unverified",
+            "provenance": "source_backed"
+          }
+        },
+        {
+          "node_id": "A-334047F690E5827D",
+          "text": "Le compte rendu interne consigne une appréciation confidentielle du dossier\nd'enquête de l'exemple : pièces fictives jugées fragiles, publicité de la\nmise à l'enquête à surveiller pendant les trente jours fictifs.",
+          "source_path": "journal-interne.md",
+          "source_hash": "sha256:8df888402edfab8caa13026427c62e825d6b3f93d8ea1e42e414e9b2cc06ce27",
+          "span": {
+            "start_line": 9,
+            "end_line": 11
+          },
+          "parent_chain": [],
+          "facets": {
+            "nature": "rule",
+            "scope_level": "atom",
+            "trust_tier": "unverified",
+            "provenance": "source_backed"
+          }
+        },
+        {
+          "node_id": "A-A3952A1842C647FF",
+          "text": "Permis — pièces du dossier d'enquête (corpus AEC synthétique)",
+          "source_path": "permis.md",
+          "source_hash": "sha256:b84a4157111ff36225140299134a9efcd6f6148fef00f89e49529e006559b683",
+          "span": {
+            "start_line": 1,
+            "end_line": 1
+          },
+          "parent_chain": [],
+          "facets": {
+            "nature": "rule",
+            "scope_level": "atom",
+            "trust_tier": "unverified",
+            "provenance": "source_backed"
+          }
+        },
+        {
+          "node_id": "A-0D1F17E1E9A58805",
+          "text": "Document synthétique license-safe : la liste illustre la STRUCTURE d'un\ndossier, sans affirmer la complétude réglementaire d'aucun dossier réel.",
+          "source_path": "permis.md",
+          "source_hash": "sha256:b84a4157111ff36225140299134a9efcd6f6148fef00f89e49529e006559b683",
+          "span": {
+            "start_line": 3,
+            "end_line": 4
+          },
+          "parent_chain": [],
+          "facets": {
+            "nature": "rule",
+            "scope_level": "atom",
+            "trust_tier": "unverified",
+            "provenance": "source_backed"
+          }
+        },
+        {
+          "node_id": "A-063808A68F71A7DD",
+          "text": "Pièces",
+          "source_path": "permis.md",
+          "source_hash": "sha256:b84a4157111ff36225140299134a9efcd6f6148fef00f89e49529e006559b683",
+          "span": {
+            "start_line": 6,
+            "end_line": 6
+          },
+          "parent_chain": [
+            "A-A3952A1842C647FF"
+          ],
+          "facets": {
+            "nature": "rule",
+            "scope_level": "atom",
+            "trust_tier": "unverified",
+            "provenance": "source_backed"
+          }
+        },
+        {
+          "node_id": "A-78BD7C4E4AA11CD0",
+          "text": "Le dossier d'exemple comprend un plan de situation fictif et un formulaire\nénergie fictif.",
+          "source_path": "permis.md",
+          "source_hash": "sha256:b84a4157111ff36225140299134a9efcd6f6148fef00f89e49529e006559b683",
+          "span": {
+            "start_line": 8,
+            "end_line": 9
+          },
+          "parent_chain": [],
+          "facets": {
+            "nature": "rule",
+            "scope_level": "atom",
+            "trust_tier": "unverified",
+            "provenance": "source_backed"
+          }
+        },
+        {
+          "node_id": "A-A410E94C13E3E3D8",
+          "text": "Publicité",
+          "source_path": "permis.md",
+          "source_hash": "sha256:b84a4157111ff36225140299134a9efcd6f6148fef00f89e49529e006559b683",
+          "span": {
+            "start_line": 11,
+            "end_line": 11
+          },
+          "parent_chain": [
+            "A-A3952A1842C647FF"
+          ],
+          "facets": {
+            "nature": "rule",
+            "scope_level": "atom",
+            "trust_tier": "unverified",
+            "provenance": "source_backed"
+          }
+        },
+        {
+          "node_id": "A-9EDAEFBE9245F38C",
+          "text": "La mise à l'enquête de l'exemple est réputée publique pendant trente jours\nfictifs.",
+          "source_path": "permis.md",
+          "source_hash": "sha256:b84a4157111ff36225140299134a9efcd6f6148fef00f89e49529e006559b683",
+          "span": {
+            "start_line": 13,
+            "end_line": 14
+          },
+          "parent_chain": [],
+          "facets": {
+            "nature": "rule",
+            "scope_level": "atom",
+            "trust_tier": "unverified",
+            "provenance": "source_backed"
+          }
+        }
+      ]
+    }
+  ],
+  "rag_metadata": [
+    {
+      "node_id": "A-9F58B7CFE8126E15",
+      "chunk_id": "chunk:A-9F58B7CFE8126E15",
+      "source_path": "conception.md",
+      "source_hash": "sha256:51ab8bee9d7395f8fcdd7c49384e5980f030dfccfb5ef8a3a80a1250c131b062",
+      "parent_chain": [],
+      "facets": {
+        "nature": "rule",
+        "scope_level": "atom",
+        "trust_tier": "unverified",
+        "provenance": "source_backed"
+      }
+    },
+    {
+      "node_id": "A-3E2226495943EEDD",
+      "chunk_id": "chunk:A-3E2226495943EEDD",
+      "source_path": "conception.md",
+      "source_hash": "sha256:51ab8bee9d7395f8fcdd7c49384e5980f030dfccfb5ef8a3a80a1250c131b062",
+      "parent_chain": [],
+      "facets": {
+        "nature": "rule",
+        "scope_level": "atom",
+        "trust_tier": "unverified",
+        "provenance": "source_backed"
+      }
+    },
+    {
+      "node_id": "A-81BC3F664AB3084A",
+      "chunk_id": "chunk:A-81BC3F664AB3084A",
+      "source_path": "conception.md",
+      "source_hash": "sha256:51ab8bee9d7395f8fcdd7c49384e5980f030dfccfb5ef8a3a80a1250c131b062",
+      "parent_chain": [
+        "A-9F58B7CFE8126E15"
+      ],
+      "facets": {
+        "nature": "rule",
+        "scope_level": "atom",
+        "trust_tier": "unverified",
+        "provenance": "source_backed"
+      }
+    },
+    {
+      "node_id": "A-129EA30978A06237",
+      "chunk_id": "chunk:A-129EA30978A06237",
+      "source_path": "conception.md",
+      "source_hash": "sha256:51ab8bee9d7395f8fcdd7c49384e5980f030dfccfb5ef8a3a80a1250c131b062",
+      "parent_chain": [],
+      "facets": {
+        "nature": "rule",
+        "scope_level": "atom",
+        "trust_tier": "unverified",
+        "provenance": "source_backed"
+      }
+    },
+    {
+      "node_id": "A-AB8F8884F3B705D2",
+      "chunk_id": "chunk:A-AB8F8884F3B705D2",
+      "source_path": "conception.md",
+      "source_hash": "sha256:51ab8bee9d7395f8fcdd7c49384e5980f030dfccfb5ef8a3a80a1250c131b062",
+      "parent_chain": [
+        "A-9F58B7CFE8126E15"
+      ],
+      "facets": {
+        "nature": "rule",
+        "scope_level": "atom",
+        "trust_tier": "unverified",
+        "provenance": "source_backed"
+      }
+    },
+    {
+      "node_id": "A-B1EB07DB7E6FC754",
+      "chunk_id": "chunk:A-B1EB07DB7E6FC754",
+      "source_path": "conception.md",
+      "source_hash": "sha256:51ab8bee9d7395f8fcdd7c49384e5980f030dfccfb5ef8a3a80a1250c131b062",
+      "parent_chain": [],
+      "facets": {
+        "nature": "rule",
+        "scope_level": "atom",
+        "trust_tier": "unverified",
+        "provenance": "source_backed"
+      }
+    },
+    {
+      "node_id": "A-A529D77795654D0F",
+      "chunk_id": "chunk:A-A529D77795654D0F",
+      "source_path": "dt-chantier.md",
+      "source_hash": "sha256:8b240fa434ba4cddd35fd25c1aad0047fc8d0e9a228b656d6813a8f4de525cb3",
+      "parent_chain": [],
+      "facets": {
+        "nature": "rule",
+        "scope_level": "atom",
+        "trust_tier": "unverified",
+        "provenance": "source_backed"
+      }
+    },
+    {
+      "node_id": "A-814314B9C4DE7608",
+      "chunk_id": "chunk:A-814314B9C4DE7608",
+      "source_path": "dt-chantier.md",
+      "source_hash": "sha256:8b240fa434ba4cddd35fd25c1aad0047fc8d0e9a228b656d6813a8f4de525cb3",
+      "parent_chain": [],
+      "facets": {
+        "nature": "rule",
+        "scope_level": "atom",
+        "trust_tier": "unverified",
+        "provenance": "source_backed"
+      }
+    },
+    {
+      "node_id": "A-EB64F2E7899135E4",
+      "chunk_id": "chunk:A-EB64F2E7899135E4",
+      "source_path": "dt-chantier.md",
+      "source_hash": "sha256:8b240fa434ba4cddd35fd25c1aad0047fc8d0e9a228b656d6813a8f4de525cb3",
+      "parent_chain": [
+        "A-A529D77795654D0F"
+      ],
+      "facets": {
+        "nature": "rule",
+        "scope_level": "atom",
+        "trust_tier": "unverified",
+        "provenance": "source_backed"
+      }
+    },
+    {
+      "node_id": "A-C08D9D5FD30C8E1E",
+      "chunk_id": "chunk:A-C08D9D5FD30C8E1E",
+      "source_path": "dt-chantier.md",
+      "source_hash": "sha256:8b240fa434ba4cddd35fd25c1aad0047fc8d0e9a228b656d6813a8f4de525cb3",
+      "parent_chain": [],
+      "facets": {
+        "nature": "rule",
+        "scope_level": "atom",
+        "trust_tier": "unverified",
+        "provenance": "source_backed"
+      }
+    },
+    {
+      "node_id": "A-520688FD7C085A29",
+      "chunk_id": "chunk:A-520688FD7C085A29",
+      "source_path": "dt-chantier.md",
+      "source_hash": "sha256:8b240fa434ba4cddd35fd25c1aad0047fc8d0e9a228b656d6813a8f4de525cb3",
+      "parent_chain": [
+        "A-A529D77795654D0F"
+      ],
+      "facets": {
+        "nature": "rule",
+        "scope_level": "atom",
+        "trust_tier": "unverified",
+        "provenance": "source_backed"
+      }
+    },
+    {
+      "node_id": "A-0FEE09A95D8050B7",
+      "chunk_id": "chunk:A-0FEE09A95D8050B7",
+      "source_path": "dt-chantier.md",
+      "source_hash": "sha256:8b240fa434ba4cddd35fd25c1aad0047fc8d0e9a228b656d6813a8f4de525cb3",
+      "parent_chain": [],
+      "facets": {
+        "nature": "rule",
+        "scope_level": "atom",
+        "trust_tier": "unverified",
+        "provenance": "source_backed"
+      }
+    },
+    {
+      "node_id": "A-2D87E74F29330F24",
+      "chunk_id": "chunk:A-2D87E74F29330F24",
+      "source_path": "journal-interne.md",
+      "source_hash": "sha256:8df888402edfab8caa13026427c62e825d6b3f93d8ea1e42e414e9b2cc06ce27",
+      "parent_chain": [],
+      "facets": {
+        "nature": "rule",
+        "scope_level": "atom",
+        "trust_tier": "unverified",
+        "provenance": "source_backed"
+      }
+    },
+    {
+      "node_id": "A-43804A51C8FEF687",
+      "chunk_id": "chunk:A-43804A51C8FEF687",
+      "source_path": "journal-interne.md",
+      "source_hash": "sha256:8df888402edfab8caa13026427c62e825d6b3f93d8ea1e42e414e9b2cc06ce27",
+      "parent_chain": [],
+      "facets": {
+        "nature": "rule",
+        "scope_level": "atom",
+        "trust_tier": "unverified",
+        "provenance": "source_backed"
+      }
+    },
+    {
+      "node_id": "A-913DEE5C6221FE20",
+      "chunk_id": "chunk:A-913DEE5C6221FE20",
+      "source_path": "journal-interne.md",
+      "source_hash": "sha256:8df888402edfab8caa13026427c62e825d6b3f93d8ea1e42e414e9b2cc06ce27",
+      "parent_chain": [
+        "A-2D87E74F29330F24"
+      ],
+      "facets": {
+        "nature": "rule",
+        "scope_level": "atom",
+        "trust_tier": "unverified",
+        "provenance": "source_backed"
+      }
+    },
+    {
+      "node_id": "A-334047F690E5827D",
+      "chunk_id": "chunk:A-334047F690E5827D",
+      "source_path": "journal-interne.md",
+      "source_hash": "sha256:8df888402edfab8caa13026427c62e825d6b3f93d8ea1e42e414e9b2cc06ce27",
+      "parent_chain": [],
+      "facets": {
+        "nature": "rule",
+        "scope_level": "atom",
+        "trust_tier": "unverified",
+        "provenance": "source_backed"
+      }
+    },
+    {
+      "node_id": "A-A3952A1842C647FF",
+      "chunk_id": "chunk:A-A3952A1842C647FF",
+      "source_path": "permis.md",
+      "source_hash": "sha256:b84a4157111ff36225140299134a9efcd6f6148fef00f89e49529e006559b683",
+      "parent_chain": [],
+      "facets": {
+        "nature": "rule",
+        "scope_level": "atom",
+        "trust_tier": "unverified",
+        "provenance": "source_backed"
+      }
+    },
+    {
+      "node_id": "A-0D1F17E1E9A58805",
+      "chunk_id": "chunk:A-0D1F17E1E9A58805",
+      "source_path": "permis.md",
+      "source_hash": "sha256:b84a4157111ff36225140299134a9efcd6f6148fef00f89e49529e006559b683",
+      "parent_chain": [],
+      "facets": {
+        "nature": "rule",
+        "scope_level": "atom",
+        "trust_tier": "unverified",
+        "provenance": "source_backed"
+      }
+    },
+    {
+      "node_id": "A-063808A68F71A7DD",
+      "chunk_id": "chunk:A-063808A68F71A7DD",
+      "source_path": "permis.md",
+      "source_hash": "sha256:b84a4157111ff36225140299134a9efcd6f6148fef00f89e49529e006559b683",
+      "parent_chain": [
+        "A-A3952A1842C647FF"
+      ],
+      "facets": {
+        "nature": "rule",
+        "scope_level": "atom",
+        "trust_tier": "unverified",
+        "provenance": "source_backed"
+      }
+    },
+    {
+      "node_id": "A-78BD7C4E4AA11CD0",
+      "chunk_id": "chunk:A-78BD7C4E4AA11CD0",
+      "source_path": "permis.md",
+      "source_hash": "sha256:b84a4157111ff36225140299134a9efcd6f6148fef00f89e49529e006559b683",
+      "parent_chain": [],
+      "facets": {
+        "nature": "rule",
+        "scope_level": "atom",
+        "trust_tier": "unverified",
+        "provenance": "source_backed"
+      }
+    },
+    {
+      "node_id": "A-A410E94C13E3E3D8",
+      "chunk_id": "chunk:A-A410E94C13E3E3D8",
+      "source_path": "permis.md",
+      "source_hash": "sha256:b84a4157111ff36225140299134a9efcd6f6148fef00f89e49529e006559b683",
+      "parent_chain": [
+        "A-A3952A1842C647FF"
+      ],
+      "facets": {
+        "nature": "rule",
+        "scope_level": "atom",
+        "trust_tier": "unverified",
+        "provenance": "source_backed"
+      }
+    },
+    {
+      "node_id": "A-9EDAEFBE9245F38C",
+      "chunk_id": "chunk:A-9EDAEFBE9245F38C",
+      "source_path": "permis.md",
+      "source_hash": "sha256:b84a4157111ff36225140299134a9efcd6f6148fef00f89e49529e006559b683",
+      "parent_chain": [],
+      "facets": {
+        "nature": "rule",
+        "scope_level": "atom",
+        "trust_tier": "unverified",
+        "provenance": "source_backed"
+      }
+    }
+  ],
+  "trace_manifest": {
+    "schema_version": "0.1.0",
+    "run": {
+      "event": "workflow_dispatch",
+      "workflow_run_id": "local-0123456",
+      "generated_at": "2026-06-11T14:10:50Z"
+    },
+    "corpus": {
+      "repo": "RBOKproject/NOMOS",
+      "base_ref": "HEAD",
+      "base_sha": "0123456789abcdef0123456789abcdef01234567",
+      "head_ref": "HEAD",
+      "head_sha": "0123456789abcdef0123456789abcdef01234567"
+    },
+    "scope": {
+      "id": "ckm-bundle",
+      "paths": [
+        "**/*.md"
+      ]
+    },
+    "diff": {
+      "changed_paths": [],
+      "impacted": false
+    },
+    "output": {
+      "repo": "output",
+      "path": "bundles/aedifica-demo-aec"
+    },
+    "artifacts": {
+      "feed": "aedifica-demo-aec.json",
+      "rag_metadata": "aedifica-demo-aec.json",
+      "attestation": "aedifica-demo-aec.json"
+    },
+    "policy": {
+      "publish_mode": "artifact_only",
+      "risk_class": "regulated",
+      "generated_path_guard": "pass",
+      "source_read_only_guard": "pass"
+    }
+  },
+  "attestation": {
+    "_type": "https://in-toto.io/Statement/v1",
+    "subject": [
+      {
+        "name": "aedifica-demo-aec/feeds",
+        "digest": {
+          "sha256": "8f8b97cc3984d33805a5024389f29b69da6892a688879742fa49b6d6c389f7f4"
+        }
+      }
+    ],
+    "predicateType": "https://nomos.dev/attestation/v1",
+    "predicate": {
+      "projectId": "nomos-ckm",
+      "verdict": "admitted",
+      "confidence": "medium",
+      "timestamp": "2026-06-11T14:10:50.6687611Z",
+      "evidence": [
+        "22 feed node(s) over 4 source file(s)"
+      ],
+      "attesterId": "nomos-aec-demo",
+      "attestLevel": "basic"
+    }
+  }
+}
