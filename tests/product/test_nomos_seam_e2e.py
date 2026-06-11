@@ -11,12 +11,17 @@ from NOMOS pr-528 over the portable golden corpus) through the real HTTP API:
 
 They run by default (no skip, no external service) and are the adversarial proof
 that the importer speaks the emitted ``ckm-bundle-v1`` contract, end to end.
+
+W20-4 (#303): this file IS the CI gate — ``python -m pytest tests/product -q``
+collects it unconditionally (no skipif, no env gate, no network); breaking the
+seam breaks CI. Do not add skip conditions here.
 """
 from __future__ import annotations
 
 import copy
 import json
 import os
+import re
 import sys
 
 import pytest
@@ -25,6 +30,8 @@ from fastapi.testclient import TestClient
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
+
+pytestmark = pytest.mark.nomos_seam
 
 from aedifica.api import create_app  # noqa: E402
 from aedifica.db import (  # noqa: E402
@@ -278,3 +285,49 @@ def test_imported_claims_carry_tier_derived_confidence(seam, emitted_bundle):
     with seam["factory"]() as session:
         confidences = {claim.confidence for claim in session.query(Claim)}
     assert confidences == {"low"}
+
+
+# --------------------------------------------------------------------------- #
+# W20-4 (#303): the vendored fixture must STAY the genuine emitter output.     #
+# --------------------------------------------------------------------------- #
+def test_vendored_fixture_is_the_genuine_emitter_contract():
+    """Guards the gate itself: if someone hand-softens the fixture back into the
+    old fabricated shape (lowercase ids, bare hex hashes, feed-level rag dict,
+    invented facet values), this fails before any importer code runs."""
+    assert os.path.isfile(FIXTURE_PATH), "vendored emitted bundle is missing — the seam gate cannot run"
+    bundle = _load_fixture()
+
+    assert bundle["schema_version"] == "ckm-bundle-v1"
+    assert {"bundle_id", "generated_at", "producer", "feeds", "rag_metadata", "trace_manifest", "attestation"} <= set(bundle)
+    assert isinstance(bundle["rag_metadata"], list)
+
+    node_id_re = re.compile(r"^[A-Z0-9][A-Z0-9._-]*$")
+    hash_re = re.compile(r"^sha256:[0-9a-f]{64}$")
+    node_ids: set[str] = set()
+    for feed in bundle["feeds"]:
+        assert feed["format"] == "nomos.canonical-knowledge-feed.v1"
+        assert "version" not in feed and "jurisdiction" not in feed  # the emitter adds neither
+        for node in feed["nodes"]:
+            assert node_id_re.match(node["node_id"]), node["node_id"]
+            assert node["node_id"] not in node_ids
+            node_ids.add(node["node_id"])
+            assert node["text"].strip()
+            assert hash_re.match(node["source_hash"]) and len(node["source_hash"]) == 71
+            assert {"start_line", "end_line"} <= set(node["span"])
+
+    # Every rag entry joins to a real node (the emitter's own invariant).
+    assert {entry["node_id"] for entry in bundle["rag_metadata"]} <= node_ids
+    assert len(bundle["rag_metadata"]) == len(node_ids) == GOLDEN_NODES
+
+    # Facet values are inside the vendored facets.cue snapshot — fixture and
+    # vocabulary move in lockstep or this gate goes red.
+    from aedifica.ingestion.facet_vocab import validate_nomos_facets
+
+    for feed in bundle["feeds"]:
+        for node in feed["nodes"]:
+            validate_nomos_facets(node["facets"], context=node["node_id"])
+
+    # Real provenance, not synthetic: the trace pins the source repo + commit.
+    corpus = bundle["trace_manifest"]["corpus"]
+    assert corpus["repo"] == "RBOKproject/Nomos"
+    assert re.match(r"^[0-9a-f]{7,40}$", corpus["head_sha"])
