@@ -656,7 +656,7 @@ export default function App() {
               {view === "terrain" && <Terrain claims={d.claims} mode={d.intakeMode} support={d.support} commune={active.jurisdiction.commune} initialQuery={d.pendingQuery} regAlerts={d.captures?.regulation_alerts} onLookup={lookup} onRequest={requestCommune} />}
               {view === "coordination" && <Coordination data={d.coord} onRefresh={refreshCoord} go={setView} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
               {view === "intervenants" && <Intervenants data={d.intervenants} token={token!} projectId={active.project_id} onAddGroup={addGroup} onDelGroup={delGroup} onAdd={addIntervenant} onPatch={patchIntervenant} onDel={delIntervenant} onInvite={inviteIntervenant} />}
-              {view === "documents" && <Documents docs={d.documents} summary={d.docSummary} intervenants={d.intervenants} token={token!} pid={active.project_id} onAdd={addDocument} onRefresh={refreshDocs} onValidate={validateDocument} onPatch={patchDocument} onDel={delDocument} onGrant={addGrant} onRevoke={revokeGrant} />}
+              {view === "documents" && <Documents docs={d.documents} summary={d.docSummary} intervenants={d.intervenants} token={token!} pid={active.project_id} onAdd={addDocument} onRefresh={refreshDocs} onValidate={validateDocument} onPatch={patchDocument} onDel={delDocument} onGrant={addGrant} onRevoke={revokeGrant} nomos={!!features?.nomos} />}
               {view === "brs" && <Brs data={d.brs} intervenants={d.intervenants} token={token!} pid={active.project_id} onAdd={addBrs} onPatch={patchBrs} onDel={delBrs} />}
               {view === "permis" && <Permis d={d.permit} onSubmit={submitPermit} tasks={d.tasks?.tasks || []} projectId={active.project_id} token={token!} onOpenAtelierPlanning={openAtelierPlanning} />}
               {view === "opposition" && <Opposition d={d.opposition} canonicalDocs={(d.documents || []).filter((x: any) => x.validation_level === "canonical").length} />}
@@ -2000,7 +2000,7 @@ const DOC_FIELD_OPTIONS: { id: string; label: string }[] = [
   { id: "versions", label: "Versions" },
   { id: "latest", label: "Dernière version" },
 ];
-function Documents({ docs, summary, intervenants, token, pid, onAdd, onRefresh, onValidate, onPatch, onDel, onGrant, onRevoke }: any) {
+function Documents({ docs, summary, intervenants, token, pid, onAdd, onRefresh, onValidate, onPatch, onDel, onGrant, onRevoke, nomos }: any) {
   const [f, setF] = useState<any>({ official_name: "", category: "general", source: "manual", confidential: false });
   const [busy, setBusy] = useState("");
   const [grantFor, setGrantFor] = useState<number | null>(null);
@@ -2152,7 +2152,89 @@ function Documents({ docs, summary, intervenants, token, pid, onAdd, onRefresh, 
           </div>
         ); })}
       </div>
+      {nomos && <CorpusNomos token={token} pid={pid} />}
     </>
+  );
+}
+
+/* ===================== CORPUS JURIDICTIONNEL · NOMOS (W21-2) ===================== */
+// The reference layer under Documents & sources: what the doctrine retriever can
+// actually see for this project's jurisdiction (same scoped pools), plus the
+// bundle import that feeds it. Flag-gated end to end — absent when
+// features.nomos=false; the server enforces 403 NOMOS_DISABLED regardless.
+function CorpusNomos({ token, pid }: { token: string; pid: string }) {
+  const [corpus, setCorpus] = useState<any>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [activate, setActivate] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [err, setErr] = useState("");
+  async function load() {
+    try { setCorpus((await api<any>(`/projects/${pid}/nomos/corpus`, { token })).corpus); }
+    catch { setCorpus(null); }
+  }
+  /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  useEffect(() => { load(); }, [pid]);
+  async function importBundle() {
+    if (!file || busy) return;
+    setBusy(true); setMsg(""); setErr("");
+    try {
+      let bundle: any;
+      try { bundle = JSON.parse(await file.text()); }
+      catch { throw new Error("Fichier illisible — JSON attendu (bundle NOMOS émis, ckm-bundle-v1)."); }
+      const r = await api<any>(`/projects/${pid}/nomos/import`, { method: "POST", token, body: { bundle, activate } });
+      const im = r.imported || {};
+      setMsg(`Import réussi : ${im.chunks ?? 0} chunks (${im.embedded ?? 0} embarqués), ${im.claims ?? 0} claims, ${im.sources ?? 0} sources, feed(s) ${(im.versions || []).join(", ") || "—"}.`);
+      setFile(null);
+      await load();
+    } catch (e: any) { setErr(e.message || "Import impossible."); }
+    finally { setBusy(false); }
+  }
+  const tiers: [string, number][] = corpus ? Object.entries(corpus.by_tier || {}).map(([k, v]) => [k, v as number]) : [];
+  return (
+    <div className="card" style={{ marginTop: 14 }} data-testid="corpus-nomos">
+      <h3 style={{ margin: 0 }}>Corpus juridictionnel — savoir NOMOS</h3>
+      <p style={{ marginTop: 6 }}>
+        Ce que le retriever doctrine <b>voit réellement</b> pour {corpus?.jurisdiction ? <b>{corpus.jurisdiction.commune} ({corpus.jurisdiction.canton})</b> : "ce projet"} :
+        le corpus partagé de la juridiction + les sources promues du projet. Alimenté par l&apos;import de bundles NOMOS — <b>rien n&apos;est inventé</b>.
+      </p>
+      {corpus ? (
+        <>
+          <div className="row" style={{ gap: 14, flexWrap: "wrap" }} data-testid="corpus-counts">
+            <span className="mono" style={{ fontSize: 12 }}>Juridiction : <b>{corpus.jurisdiction_chunks}</b> chunk(s)</span>
+            <span className="mono" style={{ fontSize: 12 }}>Projet : <b>{corpus.project_chunks}</b></span>
+            <span className="mono" style={{ fontSize: 12 }}>Embarqués (recherche sémantique) : <b>{corpus.embedded}</b></span>
+            <span className="mono" style={{ fontSize: 12 }}>Sources : <b>{corpus.sources}</b></span>
+          </div>
+          <div className="row" style={{ gap: 6, marginTop: 6, flexWrap: "wrap" }}>
+            {tiers.map(([k, v]) => { const [c, l] = TRUST_TIER[k] || ["is-unknown", k]; return <span key={k} className={`ds-ts ${c}`}><span className="dot" />{l} · {v}</span>; })}
+          </div>
+          {(corpus.feeds || []).length > 0 && (
+            <div style={{ marginTop: 8 }}>
+              {corpus.feeds.map((fd: any, i: number) => (
+                <div className="claim" key={i}>
+                  <Trust state={fd.status === "supported" ? "sourced" : "computed"} label={fd.status === "supported" ? "Actif" : "Ingéré"} />
+                  <div><div className="ttl mono" style={{ fontSize: 12 }}>{fd.feed_id} · {fd.version}</div><small>bundle {fd.bundle_id}{fd.ingested_at ? ` · importé ${fd.ingested_at}` : ""}</small></div>
+                </div>
+              ))}
+            </div>
+          )}
+          {corpus.jurisdiction_chunks === 0 && corpus.project_chunks === 0 && (
+            <div className="banner" style={{ marginTop: 8 }}>Corpus vide — la doctrine s&apos;abstiendra sur toute question. Importez un bundle NOMOS pour donner des sources citables au Copilote.</div>
+          )}
+        </>
+      ) : <p className="spin">Corpus indisponible.</p>}
+      <div className="searchrow" style={{ marginTop: 10 }}>
+        <input type="file" accept="application/json,.json" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+        <button onClick={importBundle} disabled={!file || busy}>{busy ? "Import…" : "Importer le bundle"}</button>
+      </div>
+      <label className="chip" style={{ display: "inline-flex", gap: 6, alignItems: "center", marginTop: 6 }}>
+        <input type="checkbox" checked={activate} onChange={(e) => setActivate(e.target.checked)} />
+        Activer immédiatement (le feed devient la version de référence de la commune)
+      </label>
+      {msg && <div className="banner ok" data-testid="corpus-import-ok">{msg}</div>}
+      {err && <div className="banner bad" data-testid="corpus-import-err">{err}</div>}
+    </div>
   );
 }
 

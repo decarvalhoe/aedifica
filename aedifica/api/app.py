@@ -22,6 +22,7 @@ from ..ingestion import service as ingestion
 from ..ingestion.nomos_bundle import NomosBundleError, import_nomos_bundle
 from ..retrieval.doctrine import NomosDoctrineError, answer_doctrine_question
 from ..retrieval.embedding import get_default_embedder
+from ..retrieval.lens import jurisdiction_pool_query, project_chunk_query
 from . import actions, auth, orchestration
 from .config import get_settings
 
@@ -2039,6 +2040,64 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
             raise _err(422, exc.code, str(exc))
         session.commit()
         return {"imported": imported, "project": repository.project_summary(session, project)}
+
+    @app.get("/api/projects/{project_id}/nomos/corpus")
+    def nomos_corpus_endpoint(
+        project_id: str,
+        user: m.User = Depends(current_user),
+        session: Session = Depends(get_session),
+    ):
+        """W21-2 — what the doctrine retriever can actually see for this project.
+
+        Read-only aggregation over the SAME lens-scoped pools the doctrine path
+        queries (project silo + jurisdiction pool), so the UI never claims a
+        corpus the retriever would not use. Flag-gated like the other NOMOS
+        endpoints; additive only.
+        """
+        require(user, "project.read")
+        if not settings.nomos_enabled:
+            raise _err(403, "NOMOS_DISABLED", "NOMOS knowledge layer is disabled")
+        project = _project(session, user, project_id)
+        juri_rows = jurisdiction_pool_query(
+            session, country=project.country, canton=project.canton, commune=project.commune
+        ).all()
+        proj_rows = project_chunk_query(session, project.id).all()
+        by_tier: dict[str, int] = {"certified": 0, "indicative": 0, "unverified": 0}
+        embedded = 0
+        sources: set[str] = set()
+        for row in (*juri_rows, *proj_rows):
+            tier = row.trust_tier or "unverified"
+            by_tier[tier] = by_tier.get(tier, 0) + 1
+            if row.embedding:
+                embedded += 1
+            sources.add(row.source_hash)
+        feeds = []
+        packs = (
+            session.query(m.CommunePack)
+            .filter(m.CommunePack.commune == project.commune, m.CommunePack.canton == project.canton)
+            .order_by(m.CommunePack.id.desc())
+            .all()
+        )
+        for pack in packs:
+            nomos_meta = (pack.data or {}).get("nomos")
+            if not nomos_meta:
+                continue  # OFS-direct / hand-ingested packs are not NOMOS feeds
+            feeds.append({
+                "feed_id": nomos_meta.get("feed_id"),
+                "bundle_id": nomos_meta.get("bundle_id"),
+                "version": pack.version,
+                "status": pack.status,
+                "ingested_at": pack.ingested_at,
+            })
+        return {"corpus": {
+            "jurisdiction": {"country": project.country, "canton": project.canton, "commune": project.commune},
+            "jurisdiction_chunks": len(juri_rows),
+            "project_chunks": len(proj_rows),
+            "embedded": embedded,
+            "sources": len(sources),
+            "by_tier": by_tier,
+            "feeds": feeds,
+        }}
 
     # ---- communes (shared cache; write-gated) ---------------------------- #
     @app.get("/api/communes")
