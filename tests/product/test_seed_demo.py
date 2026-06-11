@@ -129,6 +129,15 @@ def test_reset_others_wipes_every_pre_existing_atelier(engine):
             s.flush()
             s.add(m.User(org_id=org.id, email=email, name=name, role="owner",
                          api_token=f"tok-{email}"))
+        # Stale GLOBAL caches from earlier testing — not org-scoped, so they
+        # would survive an org-only purge and pollute the Communes view.
+        s.add(m.CommunePack(commune="Vitrine-old", canton="VD", version="seed",
+                            status="supported", data={}))
+        s.add(m.CommunePack(commune="Referentiels-CH", canton="VD", version="seed",
+                            status="supported", data={}))
+        s.add(m.JurisdictionKnowledgeChunk(country="CH", canton="GE", commune="Genève-old",
+                                           chunk_id="stale:1", text="x", source_hash="sha256:0",
+                                           source_path="old.md", span={}, facets={}))
         s.commit()
         assert s.query(m.Org).count() == 3
 
@@ -144,6 +153,13 @@ def test_reset_others_wipes_every_pre_existing_atelier(engine):
         assert s.query(m.User).filter_by(email="etienne.pilote@aedifica.ch").count() == 0
         assert s.query(m.User).filter_by(email="probe@test.ch").count() == 0
         assert s.query(m.User).filter_by(email=sd.DEMO_EMAIL).count() == 1
+        # the stale global caches are gone; only the seed's own packs remain.
+        assert s.query(m.CommunePack).filter_by(commune="Vitrine-old").count() == 0
+        assert s.query(m.CommunePack).filter_by(commune="Referentiels-CH").count() == 0
+        assert s.query(m.JurisdictionKnowledgeChunk).filter_by(commune="Genève-old").count() == 0
+        # and the legitimate demo communes were recreated by the seed
+        assert s.query(m.CommunePack).filter_by(commune="Lausanne", status="supported").count() >= 1
+        assert s.query(m.CommunePack).filter_by(commune="Prilly", status="supported").count() == 1
 
 
 def test_default_seed_does_not_wipe_other_ateliers(engine):

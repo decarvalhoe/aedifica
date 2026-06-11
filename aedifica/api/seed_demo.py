@@ -38,10 +38,11 @@ from . import sia_checklist as _siacl
 log = logging.getLogger("aedifica.seed_demo")
 
 # Bump to force a clean rebuild of the demo atelier on the next boot.
-# 2026-06-11b — clean-slate reset: on this rebuild, when AEDIFICA_RESET_ATELIERS
-# is set (the Fly demo opts in), EVERY pre-existing atelier is purged so the
-# deployed demo holds only the current showcase, nothing created before the maj.
-SEED_VERSION = "2026-06-11b"
+# 2026-06-11c — the clean-slate reset also purges the GLOBAL shared caches
+# (CommunePack + JurisdictionKnowledgeChunk are NOT org-scoped, so the org
+# purge alone left stale packs — Lutry, Referentiels-CH, Vitrine-… — polluting
+# the Communes view); the seed below recreates the legitimate ones.
+SEED_VERSION = "2026-06-11c"
 DEMO_EMAIL = "demo@aedifica.ch"
 DEMO_PASSWORD = "demo123"
 DEMO_ORG_NAME = f"Atelier Démo Aedifica ({SEED_VERSION})"
@@ -81,13 +82,22 @@ def seed_demo(session, *, nomos_enabled: bool, reset_others: bool = False) -> di
         return None
 
     # Version drift (or first boot): drop the old demo footprint, rebuild fresh.
-    # With reset_others, drop EVERY atelier — the clean-slate reset.
+    # With reset_others, drop EVERY atelier AND the global shared caches — the
+    # full clean slate. The caches are not org-scoped (a capitalizable cache by
+    # design), so the org purge alone leaves stale packs visible to everyone;
+    # the seed below recreates the legitimate Lausanne/Pully/Prilly/Renens.
     if reset_others:
         purged = 0
         for org in session.execute(select(m.Org)).scalars():
             session.delete(org)
             purged += 1
-        log.info("demo seed: clean-slate reset purged %d atelier(s)", purged)
+        # Bulk-delete the shared caches. Jobs first (FK → CommunePack), then
+        # packs, then the doctrine pool (re-imported idempotently by the seed).
+        session.query(m.IngestionJob).delete(synchronize_session=False)
+        packs = session.query(m.CommunePack).delete(synchronize_session=False)
+        chunks = session.query(m.JurisdictionKnowledgeChunk).delete(synchronize_session=False)
+        log.info("demo seed: clean-slate reset purged %d atelier(s), %d pack(s), %d chunk(s)",
+                 purged, packs, chunks)
     else:
         for org in existing:
             session.delete(org)
