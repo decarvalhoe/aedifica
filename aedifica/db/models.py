@@ -113,7 +113,8 @@ class Source(Base):
     locator: Mapped[str | None] = mapped_column(String(500), nullable=True)
     valid_as_of: Mapped[str | None] = mapped_column(String(40), nullable=True)
     retrieved_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
-    sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # 80 chars: NOMOS bundles carry algo-prefixed hashes ("sha256:<64 hex>" = 71).
+    sha256: Mapped[str | None] = mapped_column(String(80), nullable=True)
     trust_tier: Mapped[str | None] = mapped_column(String(20), nullable=True, default="unverified")
     provenance: Mapped[str | None] = mapped_column(String(40), nullable=True, default="official")
     facets: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=dict)
@@ -127,7 +128,8 @@ class Evidence(Base):
     evidence_id: Mapped[str] = mapped_column(String(120))
     kind: Mapped[str] = mapped_column(String(60))
     file_ref: Mapped[str] = mapped_column(String(500))
-    sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # 80 chars: NOMOS bundles carry algo-prefixed hashes ("sha256:<64 hex>" = 71).
+    sha256: Mapped[str | None] = mapped_column(String(80), nullable=True)
     source_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
     valid_as_of: Mapped[str | None] = mapped_column(String(40), nullable=True)
     retrieved_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
@@ -145,7 +147,8 @@ class JurisdictionKnowledgeChunk(Base):
     commune: Mapped[str | None] = mapped_column(String(120), nullable=True)
     chunk_id: Mapped[str] = mapped_column(String(160))
     text: Mapped[str] = mapped_column(Text)
-    source_hash: Mapped[str] = mapped_column(String(64))
+    # 80 chars: NOMOS bundles carry algo-prefixed hashes ("sha256:<64 hex>" = 71).
+    source_hash: Mapped[str] = mapped_column(String(80))
     source_path: Mapped[str] = mapped_column(String(500))
     span: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     facets: Mapped[dict] = mapped_column(JSON, default=dict)
@@ -164,7 +167,8 @@ class ProjectKnowledgeChunk(Base):
     project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
     chunk_id: Mapped[str] = mapped_column(String(160))
     text: Mapped[str] = mapped_column(Text)
-    source_hash: Mapped[str] = mapped_column(String(64))
+    # 80 chars: NOMOS bundles carry algo-prefixed hashes ("sha256:<64 hex>" = 71).
+    source_hash: Mapped[str] = mapped_column(String(80))
     source_path: Mapped[str] = mapped_column(String(500))
     span: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     facets: Mapped[dict] = mapped_column(JSON, default=dict)

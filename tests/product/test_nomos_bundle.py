@@ -52,6 +52,7 @@ def _project(session) -> Project:
 def _bundle(text: str = "Zone centre: indice d'utilisation du sol 0.7.", include_trace: bool = True) -> dict:
     trace_manifest = {"bundle_sha256": "b" * 64, "feed_sha256": "c" * 64} if include_trace else None
     return {
+        "schema_version": "ckm-bundle-v1",
         "bundle_id": "nomos-built-environment-stub",
         "version": "2026.06-stub",
         "feeds": [
@@ -134,7 +135,8 @@ def test_nomos_bundle_import_maps_feed_to_pack_claim_source_and_evidence(session
             "node_id": "node-zone-centre",
             "source_hash": "a" * 64,
             "source_path": "reglements/lausanne-rpga.pdf",
-            "span": {"start": 120, "end": 176},
+            # Legacy {start, end} spans are normalized to the emitted contract form.
+            "span": {"start_line": 120, "end_line": 176},
             "parent_chain": ["rpga", "art-7"],
         }
     ]
@@ -201,6 +203,113 @@ def test_nomos_bundle_duplicate_feed_version_in_bundle_is_refused(session):
     assert session.query(Source).count() == 0
     assert session.query(Evidence).count() == 0
     assert session.query(Claim).count() == 0
+
+
+def test_nomos_bundle_schema_version_gate_rejects_absent_and_unknown(session):
+    """W20-1 adversarial: the importer refuses any contract it does not speak."""
+    project = _project(session)
+
+    absent = _bundle()
+    del absent["schema_version"]
+    with pytest.raises(NomosBundleError, match="schema_version") as excinfo:
+        import_nomos_bundle(session, project, absent, nomos_enabled=True)
+    assert excinfo.value.code == "NOMOS_BUNDLE_SCHEMA_UNSUPPORTED"
+
+    unknown = _bundle()
+    unknown["schema_version"] = "ckm-bundle-v999"
+    with pytest.raises(NomosBundleError, match="ckm-bundle-v999") as excinfo:
+        import_nomos_bundle(session, project, unknown, nomos_enabled=True)
+    assert excinfo.value.code == "NOMOS_BUNDLE_SCHEMA_UNSUPPORTED"
+
+    assert session.query(CommunePack).count() == 0
+    assert session.query(Claim).count() == 0
+
+
+def test_nomos_bundle_accepts_emitted_start_line_span_form(session):
+    """The real emitter ships {start_line, end_line}; both forms normalize identically."""
+    project = _project(session)
+    bundle = _bundle()
+    bundle["feeds"][0]["nodes"][0]["span"] = {"start_line": 3, "end_line": 9}
+
+    import_nomos_bundle(session, project, bundle, nomos_enabled=True)
+    session.commit()
+
+    claim = session.query(Claim).one()
+    assert claim.source_refs[0]["span"] == {"start_line": 3, "end_line": 9}
+
+
+def test_nomos_bundle_span_missing_bounds_is_refused(session):
+    project = _project(session)
+    bundle = _bundle()
+    bundle["feeds"][0]["nodes"][0]["span"] = {"locator": "p.4"}
+
+    with pytest.raises(NomosBundleError, match="start/end"):
+        import_nomos_bundle(session, project, bundle, nomos_enabled=True)
+    assert session.query(CommunePack).count() == 0
+
+
+def test_nomos_bundle_derives_feed_version_when_absent(session):
+    """The real emitter has no feeds[].version: derive bundle_id@generated_at."""
+    project = _project(session)
+    bundle = _bundle()
+    bundle["generated_at"] = "2026-06-11T00:00:00Z"
+    del bundle["feeds"][0]["version"]
+
+    result = import_nomos_bundle(session, project, bundle, nomos_enabled=True)
+    session.commit()
+
+    derived = "nomos-built-environment-stub@2026-06-11T00:00:00Z"
+    # Longer than CommunePack.version's 40 chars -> deterministic hash tail.
+    assert len(result["versions"][0]) <= 40
+    assert result["versions"][0].startswith(derived[:31])
+
+    # Determinism doubles as immutability: re-importing the same emission is refused.
+    again = _bundle()
+    again["generated_at"] = "2026-06-11T00:00:00Z"
+    del again["feeds"][0]["version"]
+    with pytest.raises(NomosBundleError, match="immutable"):
+        import_nomos_bundle(session, project, again, nomos_enabled=True)
+
+
+def test_nomos_bundle_defaults_jurisdiction_from_project(session):
+    """The emitter carries no jurisdiction; the project-scoped endpoint supplies it."""
+    project = _project(session)  # commune=Lausanne, canton=VD
+    bundle = _bundle()
+    del bundle["feeds"][0]["jurisdiction"]
+
+    import_nomos_bundle(session, project, bundle, nomos_enabled=True)
+    session.commit()
+
+    pack = session.query(CommunePack).one()
+    assert pack.commune == "Lausanne"
+    assert pack.canton == "VD"
+
+
+def test_nomos_bundle_joins_bundle_level_rag_metadata_list(session):
+    """The emitted rag_metadata is a bundle-level list; it must join, not vanish."""
+    project = _project(session)
+    bundle = _bundle()
+    del bundle["feeds"][0]["rag_metadata"]
+    bundle["rag_metadata"] = [
+        {"node_id": "node-zone-centre", "chunk_id": "chunk:node-zone-centre", "source_path": "reglements/lausanne-rpga.pdf"}
+    ]
+
+    import_nomos_bundle(session, project, bundle, nomos_enabled=True)
+    session.commit()
+
+    pack = session.query(CommunePack).one()
+    stored = pack.data["nomos"]["rag_metadata"]
+    assert stored["node-zone-centre"]["chunk_id"] == "chunk:node-zone-centre"
+
+
+def test_nomos_bundle_orphan_rag_metadata_is_refused(session):
+    project = _project(session)
+    bundle = _bundle()
+    bundle["rag_metadata"] = [{"node_id": "GHOST-NODE", "chunk_id": "chunk:ghost"}]
+
+    with pytest.raises(NomosBundleError, match="GHOST-NODE"):
+        import_nomos_bundle(session, project, bundle, nomos_enabled=True)
+    assert session.query(CommunePack).count() == 0
 
 
 def _bootstrap_project(client: TestClient) -> dict:
