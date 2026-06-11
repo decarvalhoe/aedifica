@@ -233,6 +233,12 @@ export default function App() {
   // read-only when they have read but not write. Owners get role="owner"
   // and skip the lookups entirely.
   const [access, setAccess] = useState<any | null>(null);
+  // W21-1 — server feature flags (GET /api/health, public). `null` until known,
+  // so flag-gated surfaces (NOMOS doctrine) never flash on before the answer.
+  const [features, setFeatures] = useState<Record<string, boolean> | null>(null);
+  useEffect(() => {
+    api<any>("/health").then((r) => setFeatures(r.features || {})).catch(() => setFeatures({}));
+  }, []);
   // W10: external (client / mandataire) user state. When set, the entire workspace is
   // replaced by the External scoped view.
   const [ext, setExt] = useState<any | null>(null);
@@ -655,7 +661,7 @@ export default function App() {
               {view === "permis" && <Permis d={d.permit} onSubmit={submitPermit} tasks={d.tasks?.tasks || []} projectId={active.project_id} token={token!} onOpenAtelierPlanning={openAtelierPlanning} />}
               {view === "opposition" && <Opposition d={d.opposition} canonicalDocs={(d.documents || []).filter((x: any) => x.validation_level === "canonical").length} />}
               {view === "conformite" && <Conformite d={d.compliance} tasks={d.tasks?.tasks || []} projectId={active.project_id} token={token!} onOpenAtelierPlanning={openAtelierPlanning} />}
-              {view === "copilote" && <Copilote token={token} pid={active.project_id} ledger={d.ledger} onChange={refreshLedger} />}
+              {view === "copilote" && <Copilote token={token} pid={active.project_id} ledger={d.ledger} onChange={refreshLedger} nomos={!!features?.nomos} />}
               {view === "memoire" && <Memoire unknowns={d.unknowns} ledger={d.ledger} captures={d.captures} token={token!} pid={active.project_id} onAddCapture={addCapture} onDelCapture={delCapture} />}
               {view === "couts" && <Couts d={d.cost} onFee={feeEstimate} tasks={d.tasks?.tasks || []} projectPhase={active.phase_code} projectId={active.project_id} token={token!} onOpenAtelierPlanning={openAtelierPlanning} />}
               {view === "chantier" && <Chantier d={d.site} tasks={d.tasks?.tasks || []} projectId={active.project_id} onOpenAtelierPlanning={openAtelierPlanning} />}
@@ -1419,7 +1425,81 @@ function Conformite({ d, tasks, projectId, token, onOpenAtelierPlanning }: any) 
 // "AC-SPACE-101 → bureau" comme exemple, mais c'est éditable). Sans endpoint
 // Archicad renseigné, on garde un état vide honnête plutôt que de prétendre
 // qu'on a une connexion live — Etienne avait raison : "surface fake" sinon.
-function Copilote({ token, pid, ledger, onChange }: { token: string; pid: string; ledger?: any[]; onChange: () => void }) {
+/* ===================== COPILOTE · DOCTRINE (W21-1) ===================== */
+// The NOMOS doctrine Q&A — the first dedicated surface over the W19/W20
+// knowledge layer. Cite-or-abstain made visible: every answer either carries
+// citations (source_path + span + trust tier) or the explicit abstention.
+// Only rendered when the server reports features.nomos=true (/api/health);
+// the flag-OFF default keeps this surface entirely absent (doctrine W19-00).
+const fmtSpan = (s: any) => {
+  if (!s) return "";
+  const a = s.start_line ?? s.start, b = s.end_line ?? s.end;
+  return a != null && b != null ? ` · l. ${a}–${b}` : "";
+};
+function DoctrineQA({ token, pid }: { token: string; pid: string }) {
+  const [q, setQ] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [res, setRes] = useState<any>(null);
+  const [err, setErr] = useState("");
+  async function ask() {
+    const question = q.trim();
+    if (!question || busy) return;
+    setBusy(true); setErr(""); setRes(null);
+    try { setRes(await api<any>(`/projects/${pid}/copilote/nomos`, { method: "POST", token, body: { question } })); }
+    catch (e: any) { setErr(e.message?.includes("NOMOS_DISABLED") ? "La couche NOMOS est désactivée sur cet environnement." : (e.message || "Interrogation impossible.")); }
+    finally { setBusy(false); }
+  }
+  const abstained = !!res && (!res.citations || res.citations.length === 0);
+  return (
+    <div className="card" style={{ marginBottom: 14 }} data-testid="doctrine-qa">
+      <h3 style={{ margin: 0 }}>Question doctrine — réponse sourcée ou abstention</h3>
+      <p style={{ marginTop: 6 }}>
+        Interrogez le savoir réglementaire &amp; métier importé pour ce projet (corpus NOMOS de la juridiction + sources promues).{" "}
+        <b>Chaque réponse cite ses sources — sinon Aedifica s&apos;abstient.</b> Vous restez la référence finale.
+      </p>
+      <div className="searchrow">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") ask(); }}
+          placeholder="ex. Quelle hauteur maximale en zone village ?"
+        />
+        <button onClick={ask} disabled={busy || !q.trim()}>{busy ? "Recherche…" : "Interroger la doctrine"}</button>
+      </div>
+      {err && <div className="banner bad">{err}</div>}
+      {res && abstained && (
+        <div className="banner" data-testid="doctrine-abstention">
+          <b>Abstention · </b>aucune source du corpus n&apos;adosse cette question. Aedifica ne fabrique pas de réponse — <b>décision humaine requise</b>.
+        </div>
+      )}
+      {res && !abstained && (
+        <div data-testid="doctrine-answer">
+          <div className="claim" style={{ marginTop: 10 }}>
+            <Trust state={res.requires_human_decision ? "computed" : "sourced"} label={res.requires_human_decision ? "Sourcé · à valider" : "Sourcé"} />
+            <div><div className="ttl">{res.answer}</div></div>
+          </div>
+          <h3 style={{ marginBottom: 4 }}>Citations</h3>
+          {(res.citations || []).map((c: any, i: number) => (
+            <div className="claim" key={i}>
+              <Trust state="sourced" label={c.scope === "project" ? "Projet" : "Juridiction"} />
+              <div>
+                <div className="ttl mono" style={{ fontSize: 12 }}>{c.source_path}{fmtSpan(c.span)}</div>
+                <TrustMeta trustTier={c.trust_tier} provenance={c.provenance} />
+              </div>
+            </div>
+          ))}
+          {res.requires_human_decision && (
+            <small style={{ color: "var(--mut)" }}>
+              Sources non certifiées ({(res.structured_facts || []).map((f: any) => f.trust_tier).filter((v: string, i: number, a: string[]) => a.indexOf(v) === i).join(", ") || "tier inconnu"}) — la décision reste humaine.
+            </small>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Copilote({ token, pid, ledger, onChange, nomos }: { token: string; pid: string; ledger?: any[]; onChange: () => void; nomos?: boolean }) {
   const [txn, setTxn] = useState<any>(null); const [approved, setApproved] = useState(false); const [executed, setExecuted] = useState(false);
   const [msg, setMsg] = useState(""); const [blocked, setBlocked] = useState(false);
   const [endpoint, setEndpoint] = useState(""); const [mode, setMode] = useState(""); const [product, setProduct] = useState<any>(null);
@@ -1451,7 +1531,8 @@ function Copilote({ token, pid, ledger, onChange }: { token: string; pid: string
   const hasEndpoint = endpoint.trim().length > 0;
   return (
     <>
-      <div className="vh"><div className="row"><h2>Copilote IA · maquette Archicad</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>L&apos;IA prépare une modification, vous la validez, elle l&apos;applique — tracé et réversible. <b>Rien ne change sans votre accord.</b></p></div>
+      <div className="vh"><div className="row"><h2>Copilote IA</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>L&apos;IA répond sur la doctrine (sourcé ou abstention) et prépare des modifications de maquette Archicad que <b>vous</b> validez — tracé et réversible. <b>Rien ne change sans votre accord.</b></p></div>
+      {nomos && <DoctrineQA token={token} pid={pid} />}
       {!hasEndpoint && (
         // W14.B — the previous "Aucun endpoint Archicad" banner was opaque:
         // the architect had no idea what an "endpoint Archicad" was nor where
