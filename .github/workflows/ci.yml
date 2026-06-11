@@ -173,6 +173,11 @@ jobs:
         env:
           AEDIFICA_DATABASE_URL: sqlite:///e2e.db
           AEDIFICA_CREATE_ALL: "1"
+          # W21-1 — the doctrine Q&A surface is exercised end-to-end (panel
+          # visible + real abstention round-trip). The flag-OFF UI path is
+          # covered in the same spec by mocking /api/health; the flag-OFF API
+          # contract stays covered by tests/product (403 NOMOS_DISABLED).
+          AEDIFICA_NOMOS_ENABLED: "1"
         run: |
           python -m uvicorn aedifica.api.app:app --host 127.0.0.1 --port 8090 &
           for i in $(seq 1 40); do curl -sf http://127.0.0.1:8090/api/health >/dev/null && break; sleep 1; done
