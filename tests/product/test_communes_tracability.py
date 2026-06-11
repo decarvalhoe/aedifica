@@ -82,6 +82,30 @@ def test_register_contradicting_pair_is_refused(client, owner):
     assert r.status_code == 201
 
 
+def test_project_creation_refuses_register_contradicting_pair(client, owner):
+    """W23-5 — the SAME guard covers project creation (the original hole: a
+    « Neuchâtel (VD) » PROJECT was creatable with an explicit wrong canton)."""
+    h = owner["headers"]
+    r = client.post("/api/projects",
+                    json={"project_id": "P-NEVD", "name": "X", "commune": "Neuchâtel", "canton": "VD"},
+                    headers=h)
+    assert r.status_code == 422, r.text
+    detail = r.json()["detail"]
+    assert detail["code"] == "COMMUNE_CANTON_MISMATCH"
+    assert "NE" in detail["message"]
+
+    r = client.post("/api/projects",
+                    json={"project_id": "P-NENE", "name": "X", "commune": "Neuchâtel", "canton": "NE"},
+                    headers=h)
+    assert r.status_code == 201
+
+    # Unknown communes keep working with an explicit canton (picker contract).
+    r = client.post("/api/projects",
+                    json={"project_id": "P-FICT", "name": "X", "commune": "Fictive-W23-5", "canton": "VD"},
+                    headers=h)
+    assert r.status_code == 201
+
+
 def test_withdraw_removes_only_seed_scaffolds(client, owner):
     """W22-2b — a request scaffold is withdrawable; an ingested referential
     version is immutable (the capitalizable-cache promise)."""
