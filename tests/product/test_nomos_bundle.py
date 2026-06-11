@@ -50,6 +50,12 @@ def _project(session) -> Project:
 
 
 def _bundle(text: str = "Zone centre: indice d'utilisation du sol 0.7.", include_trace: bool = True) -> dict:
+    """Legacy-shape bundle (feed-level version/jurisdiction/rag, {start,end} spans).
+
+    W20-3: made CUE-valid against the real contract — uppercase node ids
+    (^[A-Z0-9][A-Z0-9._-]*$) and facet values from specs/facets.cue (the old
+    "regulatory"/"local"/"official" values were never in the NOMOS vocabulary).
+    """
     trace_manifest = {"bundle_sha256": "b" * 64, "feed_sha256": "c" * 64} if include_trace else None
     return {
         "schema_version": "ckm-bundle-v1",
@@ -64,20 +70,20 @@ def _bundle(text: str = "Zone centre: indice d'utilisation du sol 0.7.", include
                 "valid_as_of": "2026-06-01",
                 "review_due": "2026-12-01",
                 "trace_manifest": trace_manifest,
-                "rag_metadata": {"node-zone-centre": {"chunk_id": "chunk-1"}},
+                "rag_metadata": {"NODE-ZONE-CENTRE": {"chunk_id": "chunk-1"}},
                 "nodes": [
                     {
-                        "node_id": "node-zone-centre",
+                        "node_id": "NODE-ZONE-CENTRE",
                         "text": text,
                         "source_path": "reglements/lausanne-rpga.pdf",
                         "source_hash": "a" * 64,
                         "span": {"start": 120, "end": 176},
-                        "parent_chain": ["rpga", "art-7"],
+                        "parent_chain": ["RPGA", "ART-7"],
                         "facets": {
-                            "nature": "regulatory",
-                            "scope_level": "local",
+                            "nature": "rule",
+                            "scope_level": "atom",
                             "trust_tier": "certified",
-                            "provenance": "official",
+                            "provenance": "source_backed",
                             "confidentiality": "public",
                         },
                         "claim": {
@@ -118,26 +124,28 @@ def test_nomos_bundle_import_maps_feed_to_pack_claim_source_and_evidence(session
     assert source.source_id == "nomos:vd-lausanne-rpga:aaaaaaaaaaaa"
     assert source.sha256 == "a" * 64
     assert source.trust_tier == "certified"
-    assert source.provenance == "official"
-    assert source.facets["scope_level"] == "local"
+    assert source.provenance == "source_backed"
+    assert source.facets["scope_level"] == "atom"
 
     evidence = session.query(Evidence).one()
-    assert evidence.evidence_id == "nomos:vd-lausanne-rpga:node-zone-centre"
+    assert evidence.evidence_id == "nomos:vd-lausanne-rpga:NODE-ZONE-CENTRE"
     assert evidence.file_ref == "reglements/lausanne-rpga.pdf"
     assert evidence.source_id == source.source_id
 
     claim = session.query(Claim).one()
     assert claim.state == "sourced"
     assert claim.value == {"ius": 0.7}
+    # W20-3: confidence derives from the certified trust tier, not a blanket value.
+    assert claim.confidence == "high"
     assert claim.source_refs == [
         {
             "source_id": source.source_id,
-            "node_id": "node-zone-centre",
+            "node_id": "NODE-ZONE-CENTRE",
             "source_hash": "a" * 64,
             "source_path": "reglements/lausanne-rpga.pdf",
             # Legacy {start, end} spans are normalized to the emitted contract form.
             "span": {"start_line": 120, "end_line": 176},
-            "parent_chain": ["rpga", "art-7"],
+            "parent_chain": ["RPGA", "ART-7"],
         }
     ]
 
@@ -291,7 +299,7 @@ def test_nomos_bundle_joins_bundle_level_rag_metadata_list(session):
     bundle = _bundle()
     del bundle["feeds"][0]["rag_metadata"]
     bundle["rag_metadata"] = [
-        {"node_id": "node-zone-centre", "chunk_id": "chunk:node-zone-centre", "source_path": "reglements/lausanne-rpga.pdf"}
+        {"node_id": "NODE-ZONE-CENTRE", "chunk_id": "chunk:NODE-ZONE-CENTRE", "source_path": "reglements/lausanne-rpga.pdf"}
     ]
 
     import_nomos_bundle(session, project, bundle, nomos_enabled=True)
@@ -299,7 +307,7 @@ def test_nomos_bundle_joins_bundle_level_rag_metadata_list(session):
 
     pack = session.query(CommunePack).one()
     stored = pack.data["nomos"]["rag_metadata"]
-    assert stored["node-zone-centre"]["chunk_id"] == "chunk:node-zone-centre"
+    assert stored["NODE-ZONE-CENTRE"]["chunk_id"] == "chunk:NODE-ZONE-CENTRE"
 
 
 def test_nomos_bundle_orphan_rag_metadata_is_refused(session):
@@ -310,6 +318,53 @@ def test_nomos_bundle_orphan_rag_metadata_is_refused(session):
     with pytest.raises(NomosBundleError, match="GHOST-NODE"):
         import_nomos_bundle(session, project, bundle, nomos_enabled=True)
     assert session.query(CommunePack).count() == 0
+
+
+@pytest.mark.parametrize(
+    ("axis", "value"),
+    [
+        ("trust_tier", "trust-me-bro"),
+        # These two were in the old hand-crafted fixture but were NEVER part of
+        # specs/facets.cue — Aedifica must not invent NOMOS vocabulary.
+        ("nature", "regulatory"),
+        ("provenance", "official"),
+        ("scope_level", "local"),
+    ],
+)
+def test_nomos_bundle_rejects_facet_values_outside_nomos_vocab(session, axis, value):
+    """W20-3 adversarial: the importer refuses what NOMOS itself would refuse."""
+    project = _project(session)
+    bundle = _bundle()
+    bundle["feeds"][0]["nodes"][0]["facets"][axis] = value
+
+    with pytest.raises(NomosBundleError) as excinfo:
+        import_nomos_bundle(session, project, bundle, nomos_enabled=True)
+
+    message = str(excinfo.value)
+    assert axis in message and repr(value) in message
+    assert session.query(CommunePack).count() == 0
+    assert session.query(Claim).count() == 0
+
+
+def test_nomos_bundle_confidence_derives_from_trust_tier(session):
+    """W20-3: unverified -> low, indicative -> medium, certified -> high."""
+    project = _project(session)
+    bundle = _bundle()
+    node = bundle["feeds"][0]["nodes"][0]
+    for suffix, tier in (("UNVERIFIED", "unverified"), ("INDICATIVE", "indicative")):
+        extra = copy.deepcopy(node)
+        extra["node_id"] = f"NODE-{suffix}"
+        extra["facets"]["trust_tier"] = tier
+        extra["claim"] = {"claim_id": f"claim-{suffix.lower()}", "title": suffix}
+        bundle["feeds"][0]["nodes"].append(extra)
+
+    import_nomos_bundle(session, project, bundle, nomos_enabled=True)
+    session.commit()
+
+    by_id = {claim.claim_id: claim.confidence for claim in session.query(Claim)}
+    assert by_id["lausanne-zone-centre"] == "high"  # certified
+    assert by_id["claim-indicative"] == "medium"
+    assert by_id["claim-unverified"] == "low"
 
 
 def _bootstrap_project(client: TestClient) -> dict:

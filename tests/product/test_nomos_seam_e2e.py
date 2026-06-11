@@ -250,3 +250,31 @@ def test_schema_version_gate_rejects_unknown_bundle_via_api(seam, emitted_bundle
         assert session.query(Claim).count() == 0
         assert session.query(JurisdictionKnowledgeChunk).count() == 0
         assert session.query(ProjectKnowledgeChunk).count() == 0
+
+
+# --------------------------------------------------------------------------- #
+# W20-3 (#302): facet vocabulary gate + tier-derived confidence.               #
+# --------------------------------------------------------------------------- #
+def test_facet_vocab_gate_rejects_invented_trust_tier_via_api(seam, emitted_bundle):
+    """W20-3 adversarial: forge trust_tier 'trust-me-bro' into the real bundle."""
+    forged = copy.deepcopy(emitted_bundle)
+    forged["feeds"][0]["nodes"][0]["facets"]["trust_tier"] = "trust-me-bro"
+
+    response = _import_bundle(seam, forged)
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert detail["code"] == "NOMOS_BUNDLE_INVALID"
+    assert "trust_tier" in detail["message"] and "trust-me-bro" in detail["message"]
+    with seam["factory"]() as session:
+        assert session.query(JurisdictionKnowledgeChunk).count() == 0
+        assert session.query(Claim).count() == 0
+
+
+def test_imported_claims_carry_tier_derived_confidence(seam, emitted_bundle):
+    """The golden corpus is unverified-tier: every claim must land confidence=low."""
+    assert _import_bundle(seam, emitted_bundle).status_code == 200
+
+    with seam["factory"]() as session:
+        confidences = {claim.confidence for claim in session.query(Claim)}
+    assert confidences == {"low"}

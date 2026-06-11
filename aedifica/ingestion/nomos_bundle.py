@@ -30,6 +30,7 @@ from typing import Any
 
 from ..db import models as m
 from ..retrieval.embedding import backfill_embeddings, get_default_embedder
+from .facet_vocab import FacetVocabularyError, confidence_for_trust_tier, validate_nomos_facets
 
 #: Bundle contract version this adapter understands (NOMOS SchemaVersion).
 SCHEMA_VERSION = "ckm-bundle-v1"
@@ -122,6 +123,13 @@ def _validate_node(feed_id: str, node: Any) -> dict:
     facets = node.get("facets", {})
     if facets is not None and not isinstance(facets, dict):
         raise NomosBundleError(f"NOMOS bundle field {feed_id}.{node_id}.facets must be an object")
+    if facets:
+        # W20-3: facet values are validated against the vendored NOMOS vocabulary
+        # snapshot — Aedifica refuses what NOMOS itself would refuse.
+        try:
+            validate_nomos_facets(facets, context=f"{feed_id}.{node_id}.facets")
+        except FacetVocabularyError as exc:
+            raise NomosBundleError(str(exc)) from exc
     parent_chain = node.get("parent_chain", [])
     if parent_chain is not None and not isinstance(parent_chain, list):
         raise NomosBundleError(f"NOMOS bundle field {feed_id}.{node_id}.parent_chain must be a list")
@@ -461,7 +469,9 @@ def import_nomos_bundle(
                         claim_type=str(claim.get("claim_type") or "regulatory"),
                         state="sourced",
                         value=_claim_value(node, parsed_node["text"]),
-                        confidence=str(claim.get("confidence") or "high"),
+                        # W20-3: confidence follows the trust tier — an unverified
+                        # node can never land as a "high"-confidence claim.
+                        confidence=confidence_for_trust_tier(facets.get("trust_tier")),
                         source_refs=[_source_ref(source_id, parsed_node)],
                         trust_tier=facets.get("trust_tier", "unverified"),
                         provenance=facets.get("provenance", "official"),
