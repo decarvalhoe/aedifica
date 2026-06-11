@@ -62,6 +62,58 @@ def test_pack_follows_request_ingest_promote_with_full_traceability(client, owne
     assert support["version"] == "vevey-rpga-2026-06"
 
 
+def test_register_contradicting_pair_is_refused(client, owner):
+    """W22-2b — the « Neuchâtel (VD) » shame case: a commune the OFS register
+    KNOWS cannot enter the shared cache under the wrong canton."""
+    h = owner["headers"]
+    r = client.post("/api/communes", json={"commune": "Neuchâtel", "canton": "VD"}, headers=h)
+    assert r.status_code == 422, r.text
+    detail = r.json()["detail"]
+    assert detail["code"] == "COMMUNE_CANTON_MISMATCH"
+    assert "NE" in detail["message"]  # the register's canton is NAMED
+
+    # The registered canton sails through.
+    r = client.post("/api/communes", json={"commune": "Neuchâtel", "canton": "NE"}, headers=h)
+    assert r.status_code == 201
+
+    # Out-of-register communes stay accepted (the register is the authority
+    # only on what it contains — test/fictional communes keep working).
+    r = client.post("/api/communes", json={"commune": "Commune-Fictive-W22b", "canton": "VD"}, headers=h)
+    assert r.status_code == 201
+
+
+def test_withdraw_removes_only_seed_scaffolds(client, owner):
+    """W22-2b — a request scaffold is withdrawable; an ingested referential
+    version is immutable (the capitalizable-cache promise)."""
+    h = owner["headers"]
+    client.post("/api/communes", json={"commune": "Morges", "canton": "VD"}, headers=h)
+    packs = client.get("/api/communes", headers=h).json()["communes"]
+    seed = next(p for p in packs if p["commune"] == "Morges" and p["status"] == "seed")
+
+    r = client.delete(f"/api/communes/{seed['id']}", headers=h)
+    assert r.status_code == 200
+    packs = client.get("/api/communes", headers=h).json()["communes"]
+    assert not any(p["id"] == seed["id"] for p in packs)  # jobs cascade with it
+
+    # Adversarial: ingested -> the withdrawal is refused and the pack survives.
+    seed_r = client.post("/api/communes", json={"commune": "Pully", "canton": "VD"}, headers=h)
+    ing = client.post(f"/api/communes/{seed_r.json()['requested']['id']}/ingest", json={
+        "version": "pully-w22b-test",
+        "zones": {"Zone test": {"ius": 0.3}},
+        "source_authority": "Commune de Pully",
+        "valid_as_of": "2026-06-01",
+        "review_due": "2026-12-01",
+        "sources": [],
+    }, headers=h)
+    assert ing.status_code == 200
+    ingested_id = ing.json()["ingested"]["id"]
+    r = client.delete(f"/api/communes/{ingested_id}", headers=h)
+    assert r.status_code == 409
+    assert r.json()["detail"]["code"] == "PACK_NOT_SEED"
+    packs = client.get("/api/communes", headers=h).json()["communes"]
+    assert any(p["id"] == ingested_id for p in packs)  # still there, immutable
+
+
 def test_promote_refuses_a_seed_pack(client, owner):
     """Adversarial: promotion is gated on a real ingested version — a seed
     scaffold cannot be promoted into reliance."""
