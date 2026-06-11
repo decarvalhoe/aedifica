@@ -195,3 +195,25 @@ jobs:
         run: |
           npx playwright install --with-deps chromium
           npm run e2e
+
+  # W21-0 — the demo redeploys itself on every green main push, so it can never
+  # silently go stale again (it sat 19 commits behind between Jun 7 and Jun 11).
+  deploy:
+    name: Deploy demo (Fly.io)
+    runs-on: ubuntu-latest
+    needs: [pilot, product, e2e]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    concurrency:
+      group: fly-deploy
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy (remote build)
+        run: flyctl deploy --remote-only --wait-timeout 300
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
