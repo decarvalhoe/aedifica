@@ -80,8 +80,101 @@ def submit_permit_piece(project, item_id: str, present: bool) -> None:
     project.permit_dossier = dossier  # reassign so SQLAlchemy flags the JSON column dirty
 
 
+# W21-4 — claim titles that touch what neighbors actually oppose (heights,
+# limits, shadows, parking, heritage…). Lowercase, accent-insensitive matching.
+NEIGHBOR_SENSITIVE = (
+    "hauteur", "gabarit", "distance", "limite", "ombr", "voisin", "vue",
+    "stationnement", "parking", "bruit", "patrimoine", "densit", "ius",
+    "ibus", "alignement", "implantation",
+)
+# Compliance domains a neighbor can weaponize at the enquête publique.
+NEIGHBOR_DOMAINS = {"neighbor", "shadow", "visibility", "alignment", "heritage"}
+
+
+def _fold(text: str) -> str:
+    import unicodedata
+
+    return "".join(c for c in unicodedata.normalize("NFD", (text or "").lower()) if unicodedata.category(c) != "Mn")
+
+
+def doc_basis(project) -> dict:
+    basis = {"canonical": 0, "indicative": 0, "refused": 0, "pending": 0}
+    for doc in project.documents:
+        basis[doc.validation_level] = basis.get(doc.validation_level, 0) + 1
+    return basis
+
+
+def opposition_points(project) -> list[dict]:
+    """Targeted, mechanical attention points — never an invented severity.
+
+    Each point is derived from something verifiable in the dossier (a claim in
+    conflict, an unsourced neighbor-sensitive claim, a neighbor-facing
+    compliance gate left open, the canonical coverage of the pieces) and
+    carries its basis. This is the Etienne redress of the generic score:
+    « au lieu de élevé/modéré, dire attention précisément à CE point ».
+    """
+    points: list[dict] = []
+    claims = list(project.claims)
+
+    for c in claims:
+        if c.state == "conflict":
+            points.append({
+                "kind": "conflit_avere",
+                "focus": f"Friction avérée · {c.title}",
+                "why": "Deux bases se contredisent sur ce point — un opposant l'exploitera tel quel à l'enquête.",
+                "action": c.next_action or "Arbitrer le conflit et tracer la décision (Mémoire).",
+                "basis": [{"kind": "claim", "ref": c.claim_id, "title": c.title, "state": c.state, "sources": c.source_refs or []}],
+            })
+    for c in claims:
+        if c.state in ("unknown", "assumption") and any(k in _fold(c.title) for k in NEIGHBOR_SENSITIVE):
+            points.append({
+                "kind": "base_non_sourcee",
+                "focus": f"Point sensible voisinage non sourcé · {c.title}",
+                "why": "Valeur non adossée à une source officielle sur un motif d'opposition classique — attaquable à l'enquête.",
+                "action": c.next_action or "Sourcer (règlement communal / RDPPF) puis valider la pièce en canonique.",
+                "basis": [{"kind": "claim", "ref": c.claim_id, "title": c.title, "state": c.state, "sources": c.source_refs or []}],
+            })
+
+    if project.compliance_inputs:
+        cv = compliance_view(project)
+        for gate in (cv.get("legal") or []) + (cv.get("contractual") or []):
+            if gate.get("status") == "action_required" and gate.get("domain") in NEIGHBOR_DOMAINS:
+                points.append({
+                    "kind": "conformite_voisinage",
+                    "focus": f"Gate voisinage ouvert · {gate.get('title')}",
+                    "why": "Exigence côté voisins non satisfaite — motif d'opposition recevable tant que le gate reste ouvert.",
+                    "action": gate.get("next_action") or "Lever le gate dans Conformité.",
+                    "basis": [{"kind": "compliance_gate", "ref": gate.get("domain"), "title": gate.get("title"), "binding_type": gate.get("binding_type")}],
+                })
+
+    basis = doc_basis(project)
+    if claims and basis["canonical"] == 0:
+        points.append({
+            "kind": "couverture_canonique",
+            "focus": "Aucune pièce canonique au dossier",
+            "why": "L'analyse repose uniquement sur des pièces non validées — fragile face à une opposition documentée.",
+            "action": "Valider les pièces de référence (canonique) dans Documents & sources.",
+            "basis": [{"kind": "documents", "ref": "validation_levels", "counts": basis}],
+        })
+    if basis["refused"] > 0:
+        points.append({
+            "kind": "piece_refusee",
+            "focus": f"{basis['refused']} pièce(s) refusée(s) encore au dossier",
+            "why": "Une pièce écartée par l'architecte maître reste référencée — source d'ambiguïté exploitable.",
+            "action": "Purger ou re-valider ces pièces (Documents & sources).",
+            "basis": [{"kind": "documents", "ref": "validation_levels", "counts": basis}],
+        })
+    return points
+
+
 def opposition_view(project) -> dict:
     import opposition_radar as radar  # noqa: E402
+
+    # W21-4 — the targeted layer is computed from the live dossier in BOTH
+    # branches: it exists (or honestly doesn't) independently of the legacy
+    # generic radar.
+    points = opposition_points(project)
+    basis = doc_basis(project)
 
     risks = project.brief_risks
     if not risks:
@@ -89,6 +182,8 @@ def opposition_view(project) -> dict:
             "overall": None, "score": None, "claims_prediction": False, "data_basis": "empty",
             "disclaimer": "Aucune analyse de parcelle pour ce projet — lancez une recherche d'adresse dans Terrain & zonage.",
             "signals": [],
+            "points": points,
+            "doc_basis": basis,
         }
     model = radar.evidence_model(risks)
     return {
@@ -109,6 +204,8 @@ def opposition_view(project) -> dict:
             }
             for s in risks.get("signals", [])
         ],
+        "points": points,
+        "doc_basis": basis,
     }
 
 

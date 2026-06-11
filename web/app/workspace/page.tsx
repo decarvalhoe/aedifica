@@ -659,7 +659,7 @@ export default function App() {
               {view === "documents" && <Documents docs={d.documents} summary={d.docSummary} intervenants={d.intervenants} token={token!} pid={active.project_id} onAdd={addDocument} onRefresh={refreshDocs} onValidate={validateDocument} onPatch={patchDocument} onDel={delDocument} onGrant={addGrant} onRevoke={revokeGrant} nomos={!!features?.nomos} />}
               {view === "brs" && <Brs data={d.brs} intervenants={d.intervenants} token={token!} pid={active.project_id} onAdd={addBrs} onPatch={patchBrs} onDel={delBrs} />}
               {view === "permis" && <Permis d={d.permit} onSubmit={submitPermit} tasks={d.tasks?.tasks || []} projectId={active.project_id} token={token!} onOpenAtelierPlanning={openAtelierPlanning} />}
-              {view === "opposition" && <Opposition d={d.opposition} canonicalDocs={(d.documents || []).filter((x: any) => x.validation_level === "canonical").length} />}
+              {view === "opposition" && <Opposition d={d.opposition} />}
               {view === "conformite" && <Conformite d={d.compliance} tasks={d.tasks?.tasks || []} projectId={active.project_id} token={token!} onOpenAtelierPlanning={openAtelierPlanning} />}
               {view === "copilote" && <Copilote token={token} pid={active.project_id} ledger={d.ledger} onChange={refreshLedger} nomos={!!features?.nomos} />}
               {view === "memoire" && <Memoire unknowns={d.unknowns} ledger={d.ledger} captures={d.captures} token={token!} pid={active.project_id} onAddCapture={addCapture} onDelCapture={delCapture} />}
@@ -1330,21 +1330,39 @@ function Permis({ d, onSubmit, tasks, projectId, token, onOpenAtelierPlanning }:
 }
 
 /* ===================== OPPOSITION ===================== */
-function Opposition({ d, canonicalDocs }: any) {
+// W21-4 — Etienne's redress of « toujours élevé »: targeted points derived
+// mechanically from the dossier (claims in conflict, unsourced neighbor-
+// sensitive claims, open neighbor-facing compliance gates, canonical coverage
+// of the pieces), each with its basis. The generic radar is demoted to an
+// appendix; no invented severity anywhere.
+const POINT_TRUST: Record<string, string> = {
+  conflit_avere: "conflict", base_non_sourcee: "assumption", conformite_voisinage: "action_required",
+  couverture_canonique: "unknown", piece_refusee: "assumption",
+};
+function Opposition({ d }: any) {
   if (!d) return <p className="spin">Chargement…</p>;
-  // W14.B — honest empty-state: explain WHAT this surface needs to populate,
-  // and which surface to go fill first.
-  if (!d.overall) return (<>
+  const points: any[] = d.points || [];
+  const basis = d.doc_basis || {};
+  const basisChips = (
+    <div className="row" style={{ gap: 6, flexWrap: "wrap", margin: "6px 0 12px" }}>
+      <span className="ds-ts is-sourced"><span className="dot" />Canonique · {basis.canonical ?? 0}</span>
+      <span className="ds-ts is-computed"><span className="dot" />Indicatif · {basis.indicative ?? 0}</span>
+      <span className="ds-ts is-conflict"><span className="dot" />Refusé · {basis.refused ?? 0}</span>
+      <span className="ds-ts is-unknown"><span className="dot" />En attente · {basis.pending ?? 0}</span>
+    </div>
+  );
+  // Honest empty-state: nothing targeted AND no parcel analysis yet.
+  if (!d.overall && points.length === 0) return (<>
     <div className="vh">
       <h2>Risque d&apos;opposition</h2>
       <p>
-        Évaluation des motifs d&apos;opposition les plus probables, basée sur les <b>faits sourcés du dossier</b> (contraintes parcelle + documents canoniques validés). À utiliser avant l&apos;enquête publique pour cibler ce qu&apos;il faut désamorcer.
+        Des <b>points ciblés à désamorcer</b>, dérivés des faits du dossier (contraintes parcelle, pièces validées, gates voisinage) — pas un score de flair. À utiliser avant l&apos;enquête publique.
       </p>
     </div>
     <div className="card" style={{ borderLeft: "3px solid var(--ts-assume)" }}>
-      <h3>Pas encore d&apos;évaluation</h3>
+      <h3>Pas encore de point d&apos;attention</h3>
       <p>
-        Pour qu&apos;une analyse de risque émerge, Aedifica a besoin de :
+        Pour que des points émergent, Aedifica a besoin de :
       </p>
       <ul style={{ margin: "4px 0 8px 18px", padding: 0 }}>
         <li>Une <b>parcelle analysée</b> dans <i>Terrain &amp; zonage</i> (contraintes sourcées de la commune)</li>
@@ -1356,12 +1374,39 @@ function Opposition({ d, canonicalDocs }: any) {
   </>);
   return (
     <>
-      <div className="vh"><h2>Risque d&apos;opposition</h2><p>Les motifs d&apos;opposition les plus probables, évalués <b>sur les faits du dossier</b> — pour cibler précisément ce qu&apos;il faut désamorcer avant l&apos;enquête.</p></div>
-      <div className="banner warn">Niveau global : <b style={{ textTransform: "capitalize" }}>{d.overall}</b> (score {d.score}). {d.disclaimer}</div>
-      <p className="note" style={{ marginBottom: 12 }}>Base d&apos;analyse : <b>{canonicalDocs ?? 0} document(s) canonique(s)</b> du dossier + données parcelle. <br />Scan des <b>décisions publiques communales + jurisprudence</b> de la zone : à brancher (sources publiques) — aucune donnée inventée.</p>
-      <div className="card">{d.signals?.map((s: any, i: number) => (
-        <div className="row-line" key={i}><span className={`lvl ${lvlClass(s.level)}`}>{s.level}</span><span className="grow"><span className="ttl">{fr(s.ground)} <small style={{ display: "inline", color: "var(--mut)" }}>· {fr(s.category)}</small></span><small style={{ fontFamily: "var(--font-ui)", color: "var(--ink-90)", fontSize: 13 }}>{s.basis}</small></span></div>
-      ))}</div>
+      <div className="vh"><h2>Risque d&apos;opposition</h2><p><b>Attention précisément à ces points</b> — chacun dérivé d&apos;un fait vérifiable du dossier, avec sa base et l&apos;action pour le désamorcer avant l&apos;enquête.</p></div>
+      <p className="note" style={{ margin: "0 0 4px" }}>Base documentaire du dossier :</p>
+      {basisChips}
+      {points.length === 0 ? (
+        <div className="banner ok" data-testid="opposition-rien">Aucun point d&apos;attention dérivé du dossier actuel — rien de contradictoire, rien de non-sourcé sur les motifs voisinage.</div>
+      ) : (
+        <div className="card" data-testid="opposition-points">
+          <h3 style={{ marginTop: 0 }}>À désamorcer · {points.length} point(s) ciblé(s)</h3>
+          {points.map((p: any, i: number) => (
+            <div className="claim" key={i}>
+              <Trust state={POINT_TRUST[p.kind] || "unknown"} />
+              <div>
+                <div className="ttl">{p.focus}</div>
+                <div className="val">{p.why}</div>
+                <small style={{ color: "var(--ink-90)" }}>→ {p.action}</small>
+                {(p.basis || []).map((b: any, j: number) => (
+                  <small key={j} className="mono" style={{ display: "block", color: "var(--mut)", fontSize: 11 }}>base : {b.kind} · {b.ref}{b.title ? ` · ${b.title}` : ""}</small>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <p className="note" style={{ margin: "10px 0" }}>Scan des <b>décisions publiques communales + jurisprudence</b> de la zone : à brancher (sources publiques) — aucune donnée inventée.</p>
+      {d.overall && (
+        <div className="card" style={{ marginTop: 4 }}>
+          <h3 style={{ marginTop: 0 }}>Annexe — radar générique <small style={{ color: "var(--mut)" }}>· niveau {d.overall} (score {d.score})</small></h3>
+          <p className="note" style={{ marginTop: 0 }}>{d.disclaimer}</p>
+          {d.signals?.map((s: any, i: number) => (
+            <div className="row-line" key={i}><span className={`lvl ${lvlClass(s.level)}`}>{s.level}</span><span className="grow"><span className="ttl">{fr(s.ground)} <small style={{ display: "inline", color: "var(--mut)" }}>· {fr(s.category)}</small></span><small style={{ fontFamily: "var(--font-ui)", color: "var(--ink-90)", fontSize: 13 }}>{s.basis}</small></span></div>
+          ))}
+        </div>
+      )}
     </>
   );
 }

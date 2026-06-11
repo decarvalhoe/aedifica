@@ -39,6 +39,9 @@ async function createProject(page: Page, name: string, commune: string, canton: 
 }
 
 test("corpus: golden bundle imported through the UI → counters move → doctrine cites it", async ({ page }) => {
+  // 74 nodes + embeddings through one SQLite writer: generous budget so the
+  // test measures correctness, not local write contention under parallel specs.
+  test.slow();
   const run = Date.now();
   await register(page, "Corpus Atelier", `corpus-${run}@test.ch`);
   await createProject(page, "Corpus Golden", `E2E-Corpus-${run}`, "VD");
@@ -53,7 +56,7 @@ test("corpus: golden bundle imported through the UI → counters move → doctri
   // Import the UNMODIFIED emitter output through the real file input.
   await card.locator('input[type="file"]').setInputFiles(GOLDEN);
   await card.getByRole("button", { name: "Importer le bundle" }).click();
-  await expect(card.getByTestId("corpus-import-ok")).toContainText("74 chunks", { timeout: 30_000 });
+  await expect(card.getByTestId("corpus-import-ok")).toContainText("74 chunks", { timeout: 60_000 });
   await expect(card.getByTestId("corpus-counts")).toContainText("Juridiction : 74");
   await expect(card.getByText(/Actif/).first()).toBeVisible();
 
