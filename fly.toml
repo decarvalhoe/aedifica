@@ -20,6 +20,9 @@ kill_timeout = "5s"
   AEDIFICA_CORS_ORIGINS = "*"
   PORT = "3000"
   NODE_ENV = "production"
+  # W21-0 — the demo opts IN to the NOMOS knowledge layer (doctrine Q&A + bundle
+  # import). Code default stays false (doctrine: flag OFF, OFS-direct safe default).
+  AEDIFICA_NOMOS_ENABLED = "true"
 
 [[mounts]]
   source = "aedifica_data"
