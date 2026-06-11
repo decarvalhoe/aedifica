@@ -601,6 +601,37 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         session.commit()
         return {"project": repository.project_summary(session, p)}
 
+    # W23-5b — withdraw a project SCAFFOLD (created by mistake, e.g. under a
+    # wrong canton before the register guard existed). Mirrors the w22-2b
+    # seed-pack rule: scaffolds are disposable, work is immutable. Any user
+    # substance refuses the withdrawal and NAMES what it found. A seeded but
+    # untouched checklist (every item still 'todo') is template, not work.
+    @app.delete("/api/projects/{project_id}")
+    def withdraw_project(project_id: str, user: m.User = Depends(current_user), session: Session = Depends(get_session)):
+        require(user, "project.write")
+        p = _project(session, user, project_id)
+        substance = [label for label, rows in (
+            ("documents", p.documents), ("sources", p.sources), ("preuves", p.evidence),
+            ("claims", p.claims), ("connaissances", p.knowledge_chunks), ("rapports", p.reports),
+            ("journal", p.ledger_entries), ("BRS", p.brs_entries), ("tâches", p.tasks),
+            ("captures", p.captures), ("intervenants", p.intervenants),
+            ("groupes", p.intervenant_groups), ("routes réglementaires", p.routes),
+        ) if rows]
+        # Work also lives in JSON columns on the project row itself (permit
+        # submissions, compliance/cost/site inputs — see reports.py).
+        substance += [label for label, blob in (
+            ("dossier permis", p.permit_dossier), ("intrants conformité", p.compliance_inputs),
+            ("intrants coûts", p.cost_inputs), ("intrants chantier", p.site_inputs),
+        ) if blob]
+        if any(c.status != "todo" for c in p.checklist_items):
+            substance.append("checklist travaillée")
+        if substance:
+            raise _err(409, "PROJECT_NOT_SCAFFOLD",
+                       f"le projet porte du travail ({', '.join(substance)}) — seul un squelette vide est retirable")
+        session.delete(p)  # delete-orphan cascade takes the template checklist with it
+        session.commit()
+        return {"withdrawn": project_id}
+
     # ---- W9 operating layer: intervenants, documents, access ---------------- #
     def _interv_dict(i: m.Intervenant) -> dict:
         return {"id": i.id, "name": i.name, "role": i.role, "organization": i.organization, "email": i.email,

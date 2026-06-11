@@ -25,13 +25,14 @@ type AuditEv = {
   target: string; timestamp: string | null; project_id: number | null;
 };
 
-export function Settings({ token, projectId, projectName, projectLlmMode, onTokenRotated, onLlmModeChanged }: {
+export function Settings({ token, projectId, projectName, projectLlmMode, onTokenRotated, onLlmModeChanged, onProjectWithdrawn }: {
   token: string;
   projectId: string | null;
   projectName: string | null;
   projectLlmMode: string | null;
   onTokenRotated?: (newToken: string) => void;
   onLlmModeChanged?: (mode: string) => void;
+  onProjectWithdrawn?: () => void;
 }) {
   // --- Token rotation -----------------------------------------------------
   const [rotating, setRotating] = useState(false);
@@ -86,6 +87,26 @@ export function Settings({ token, projectId, projectName, projectLlmMode, onToke
       await loadBenches();
     } catch (e: any) { setBenchErr(e?.message || "Échec"); }
     finally { setBenchBusy(false); }
+  }
+
+  // --- W23-5b: project-scaffold withdrawal ---------------------------------
+  // Mirror of the seed-pack withdrawal (Communes): a project created by
+  // mistake is removable ONLY while it is an empty scaffold — the backend
+  // refuses (409 PROJECT_NOT_SCAFFOLD) the moment it carries work, naming
+  // what it found. Two-step confirm, no silent destruction.
+  const [wdArmed, setWdArmed] = useState(false);
+  const [wdBusy, setWdBusy] = useState(false);
+  const [wdErr, setWdErr] = useState<string | null>(null);
+  useEffect(() => { setWdArmed(false); setWdErr(null); }, [projectId]);
+  async function withdrawProject() {
+    if (!projectId) return;
+    setWdBusy(true); setWdErr(null);
+    try {
+      await api(`/projects/${projectId}`, { method: "DELETE", token });
+      setWdArmed(false);
+      onProjectWithdrawn?.();
+    } catch (e: any) { setWdErr(e?.message || "Échec"); }
+    finally { setWdBusy(false); }
   }
 
   // --- Audit log ----------------------------------------------------------
@@ -432,6 +453,33 @@ export function Settings({ token, projectId, projectName, projectLlmMode, onToke
             )}
           </>
         )}
+      </div>
+
+      {/* --- W23-5b: retrait d'un squelette de projet ---------------------- */}
+      <div className="card" style={{ marginTop: 14 }}>
+        <div className="row" style={{ alignItems: "baseline" }}>
+          <h3 style={{ margin: 0 }}>Retirer ce projet</h3>
+          {projectName && <small style={{ color: "var(--mut)", marginLeft: 8 }}>· projet : <b>{projectName}</b></small>}
+        </div>
+        <p style={{ marginTop: 4, color: "var(--mut)" }}>
+          Un projet créé par erreur (mauvaise commune, doublon d&apos;essai) se retire <b>tant qu&apos;il est un squelette vide</b> — checklist semée non travaillée incluse. Dès qu&apos;il porte du travail (documents, intervenants, tâches, dossier permis…), le retrait est refusé en nommant ce qui a été trouvé : rien ne se détruit en silence.
+        </p>
+        {!projectId ? (
+          <small className="spin" style={{ display: "block", marginTop: 6 }}>Ouvrez un projet via le sélecteur pour le retirer.</small>
+        ) : !wdArmed ? (
+          <div className="row" style={{ gap: 8, alignItems: "center", marginTop: 8 }}>
+            <button className="ds-btn" disabled={wdBusy} onClick={() => setWdArmed(true)}>Retirer « {projectName || projectId} »…</button>
+          </div>
+        ) : (
+          <div className="banner" style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ flex: 1 }}>
+              <b>Confirmer le retrait de « {projectName || projectId} » ?</b> L&apos;identifiant redevient libre, aucune trace ne reste.
+            </span>
+            <button className="toggle on" disabled={wdBusy} onClick={withdrawProject}>{wdBusy ? "…" : "Retirer définitivement"}</button>
+            <button className="toggle" disabled={wdBusy} onClick={() => { setWdArmed(false); setWdErr(null); }}>Annuler</button>
+          </div>
+        )}
+        {wdErr && <small style={{ color: "var(--ts-conflict)", display: "block", marginTop: 6 }}>{wdErr}</small>}
       </div>
     </>
   );
