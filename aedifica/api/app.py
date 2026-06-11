@@ -1420,6 +1420,10 @@ def create_app(engine=None, create_all: bool = False, settings=None) -> FastAPI:
         external_todo = sum(1 for c in items if c.actor in _siacl.EXTERNAL_ACTORS and c.status == "todo")
         return {"items": [_ci_dict(c, names) for c in items],
                 "actors": _siacl.ACTOR_LABEL,
+                # W21-5 — feuille SIA Vaud: which actors carry deliverables in
+                # each sub-phase (derived from the template, surfaced on the
+                # dashboard as « intervenants par phase »).
+                "sia_actors_by_phase": _siacl.actors_by_phase(),
                 "summary": {"total": len(items), "seeded": len(items) > 0,
                             "retroactive": sum(1 for c in items if c.is_retroactive),
                             "by_status": by_status, "by_actor": by_actor,

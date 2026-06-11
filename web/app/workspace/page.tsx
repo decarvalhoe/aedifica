@@ -358,7 +358,7 @@ export default function App() {
   }
   function signOut() { localStorage.removeItem("aedifica_token"); setToken(null); setProjects(null); setActive(null); setD({}); setFlashKey(null); setFlash(null); setUsers(null); setExt(null); }
 
-  async function createProject(name: string, commune: string, canton: string | null) {
+  async function createProject(name: string, commune: string, canton: string | null, entryPhase?: string) {
     const id = (name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40)) || `PROJ-${(projects?.length ?? 0) + 1}`;
     setBusy(true); setErr("");
     try {
@@ -367,6 +367,14 @@ export default function App() {
       const body: any = { project_id: id, name, commune };
       if (canton) body.canton = canton;
       await api("/projects", { method: "POST", token: token!, body });
+      // W21-5 — « un projet doit pouvoir être rejoint à n'importe quelle
+      // phase » (séance Etienne §C/§D): an entry phase picked at creation
+      // sets the SIA phase AND seeds the parametric checklist, with the
+      // earlier phases flagged retroactive. No phase picked = à cadrer.
+      if (entryPhase) {
+        await api(`/projects/${id}`, { method: "PATCH", token: token!, body: { phase_code: entryPhase } });
+        await api(`/projects/${id}/checklist/seed`, { method: "POST", token: token!, body: { entry_phase: entryPhase } });
+      }
       const sums = await loadProjects(token!); const p = sums.find((s) => s.project_id === id); if (p) await openProject(p);
     }
     catch (e: any) { setErr(e.message?.includes("exists") ? "Un projet porte déjà ce nom." : e.message); } finally { setBusy(false); }
@@ -438,7 +446,9 @@ export default function App() {
   async function delBrs(id: number) { await api2(`/brs/${id}`, undefined, "DELETE"); await refreshBrs(); }
   async function addGrant(docId: number, b: any) { await api2(`/documents/${docId}/grants`, b); await refreshDocs(); }
   async function revokeGrant(docId: number, gid: number) { await api2(`/documents/${docId}/grants/${gid}`, undefined, "DELETE"); await refreshDocs(); }
-  async function addGroup(name: string, kind: string) { await api2("/intervenant-groups", { name, kind }); await refreshInterv(); }
+  // W21-5 — groupes ⊃ sous-groupes (séance Etienne §A): parent_id was already
+  // in the model/API, the UI now drives it.
+  async function addGroup(name: string, kind: string, parent_id?: number | null) { await api2("/intervenant-groups", { name, kind, parent_id: parent_id ?? null }); await refreshInterv(); }
   async function delGroup(id: number) { await api2(`/intervenant-groups/${id}`, undefined, "DELETE"); await refreshInterv(); }
   async function addIntervenant(b: any) { await api2("/intervenants", b); await refreshInterv(); }
   async function patchIntervenant(id: number, b: any) { await api2(`/intervenants/${id}`, b, "PATCH"); await refreshInterv(); }
@@ -951,7 +961,7 @@ function useFreshness(country: string = "CH") {
 function ProjectSwitcher({ active, projects, onOpen, onCreate, busy }: {
   active: Project | null; projects: Project[] | null;
   onOpen: (p: Project) => void;
-  onCreate: (name: string, commune: string, canton: string | null) => Promise<void> | void;
+  onCreate: (name: string, commune: string, canton: string | null, entryPhase?: string) => Promise<void> | void;
   busy: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -959,6 +969,8 @@ function ProjectSwitcher({ active, projects, onOpen, onCreate, busy }: {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const [commune, setCommune] = useState("");
+  // W21-5 — entry phase (séance Etienne §C): empty = « à cadrer ».
+  const [entryPhase, setEntryPhase] = useState("");
   // W17 — user-selected canton (null until resolver returns "exact" or the
   // user picks one explicitly).
   const [canton, setCanton] = useState<string | null>(null);
@@ -995,8 +1007,8 @@ function ProjectSwitcher({ active, projects, onOpen, onCreate, busy }: {
   const canCreate = !!name.trim() && !!commune.trim() && cantonReady && !busy;
   const create = async () => {
     if (!canCreate) return;
-    await onCreate(name, commune, canton);
-    setCreating(false); setName(""); setCommune(""); setCanton(null); setOpen(false);
+    await onCreate(name, commune, canton, entryPhase || undefined);
+    setCreating(false); setName(""); setCommune(""); setCanton(null); setEntryPhase(""); setOpen(false);
   };
   return (
     <div className="psw-wrap" ref={ref}>
@@ -1086,9 +1098,24 @@ function ProjectSwitcher({ active, projects, onOpen, onCreate, busy }: {
                   )}
                 </div>
               )}
+              {/* W21-5 — « rejoint à n'importe quelle phase » : la phase
+                  d'entrée seed la checklist SIA (phases antérieures en
+                  rétroactif). Vide = projet à cadrer, rien n'est seedé. */}
+              <label className="lbl" style={{ marginTop: 2 }}>Le projet démarre en…</label>
+              <select className="fld psw-phase" value={entryPhase} onChange={(e) => setEntryPhase(e.target.value)}>
+                <option value="">Phase à cadrer (par défaut)</option>
+                {PHASES.map(([code]) => (
+                  <option key={code} value={code}>Phase {code} · {PHASE_LABEL_FR[code]}</option>
+                ))}
+              </select>
+              {entryPhase && (
+                <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--mut)", marginTop: -6, marginBottom: 6 }}>
+                  La checklist SIA sera préparée — steps des phases antérieures marqués <b>rétroactifs</b>.
+                </div>
+              )}
               <div className="row" style={{ gap: 6 }}>
                 <button className="ds-btn" disabled={!canCreate} onClick={create}>{busy ? "…" : "Créer"}</button>
-                <button className="ds-btn ghost" onClick={() => { setCreating(false); setName(""); setCommune(""); setCanton(null); }}>Annuler</button>
+                <button className="ds-btn ghost" onClick={() => { setCreating(false); setName(""); setCommune(""); setCanton(null); setEntryPhase(""); }}>Annuler</button>
               </div>
             </div>
           )}
@@ -1149,6 +1176,27 @@ function Dashboard({ d, project, go, alerts, onOpenAtelierPlanning }: { d: any; 
           <b>À valider</b>
           {d.toValidate.counts.documents > 0 && <button className="toggle" onClick={() => go("documents")}>{d.toValidate.counts.documents} document(s)</button>}
           {d.toValidate.counts.checklist_todo > 0 && <button className="toggle" onClick={() => go("checklist")}>{d.toValidate.counts.checklist_todo} step(s) à faire{d.toValidate.counts.checklist_retroactive_todo > 0 ? ` · ${d.toValidate.counts.checklist_retroactive_todo} rétroactif` : ""}</button>}
+        </div>
+      )}
+      {/* W21-5 — feuille SIA Vaud: les acteurs attendus dans la phase courante
+          (dérivés du gabarit de checklist, jamais déclarés à part) + l'état du
+          registre réel du projet. */}
+      {!isPhaseUnset(project.phase_code) && (d.checklist?.sia_actors_by_phase?.[norm(project.phase_code)] || []).length > 0 && (
+        <div className="card" style={{ marginBottom: 14 }} data-testid="intervenants-par-phase">
+          <div className="row" style={{ alignItems: "baseline" }}>
+            <h3 style={{ margin: 0 }}>Intervenants de la phase {norm(project.phase_code)}</h3>
+            <small style={{ color: "var(--mut)", marginLeft: 8 }}>acteurs avec livrables dans cette phase, selon la feuille SIA</small>
+            <span className="grow" />
+            <button className="toggle" onClick={() => go("intervenants")}>Registre →</button>
+          </div>
+          <div className="row" style={{ gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+            {(d.checklist.sia_actors_by_phase[norm(project.phase_code)] || []).map((a: string) => (
+              <span key={a} className={`ds-ts ${ACTOR_CHIP[a] || "is-unknown"}`}><span className="dot" />{ACTOR_FR[a] || a}</span>
+            ))}
+          </div>
+          <small style={{ color: "var(--mut)", display: "block", marginTop: 6 }}>
+            Votre registre : {(d.intervenants?.groups || []).length} groupe(s) · {(d.intervenants?.people || []).length} personne(s) saisis sur ce projet.
+          </small>
         </div>
       )}
       <div className="next">
@@ -1923,6 +1971,9 @@ function Memoire({ unknowns, ledger, captures, token, pid, onAddCapture, onDelCa
 const GROUP_KINDS: Record<string, string> = { company: "Entreprise", discipline: "Discipline", group: "Groupe" };
 function Intervenants({ data, token, projectId, onAddGroup, onDelGroup, onAdd, onDel, onInvite }: any) {
   const [gName, setGName] = useState(""); const [gKind, setGKind] = useState("discipline"); const [showG, setShowG] = useState(false);
+  // W21-5 — sous-groupes (séance Etienne §A: « groupe ingénieur » → civil /
+  // électrique): a new group can hang under a top-level parent.
+  const [gParent, setGParent] = useState("");
   const [f, setF] = useState<any>({ name: "", role: "", organization: "", email: "", phone: "", is_responsible: false, group_id: "" });
   const [busy, setBusy] = useState(false);
   const [inviting, setInviting] = useState<number | null>(null);
@@ -1955,8 +2006,12 @@ function Intervenants({ data, token, projectId, onAddGroup, onDelGroup, onAdd, o
   if (!data) return <p className="spin">Chargement…</p>;
   const groups: any[] = data.groups || []; const people: any[] = data.people || [];
   const inGroup = (gid: number | null) => people.filter((p) => (p.group_id ?? null) === gid);
+  // W21-5 — arborescence: top-level groups carry their sub-groups.
+  const tops = groups.filter((g) => !g.parent_id);
+  const subsOf = (gid: number) => groups.filter((g) => g.parent_id === gid);
+  const groupLabel = (g: any) => { const parent = g.parent_id ? groups.find((x) => x.id === g.parent_id) : null; return parent ? `${parent.name} · ${g.name}` : g.name; };
   const submit = async () => { if (!f.name.trim()) return; setBusy(true); try { await onAdd({ ...f, group_id: f.group_id ? Number(f.group_id) : null }); setF({ name: "", role: "", organization: "", email: "", phone: "", is_responsible: false, group_id: f.group_id }); } catch { } finally { setBusy(false); } };
-  const addG = async () => { if (!gName.trim()) return; await onAddGroup(gName, gKind); setGName(""); setShowG(false); };
+  const addG = async () => { if (!gName.trim()) return; await onAddGroup(gName, gKind, gParent ? Number(gParent) : null); setGName(""); setGParent(""); setShowG(false); };
   const invite = async (p: any) => {
     if (!onInvite) return; const em = inviteEmail.trim() || p.email; if (!em) return;
     try { const r = await onInvite(p.id, em, p.name); setIssued({ id: p.id, email: em, token: r.invite_token }); setInviting(null); setInviteEmail(""); } catch { }
@@ -2030,7 +2085,7 @@ function Intervenants({ data, token, projectId, onAddGroup, onDelGroup, onAdd, o
           <input className="fld" placeholder="Organisation" value={f.organization} onChange={(e) => setF({ ...f, organization: e.target.value })} />
           <input className="fld" placeholder="E-mail" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
           <input className="fld" placeholder="Téléphone" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
-          <select className="fld" value={f.group_id} onChange={(e) => setF({ ...f, group_id: e.target.value })}><option value="">— sans groupe —</option>{groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select>
+          <select className="fld" value={f.group_id} onChange={(e) => setF({ ...f, group_id: e.target.value })}><option value="">— sans groupe —</option>{groups.map((g) => <option key={g.id} value={g.id}>{groupLabel(g)}</option>)}</select>
         </div>
         <div className="actbar">
           <label className="mono" style={{ display: "flex", alignItems: "center", gap: 7 }}><input type="checkbox" checked={f.is_responsible} onChange={(e) => setF({ ...f, is_responsible: e.target.checked })} /> Responsable / de référence</label>
@@ -2042,14 +2097,26 @@ function Intervenants({ data, token, projectId, onAddGroup, onDelGroup, onAdd, o
           <div className="actbar" style={{ margin: 0, width: "100%" }}>
             <input className="fld" style={{ margin: 0, flex: 1 }} placeholder="Nom du groupe (ex. Ingénieurs)" value={gName} onChange={(e) => setGName(e.target.value)} />
             <select className="fld" style={{ margin: 0, width: "auto" }} value={gKind} onChange={(e) => setGKind(e.target.value)}>{Object.entries(GROUP_KINDS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
-            <button className="ds-btn" onClick={addG} disabled={!gName}>Créer</button><button className="ds-btn ghost" onClick={() => setShowG(false)}>Annuler</button>
+            <select className="fld" style={{ margin: 0, width: "auto" }} value={gParent} onChange={(e) => setGParent(e.target.value)} title="Sous-groupe de…">
+              <option value="">— groupe racine —</option>
+              {tops.map((g) => <option key={g.id} value={g.id}>Sous-groupe de · {g.name}</option>)}
+            </select>
+            <button className="ds-btn" onClick={addG} disabled={!gName}>Créer</button><button className="ds-btn ghost" onClick={() => { setShowG(false); setGParent(""); }}>Annuler</button>
           </div>
         ) : <button className="toggle" onClick={() => setShowG(true)}>+ Nouveau groupe</button>}
       </div>
-      {groups.map((g) => (
-        <div className="card" key={g.id} style={{ marginBottom: 12 }}>
+      {tops.map((g) => (
+        <div className="card" key={g.id} style={{ marginBottom: 12 }} data-testid={`groupe-${g.id}`}>
           <h3 style={{ display: "flex", alignItems: "center" }}>{g.name} <span className="chip" style={{ marginLeft: 8 }}>{GROUP_KINDS[g.kind] || g.kind}</span><button className="signout" style={{ marginLeft: "auto", padding: 0 }} onClick={() => onDelGroup(g.id)}>Supprimer le groupe</button></h3>
-          {inGroup(g.id).length ? inGroup(g.id).map((p: any) => <Person key={p.id} p={p} />) : <p className="spin">Aucun membre.</p>}
+          {inGroup(g.id).length ? inGroup(g.id).map((p: any) => <Person key={p.id} p={p} />) : subsOf(g.id).length === 0 ? <p className="spin">Aucun membre.</p> : null}
+          {/* W21-5 — sous-groupes indentés sous leur parent (base commune en
+              haut, spécifique par sous-groupe en dessous — séance §A). */}
+          {subsOf(g.id).map((sg) => (
+            <div key={sg.id} style={{ marginLeft: 16, marginTop: 8, paddingLeft: 12, borderLeft: "2px solid var(--line-2)" }}>
+              <h4 style={{ display: "flex", alignItems: "center", margin: "0 0 4px", fontSize: 13 }}>↳ {sg.name} <span className="chip" style={{ marginLeft: 8 }}>{GROUP_KINDS[sg.kind] || sg.kind}</span><button className="signout" style={{ marginLeft: "auto", padding: 0 }} onClick={() => onDelGroup(sg.id)}>Supprimer</button></h4>
+              {inGroup(sg.id).length ? inGroup(sg.id).map((p: any) => <Person key={p.id} p={p} />) : <p className="spin" style={{ margin: "2px 0" }}>Aucun membre.</p>}
+            </div>
+          ))}
         </div>
       ))}
       <div className="card"><h3>Sans groupe</h3>{inGroup(null).length ? inGroup(null).map((p: any) => <Person key={p.id} p={p} />) : <p className="spin">Tous les intervenants sont rattachés à un groupe.</p>}</div>

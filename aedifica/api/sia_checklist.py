@@ -106,6 +106,20 @@ TEMPLATE: list[tuple[str, str, str]] = [
 ]
 
 
+def actors_by_phase() -> dict[str, list[str]]:
+    """W21-5 — SIA-expected actors with deliverables, per sub-phase.
+
+    Derived from TEMPLATE (the feuille SIA Vaud source), never declared
+    separately — so the dashboard's « intervenants par phase » can't drift
+    from the checklist it summarizes.
+    """
+    out: dict[str, list[str]] = {ph: [] for ph in PHASE_ORDER}
+    for phase, actor, _title in TEMPLATE:
+        if actor not in out[phase]:
+            out[phase].append(actor)
+    return out
+
+
 def _rank(phase_code: str) -> int:
     try:
         return PHASE_ORDER.index(phase_code)
