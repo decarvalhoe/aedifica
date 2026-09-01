@@ -30,7 +30,7 @@ async function createProject(page: Page, name: string, commune: string) {
 }
 
 // End-to-end smoke: register, create a project, ride the action loop,
-// preview → approval → apply with the safety gate.
+// preview → approval → simulated execution with the safety gate.
 test("auth → project → action loop", async ({ page }) => {
   await register(page, "E2E Atelier", "e2e@test.ch");
   await createProject(page, "E2E Projet", "Lausanne");
@@ -44,9 +44,9 @@ test("auth → project → action loop", async ({ page }) => {
   await page.getByRole("button", { name: "Demander un aperçu" }).click();
   await expect(page.getByText(/Aperçu prêt/)).toBeVisible();
 
-  await page.getByRole("button", { name: "Valider l'exécution" }).click();
-  await expect(page.getByText(/Exécution validée/).first()).toBeVisible();
+  await page.getByRole("button", { name: "Valider la simulation" }).click();
+  await expect(page.getByText(/Simulation validée/).first()).toBeVisible();
 
-  await page.getByRole("button", { name: "Appliquer à la maquette" }).click();
-  await expect(page.getByText(/Modification appliquée et inscrite/)).toBeVisible();
+  await page.getByRole("button", { name: "Simuler l'exécution" }).click();
+  await expect(page.getByText(/Exécution simulée et inscrite/)).toBeVisible();
 });

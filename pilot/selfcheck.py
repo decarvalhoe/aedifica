@@ -696,8 +696,8 @@ class DemoArchicadHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         length = int(self.headers.get("Content-Length", "0"))
         payload = json.loads(self.rfile.read(length).decode("utf-8") or "{}")
-        if payload.get("command") == "GetProductInfo":
-            response = {"result": {"productInfo": {"name": "Archicad", "version": "DEMO", "buildNumber": "1"}}}
+        if payload.get("command") == "API.GetProductInfo":
+            response = {"succeeded": True, "result": {"version": "DEMO", "buildNumber": "1", "languageCode": "FRA"}}
         else:
             response = {
                 "result": {
@@ -808,6 +808,7 @@ finally:
     _replay.shutdown()
     _replay.server_close()
 check("replay server drives a live harness run without mutation", _harness_live["ok"] and _harness_live["mode"] == "live" and _harness_live["mutated"] is False)
+check("live harness transcript contains a redacted before/after diff", _harness_live["diff"]["before"] is None and _harness_live["diff"]["after"] == redaction.REDACTED)
 check("harness runs offline in fixture mode", archicad_harness.run_harness(None)["mode"] == "fixture")
 _harness_unavail = archicad_harness.run_harness("http://127.0.0.1:1", timeout=0.3, fixture_fallback=False)
 check("harness gives an actionable message for an unavailable endpoint", (not _harness_unavail["ok"]) and "unavailable" in _harness_unavail["mode"])

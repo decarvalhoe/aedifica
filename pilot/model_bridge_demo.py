@@ -47,17 +47,26 @@ def _post_json(endpoint, payload, timeout=2.0):
         return json.loads(response.read().decode("utf-8"))
 
 
+def _post_command(endpoint, command, parameters=None, timeout=2.0):
+    payload = {"command": command}
+    if parameters is not None:
+        payload["parameters"] = parameters
+    data = _post_json(endpoint, payload, timeout=timeout)
+    if not isinstance(data, dict):
+        raise ValueError(f"{command} returned a non-object response")
+    if data.get("succeeded") is False:
+        raise ValueError(f"{command} failed: {data.get('error') or data}")
+    result = data.get("result", data.get("Result", data.get("response", data)))
+    if not isinstance(result, dict):
+        raise ValueError(f"{command} returned an invalid result")
+    return result
+
+
 def _first_dict(*candidates):
     for candidate in candidates:
         if isinstance(candidate, dict):
             return candidate
     return {}
-
-
-def _extract_result(data):
-    if not isinstance(data, dict):
-        return {}
-    return _first_dict(data.get("result"), data.get("Result"), data.get("response"), data)
 
 
 def select_adapter(adapter_id="archicad_json"):
@@ -101,8 +110,8 @@ def live_product_info(endpoint, timeout=2.0):
     """
     checked_at = datetime.now(timezone.utc).isoformat()
     try:
-        data = _post_json(endpoint, {"command": "GetProductInfo"}, timeout=timeout)
-    except (OSError, urllib.error.URLError, json.JSONDecodeError) as exc:
+        result = _post_command(endpoint, "API.GetProductInfo", timeout=timeout)
+    except (OSError, urllib.error.URLError, json.JSONDecodeError, ValueError) as exc:
         return {
             "adapter_id": "archicad_json",
             "running": False,
@@ -111,17 +120,18 @@ def live_product_info(endpoint, timeout=2.0):
             "product_info": None,
             "error": str(exc),
         }
-    result = _extract_result(data)
     product_info = _first_dict(result.get("productInfo"), result.get("product_info"), result)
+    official_response = "version" in result and "buildNumber" in result
     return {
         "adapter_id": "archicad_json",
         "running": bool(product_info),
         "endpoint": endpoint,
         "checked_at": checked_at,
         "product_info": {
-            "name": product_info.get("name") or product_info.get("product") or product_info.get("Product"),
+            "name": product_info.get("name") or product_info.get("product") or product_info.get("Product") or ("Archicad" if official_response else None),
             "version": product_info.get("version") or product_info.get("Version"),
             "build": product_info.get("build") or product_info.get("buildNumber") or product_info.get("Build"),
+            "language": product_info.get("language") or product_info.get("languageCode"),
             "raw": product_info,
         },
         "error": None,
@@ -138,7 +148,14 @@ def inspect_selected_elements(snapshot_path=SELECTION_FIXTURE):
                 "element_id": item["element_id"],
                 "type": item["type"],
                 "classification": item["classification"],
+                "classifications": [{"id": item["classification"]}],
+                "classifications_available": True,
                 "properties": item.get("properties", {}),
+                "properties_available": True,
+                "property_states": {
+                    name: {"status": "normal" if value is not None else "userUndefined", "value": value}
+                    for name, value in item.get("properties", {}).items()
+                },
             }
             for item in snapshot.get("selected_elements", [])
         ],
@@ -150,39 +167,277 @@ def _normalize_live_element(item):
     if isinstance(element_id, dict):
         element_id = element_id.get("guid") or element_id.get("id") or element_id.get("value")
     classification = item.get("classification") or item.get("type") or item.get("elementType")
+    properties_available = "properties" in item or "propertyValues" in item
     properties = item.get("properties") or item.get("propertyValues") or {}
     return {
         "element_id": str(element_id),
         "type": item.get("type") or item.get("elementType") or classification,
         "classification": item.get("classification") or classification,
+        "classifications": item.get("classifications") or [],
+        "classifications_available": bool(item.get("classification") or classification),
         "properties": properties if isinstance(properties, dict) else {},
+        "properties_available": properties_available,
+        "property_states": item.get("property_states") or {},
     }
 
 
-def live_selected_elements(endpoint, timeout=2.0):
+def _element_guid(item):
+    element_id = item.get("elementId") or item.get("element_id") or item.get("id")
+    if isinstance(element_id, dict):
+        return element_id.get("guid") or element_id.get("id") or element_id.get("value")
+    return element_id
+
+
+def _property_name(item):
+    localized = item.get("localizedName")
+    if isinstance(localized, list) and localized:
+        return localized[-1]
+    return item.get("nonLocalizedName") or item.get("name")
+
+
+def _property_state(item):
+    if not isinstance(item, dict):
+        return {"status": "missing_response", "value": None}
+    if isinstance(item.get("error"), dict):
+        return {"status": "error", "value": None, "error": item["error"].get("message")}
+    value = item.get("propertyValue")
+    if not isinstance(value, dict):
+        return {"status": "missing_response", "value": None}
+    status = value.get("status") or "missing_status"
+    return {"status": status, "value": value.get("value") if status == "normal" else None}
+
+
+def _guid(value):
+    if not isinstance(value, dict):
+        return None
+    return value.get("guid") or value.get("id") or value.get("value")
+
+
+def _classification_data(endpoint, elements, timeout):
+    systems_result = _post_command(endpoint, "API.GetAllClassificationSystems", timeout=timeout)
+    systems = systems_result.get("classificationSystems") or []
+    system_refs = [
+        {"classificationSystemId": item["classificationSystemId"]}
+        for item in systems
+        if isinstance(item, dict) and isinstance(item.get("classificationSystemId"), dict)
+    ]
+    if not system_refs:
+        return [{} for _ in elements], {}, "no classification system is available"
+
+    classifications_result = _post_command(
+        endpoint,
+        "API.GetClassificationsOfElements",
+        {"elements": elements, "classificationSystemIds": system_refs},
+        timeout=timeout,
+    )
+    rows = classifications_result.get("elementClassifications") or []
+    item_refs = []
+    seen_item_ids = set()
+    for row in rows:
+        for value in row.get("classificationIds", []) if isinstance(row, dict) else []:
+            classification_id = value.get("classificationId") if isinstance(value, dict) else None
+            item_id = classification_id.get("classificationItemId") if isinstance(classification_id, dict) else None
+            guid = _guid(item_id)
+            if guid and guid not in seen_item_ids:
+                seen_item_ids.add(guid)
+                item_refs.append({"classificationItemId": item_id})
+
+    details_by_id = {}
+    if item_refs:
+        details_result = _post_command(
+            endpoint,
+            "API.GetDetailsOfClassificationItems",
+            {"classificationItemIds": item_refs},
+            timeout=timeout,
+        )
+        for row in details_result.get("classificationItems") or []:
+            detail = row.get("classificationItem") if isinstance(row, dict) else None
+            item_id = detail.get("classificationItemId") if isinstance(detail, dict) else None
+            guid = _guid(item_id)
+            if guid:
+                details_by_id[guid] = detail
+
+    systems_by_id = {
+        _guid(item.get("classificationSystemId")): item
+        for item in systems
+        if isinstance(item, dict) and _guid(item.get("classificationSystemId"))
+    }
+    return rows, {"details": details_by_id, "systems": systems_by_id}, None
+
+
+def live_selected_elements(endpoint, timeout=2.0, required_properties=None):
+    required_properties = tuple(
+        dict.fromkeys((*REQUIRED_SPACE_PROPERTIES, *(required_properties or ())))
+    )
     try:
-        data = _post_json(endpoint, {"command": "GetSelectedElements"}, timeout=timeout)
-    except (OSError, urllib.error.URLError, json.JSONDecodeError) as exc:
+        result = _post_command(endpoint, "API.GetSelectedElements", {}, timeout=timeout)
+    except (OSError, urllib.error.URLError, json.JSONDecodeError, ValueError) as exc:
         return {
             "source_model_version": None,
             "source_model_ref": endpoint,
             "selected_elements": [],
             "error": str(exc),
         }
-    result = _extract_result(data)
-    selected = (
-        result.get("selected_elements")
-        or result.get("selectedElements")
-        or result.get("elements")
-        or result.get("selection")
-        or []
-    )
+    enriched = result.get("selected_elements") or result.get("selectedElements") or result.get("selection")
+    if isinstance(enriched, list):
+        return {
+            "source_model_version": result.get("source_model_version") or result.get("model_version") or result.get("modelVersion"),
+            "source_model_ref": result.get("source_model_ref") or result.get("sourceModelRef") or endpoint,
+            "selected_elements": [_normalize_live_element(item) for item in enriched if isinstance(item, dict)],
+            "unavailable_properties": [],
+            "error": None,
+        }
+
+    elements = result.get("elements") or []
+    if not isinstance(elements, list):
+        return {
+            "source_model_version": None,
+            "source_model_ref": endpoint,
+            "selected_elements": [],
+            "error": "API.GetSelectedElements returned an invalid element list",
+        }
+    if not elements:
+        return {
+            "source_model_version": None,
+            "source_model_ref": endpoint,
+            "selected_elements": [],
+            "error": None,
+        }
+
+    try:
+        types_result = _post_command(endpoint, "API.GetTypesOfElements", {"elements": elements}, timeout=timeout)
+        classification_rows, classification_metadata, classification_error = _classification_data(
+            endpoint, elements, timeout
+        )
+        property_names_result = _post_command(endpoint, "API.GetAllPropertyNames", timeout=timeout)
+        available_names = property_names_result.get("properties") or []
+        matches = {
+            name: [item for item in available_names if _property_name(item) == name]
+            for name in required_properties
+        }
+        unavailable_properties = {
+            name: "property definition not found" if not items else "property name is ambiguous across groups"
+            for name, items in matches.items()
+            if len(items) != 1
+        }
+        requested_names = [matches[name][0] for name in required_properties if len(matches[name]) == 1]
+        property_ids = []
+        property_labels = []
+        if requested_names:
+            ids_result = _post_command(endpoint, "API.GetPropertyIds", {"properties": requested_names}, timeout=timeout)
+            id_rows = ids_result.get("properties") or []
+            for position, label_item in enumerate(requested_names):
+                id_item = id_rows[position] if position < len(id_rows) else {}
+                label = _property_name(label_item)
+                if isinstance(id_item, dict) and isinstance(id_item.get("propertyId"), dict):
+                    property_ids.append({"propertyId": id_item["propertyId"]})
+                    property_labels.append(label)
+                else:
+                    error = id_item.get("error") if isinstance(id_item, dict) else None
+                    unavailable_properties[label] = (
+                        error.get("message") if isinstance(error, dict) else "property id was not returned"
+                    )
+        values_result = {"propertyValuesForElements": [{} for _ in elements]}
+        if property_ids:
+            values_result = _post_command(
+                endpoint,
+                "API.GetPropertyValuesOfElements",
+                {"elements": elements, "properties": property_ids, "onlySupportedTypes": False},
+                timeout=timeout,
+            )
+    except (OSError, urllib.error.URLError, json.JSONDecodeError, ValueError) as exc:
+        return {
+            "source_model_version": None,
+            "source_model_ref": endpoint,
+            "selected_elements": [],
+            "error": f"selected-element enrichment failed: {exc}",
+        }
+
+    type_rows = types_result.get("typesOfElements") or []
+    value_rows = values_result.get("propertyValuesForElements") or []
+    classification_details = classification_metadata.get("details") or {}
+    classification_systems = classification_metadata.get("systems") or {}
+    normalized = []
+    for index, element in enumerate(elements):
+        type_row = type_rows[index] if index < len(type_rows) else {}
+        type_info = type_row.get("typeOfElement") if isinstance(type_row, dict) else {}
+        element_type = type_info.get("elementType") if isinstance(type_info, dict) else None
+        value_row = value_rows[index] if index < len(value_rows) else {}
+        raw_values = value_row.get("propertyValues") if isinstance(value_row, dict) else []
+        property_states = {
+            name: _property_state(raw_values[position] if position < len(raw_values) else None)
+            for position, name in enumerate(property_labels)
+        }
+        for name, error in unavailable_properties.items():
+            property_states[name] = {"status": "unavailable", "value": None, "error": error}
+        properties = {name: state.get("value") for name, state in property_states.items()}
+
+        classification_row = classification_rows[index] if index < len(classification_rows) else {}
+        classifications = []
+        for value in classification_row.get("classificationIds", []) if isinstance(classification_row, dict) else []:
+            classification_id = value.get("classificationId") if isinstance(value, dict) else None
+            if not isinstance(classification_id, dict):
+                continue
+            system_id = _guid(classification_id.get("classificationSystemId"))
+            item_id = _guid(classification_id.get("classificationItemId"))
+            detail = classification_details.get(item_id) or {}
+            system = classification_systems.get(system_id) or {}
+            classifications.append(
+                {
+                    "system": system.get("name"),
+                    "system_id": system_id,
+                    "item_id": item_id,
+                    "id": detail.get("id"),
+                    "name": detail.get("name"),
+                }
+            )
+        classification = next(
+            (item.get("id") or item.get("name") for item in classifications if item.get("id") or item.get("name")),
+            None,
+        )
+        properties_available = not unavailable_properties and all(
+            property_states.get(name, {}).get("status") in {"normal", "userUndefined"}
+            for name in required_properties
+        )
+        normalized.append(
+            {
+                "element_id": str(_element_guid(element)),
+                "type": element_type,
+                "classification": classification,
+                "classifications": classifications,
+                "classifications_available": not classification_error and bool(classification),
+                "properties": properties,
+                "properties_available": properties_available,
+                "property_states": property_states,
+            }
+        )
     return {
-        "source_model_version": result.get("source_model_version") or result.get("model_version") or result.get("modelVersion"),
-        "source_model_ref": result.get("source_model_ref") or result.get("sourceModelRef") or endpoint,
-        "selected_elements": [_normalize_live_element(item) for item in selected if isinstance(item, dict)],
+        "source_model_version": None,
+        "source_model_ref": endpoint,
+        "selected_elements": normalized,
+        "unavailable_properties": unavailable_properties,
+        "classification_error": classification_error,
         "error": None,
     }
+
+
+def selection_problem(selection):
+    if selection.get("error"):
+        return selection["error"]
+    selected = selection.get("selected_elements") or []
+    if not selected:
+        return "no selected element was returned"
+    zones = [item for item in selected if item.get("type") == "Zone" or item.get("classification") == "IfcSpace"]
+    if not zones:
+        return "the selection contains no Archicad Zone/IfcSpace"
+    if selection.get("classification_error") or any(not item.get("classifications_available") for item in zones):
+        return selection.get("classification_error") or "classifications are unavailable for a selected zone"
+    unavailable = selection.get("unavailable_properties") or {}
+    if unavailable:
+        return "required properties are unavailable: " + ", ".join(sorted(unavailable))
+    if any(not item.get("properties_available") for item in zones):
+        return "required property values are unavailable for a selected zone"
+    return None
 
 
 def load_design_intent(path=DESIGN_INTENT_FIXTURE):
@@ -199,7 +454,7 @@ def load_design_intent(path=DESIGN_INTENT_FIXTURE):
 def missing_metadata_audit(selection, required_space_properties=REQUIRED_SPACE_PROPERTIES):
     missing = []
     for element in selection.get("selected_elements", []):
-        if element.get("classification") != "IfcSpace":
+        if element.get("classification") != "IfcSpace" and element.get("type") != "Zone":
             continue
         properties = element.get("properties") or {}
         for prop in required_space_properties:
@@ -320,12 +575,14 @@ def _has_ledger_approval(ledger_data, scope_keyword="property update"):
     return False
 
 
-def dry_run_property_update(element_id, property_name, value, ledger_data=None):
+def dry_run_property_update(element_id, property_name, value, ledger_data=None, before=None):
     approved = _has_ledger_approval(ledger_data)
     return {
         "action": "set_property",
         "element_id": element_id,
         "property_name": property_name,
+        "before": before,
+        "after": value,
         "proposed_value": value,
         "dry_run": True,
         "blocked": not approved,

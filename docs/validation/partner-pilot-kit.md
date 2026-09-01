@@ -14,9 +14,10 @@
 - **Goal:** prove the loop *on the partner's real model* — `inspect → missing-data
   audit → dry-run diff → approval boundary` — and decide the next workflow to
   validate. Closes the acceptance side of **#105 / #115**.
-- **Session 1 is READ-ONLY by default.** No write to the partner's model. The only
-  optional mutation is on a *throwaway* element, by explicit consent, and reversible.
-- **Nothing leaves the partner's machine.** Transcripts are redacted; no upload.
+- **Session 1 is READ-ONLY.** The current live connector inspects the model but does
+  not execute a write against Archicad. Mutation is a later, separately scoped pilot.
+- **The Archicad session stays local.** The harness runs on the partner's machine;
+  only a manually reviewed, redacted transcript may be shared afterwards.
 
 ## 1 · Status of the foundation (verified)
 
@@ -25,11 +26,21 @@
 | Live Archicad JSON connection (`product info`, `selected elements`) | ✅ built (stdlib `urllib`), runs **`mode=live`** — verified against the replay server |
 | Non-mutating harness (`inspect → audit → dry-run`, redacted) | ✅ `pilot/archicad_harness.py` |
 | Seat-free stand-in (rehearse without Archicad) | ✅ `pilot/replay_server.py` |
-| Approval boundary (execution blocked without a scoped approval) | ✅ engine + product |
-| Acting **inside the product UI** on a live endpoint | ⏳ next step (#190) — session 1 uses the harness/CLI |
+| Approval boundary (simulation blocked without a scoped approval) | ✅ engine + product |
+| Read-only inspection **inside the product UI** | ✅ built in #190; requires a backend that can reach the endpoint |
+| Live mutation from the product | ⏳ not implemented; out of scope for session 1 |
 
-So the live path is **ready**; the partner only swaps the replay endpoint for their
-Archicad JSON endpoint. This kit makes it a procedure.
+The read-only path is ready for partner validation. It is verified against the replay
+server, not yet against a real Archicad seat; #105 and #115 remain the live evidence
+gates.
+
+### Runtime topology
+
+The endpoint is contacted by the **FastAPI backend**, not directly by the browser.
+The hosted Fly backend therefore cannot reach `127.0.0.1:19723` on the partner's
+computer. Use the local CLI harness for session 1, or run the Aedifica API locally if
+the product UI must exercise the connector. The hosted demo remains the environment
+for the separate product field test in #312.
 
 ## 2 · Roles
 
@@ -64,9 +75,9 @@ using fixtures (so pre-flight can't pass on a false positive).
 
 ## 5 · Run-of-show (the session)
 
-Each step: **the partner does X → we run Y → look at Z → go / abort**. Fallback for
-any failure: drop the `--endpoint` (fixture mode) or point at the replay server and
-keep going — the loop is identical, the trust point still lands.
+Each step: **the partner does X → we run Y → look at Z → go / abort**. A replay run
+can keep the demonstration moving after a failure, but it does not satisfy the live
+acceptance criteria for #105 or #115.
 
 | # | Joint action | Command / step | Observe | Gate |
 |---|---|---|---|---|
@@ -74,8 +85,7 @@ keep going — the loop is identical, the trust point still lands.
 | 2 | Partner **selects one zone/space** in Archicad | same harness run | `selection.count ≥ 1`, normalized elements | empty → "select a zone and rerun" |
 | 3 | See what the model lacks | (same run) `missing_metadata_audit` | `missing_count` + which properties | partner confirms it's real/manual today |
 | 4 | **Dry-run** a property update (e.g. `RoomUsage → office`) | (same run) `dry_run` | **before/after diff**, `mutating=false` | partner judges the diff clear enough to approve |
-| 5 | The **safety boundary** | (narrate) execution stays blocked without a scoped approval | nothing changed in the model | partner accepts the boundary as necessary |
-| 6 | *(optional, consent only)* one reversible write on a **throwaway** element | live execute + ledger + undo | ledger row + undo restores | **default: SKIP in session 1** |
+| 5 | The **safety boundary** | (narrate) the traced simulation stays blocked without a scoped approval | nothing changed in the model | partner accepts the boundary as necessary |
 
 The four questions to ask while doing it (from the original protocol): does the
 inspection match your manual work? is the diff clear enough to approve? is fixture
@@ -84,10 +94,11 @@ exports, sheets, or quantities?
 
 ## 6 · Data & privacy (state this out loud)
 
-- The bridge runs **locally**; Aedifica talks to `localhost` only. Nothing is uploaded.
+- The harness and bridge run **locally**; no model payload is sent to the hosted demo.
 - The harness returns a **redacted** transcript (`pilot/redaction.py`) — no client
-  names / paths leak into any saved artifact.
-- Session 1 does **not** write to the model (except the optional throwaway step).
+  names / paths should appear in the shareable copy. Review it manually because the
+  redaction pass is a safety net, not a guarantee.
+- Session 1 does **not** write to the model.
 - Get a one-line verbal **consent** to run read-only inspection before step 1.
 
 ## 7 · Success criteria
@@ -118,16 +129,16 @@ Decision: go to live-mutation pilot?  yes / no — because:
 - Turn the capture log into issue updates on **#105** (verify live dry-run) and
   **#115** (first model audit); record blockers/missing action types as new issues
   under the W2 epic **#171**.
-- If "go": the next build is **#190** — wire the product Copilote UI to the live
-  endpoint so the action loop runs *in the app*, and add a scoped, reversible
-  live-mutation path behind explicit approval.
+- If "go": open a new, narrowly scoped issue for a reversible live-mutation pilot.
+  #190 already delivered read-only inspection in the product; it did not implement
+  external mutation.
 
 ## A · Troubleshooting (consolidated)
 
 | Symptom | Fix |
 |---|---|
 | `endpoint unavailable` | Archicad not running / JSON interface off → enable it, confirm the port (19723–19743) |
-| `GetProductInfo` fails | wrong port or interface disabled → scan the range, re-enable |
+| `API.GetProductInfo` fails | wrong port or interface disabled → scan the range, re-enable |
 | `selection.count = 0` | partner must select ≥1 zone/space and rerun |
 | harness "OK" but `mode=fixture_fallback` | endpoint didn't answer; add `--no-fallback` to see the real error |
 | capability missing for an action | mark the planned item unsupported; pick another workflow |

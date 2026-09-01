@@ -1,6 +1,6 @@
 # Archicad JSON Live Setup
 
-Status: R4 live-adapter setup note, 2026-05-31.
+Status: read-only connector implemented; real-seat acceptance pending #105 / #115.
 
 ## Test harness command (no mutation)
 
@@ -24,6 +24,14 @@ unavailable (use `--no-fallback` to fail instead of using fixtures), and returns
 a redacted transcript. Live acceptance stays blocked by `#105` / `#115` until a
 partner Archicad seat is available.
 
+## Runtime topology
+
+`archicad_harness.py` contacts the endpoint from the machine where the command runs.
+The product UI sends the endpoint to FastAPI, which means the **API process** must be
+able to reach it. A Fly-hosted API cannot reach `localhost` on an architect's
+workstation. For a private local bridge, use the harness directly or run the Aedifica
+API locally. Do not expose the bridge publicly just to make the hosted demo reach it.
+
 ## Purpose
 
 This document is the handoff from the R1A fixture demo to a live partner-office Archicad JSON bridge.
@@ -39,7 +47,7 @@ Official references:
 |---|---|
 | Host | `localhost` |
 | Port range | `19723-19743` |
-| First command to verify | `GetProductInfo` |
+| First command to verify | `API.GetProductInfo` |
 | Aedifica adapter id | `archicad_json` |
 | First safe operation | non-mutating health/product-info probe |
 | Second safe operation | non-mutating selected-element inspection |
@@ -50,27 +58,27 @@ Official references:
 When Archicad is open and the JSON interface is available, test the port range before any model operation:
 
 ```powershell
-python pilot/agent_software_demo.py
-python pilot/agent_software_demo.py --json
+python pilot/archicad_harness.py
+python pilot/archicad_harness.py --json
 ```
 
-The current command stays in fixture mode. The live implementation should add an endpoint option such as:
+The command accepts a live endpoint:
 
 ```powershell
-python pilot/agent_software_demo.py --endpoint http://localhost:19723
+python pilot/archicad_harness.py --endpoint http://localhost:19723 --no-fallback
 ```
 
-The current implementation already accepts `--endpoint` and keeps fixture mode when the endpoint cannot return
-selected elements. Use it first against a harmless local test endpoint, then against Archicad.
+Without `--no-fallback`, an unavailable endpoint falls back to fixtures. Use that
+fallback only to rehearse the flow; keep `--no-fallback` for partner acceptance.
 
 ## Failure Modes
 
 - Archicad not running: report adapter unavailable and keep fixture mode.
 - JSON port not listening: scan or ask for the configured port.
-- `GetProductInfo` fails: block live mode and preserve fixture fallback.
+- `API.GetProductInfo` fails: block live mode and preserve fixture fallback.
 - Selection is empty: report a human action, such as "select one zone/space and rerun".
 - Capability missing: mark planned item unsupported.
-- Approval missing: allow dry-run output, block execution.
+- Approval missing: allow the preview, block the traced simulation; live mutation is unavailable.
 
 ## Live Acceptance
 
@@ -80,4 +88,4 @@ The first live issue is not complete until the bridge can:
 2. return product/version information;
 3. normalize selected elements to the same shape as `pilot/model/archicad_selection_fixture.json`;
 4. produce the same before/after dry-run diff as fixture mode;
-5. leave execution blocked unless the ledger contains a matching approval.
+5. report `mutated=false`; live mutation is not part of #105 / #115.

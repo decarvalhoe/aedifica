@@ -27,14 +27,37 @@ import model_bridge_demo  # noqa: E402
 import redaction  # noqa: E402
 
 
-def run_harness(endpoint: str | None = None, timeout: float = 2.0, fixture_fallback: bool = True) -> dict:
+def _target_space(selection: dict) -> dict | None:
+    for element in selection.get("selected_elements", []):
+        if (
+            element.get("type") == "Zone" or element.get("classification") == "IfcSpace"
+        ) and element.get("properties_available"):
+            return element
+    return None
+
+
+def _selection_problem(selection: dict) -> str | None:
+    return model_bridge_demo.selection_problem(selection)
+
+
+def run_harness(
+    endpoint: str | None = None,
+    timeout: float = 2.0,
+    fixture_fallback: bool = True,
+    property_name: str = "RoomUsage",
+    proposed_value: str = "office",
+) -> dict:
     transcript = {"steps": []}
 
     if endpoint:
         product = model_bridge_demo.live_product_info(endpoint, timeout=timeout)
         if product.get("running"):
             mode = "live"
-            selection = model_bridge_demo.live_selected_elements(endpoint, timeout=timeout)
+            selection = model_bridge_demo.live_selected_elements(
+                endpoint,
+                timeout=timeout,
+                required_properties=(property_name,),
+            )
         elif fixture_fallback:
             mode = "fixture_fallback"
             transcript["endpoint_error"] = product.get("error")
@@ -51,22 +74,50 @@ def run_harness(endpoint: str | None = None, timeout: float = 2.0, fixture_fallb
         product = {"running": False, "product_info": model_bridge_demo.PRODUCT_INFO_FIXTURE if hasattr(model_bridge_demo, "PRODUCT_INFO_FIXTURE") else {"name": "Archicad", "version": "FIXTURE"}}
         selection = model_bridge_demo.inspect_selected_elements()
 
+    problem = _selection_problem(selection)
+    if problem and endpoint and fixture_fallback:
+        mode = "fixture_fallback"
+        transcript["endpoint_error"] = problem
+        selection = model_bridge_demo.inspect_selected_elements()
+        problem = _selection_problem(selection)
+    if problem:
+        return {
+            "ok": False,
+            "mode": "unavailable" if endpoint else mode,
+            "mutated": False,
+            "message": f"Archicad selection unavailable: {problem}.",
+        }
+
     audit = model_bridge_demo.missing_metadata_audit(selection)
-    first = (selection.get("selected_elements") or [{}])[0]
-    dry_run = model_bridge_demo.dry_run_property_update(first.get("element_id", "AC-SPACE-101"), "RoomUsage", "office")
+    target = _target_space(selection)
+    before = target["properties"].get(property_name)
+    dry_run = model_bridge_demo.dry_run_property_update(
+        target["element_id"],
+        property_name,
+        proposed_value,
+        before=before,
+    )
+    diff = {
+        "element_id": target["element_id"],
+        "property_name": property_name,
+        "before": before,
+        "after": proposed_value,
+    }
 
     transcript["steps"] = [
         {"step": "product_info", "running": product.get("running"), "product": product.get("product_info")},
         {"step": "selection", "version": selection.get("source_model_version"), "count": len(selection.get("selected_elements", []))},
-        {"step": "missing_metadata_audit", "missing_count": audit["missing_count"]},
-        {"step": "dry_run", "blocked": dry_run.get("blocked"), "mutating": False},
+        {"step": "missing_metadata_audit", "missing_count": audit["missing_count"], "missing": audit["missing"]},
+        {"step": "dry_run", "blocked": dry_run.get("blocked"), "mutating": False, "diff": diff},
     ]
+    redacted_transcript = redaction.redact_artifact(transcript)
     return {
         "ok": True,
         "mode": mode,
         "mutated": False,
         "audit_count": audit["missing_count"],
-        "transcript": redaction.redact_artifact(transcript),
+        "diff": redacted_transcript["steps"][-1]["diff"],
+        "transcript": redacted_transcript,
     }
 
 
@@ -79,14 +130,27 @@ def main(argv=None) -> int:
     parser.add_argument("--endpoint", default=None)
     parser.add_argument("--timeout", type=float, default=2.0)
     parser.add_argument("--no-fallback", action="store_true", help="Fail instead of falling back to fixtures.")
+    parser.add_argument("--property", default="RoomUsage", help="Property to preview on the selected zone/space.")
+    parser.add_argument("--after", default="office", help="Proposed value for the dry-run diff.")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
 
-    result = run_harness(args.endpoint, timeout=args.timeout, fixture_fallback=not args.no_fallback)
+    result = run_harness(
+        args.endpoint,
+        timeout=args.timeout,
+        fixture_fallback=not args.no_fallback,
+        property_name=args.property,
+        proposed_value=args.after,
+    )
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
     elif result["ok"]:
-        print(f"Archicad harness OK · mode={result['mode']} · missing metadata={result['audit_count']} · mutated={result['mutated']}")
+        diff = result["diff"]
+        print(
+            f"Archicad harness OK · mode={result['mode']} · missing metadata={result['audit_count']} "
+            f"· diff={diff['element_id']}.{diff['property_name']}: {diff['before']!r} -> {diff['after']!r} "
+            f"· mutated={result['mutated']}"
+        )
     else:
         print(result["message"], file=sys.stderr)
     return 0 if result["ok"] else 2

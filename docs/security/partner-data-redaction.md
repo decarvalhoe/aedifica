@@ -19,12 +19,15 @@ The shareable copy replaces these with `[redacted]`:
 - **Local file paths**: `local_path`, `file_path`, `absolute_path`, and any
   absolute local path found in free text (e.g. `C:\Users\...`, `/Users/...`).
 - **Precise location**: `gps`, `coordinates`.
+- **Model values in shared diffs**: `before`, `after`. The local harness uses the
+  real values to compute the diff, but the shareable transcript replaces them.
 
 ## What the pass keeps (so the artifact still validates)
 
 - Structural / validation fields: `schema_version`, `report_id`, `claim_id`,
-  `source_id`, `evidence_id`, `state`/`claim_state`, `kind`, `phase_code`,
-  `project_id`.
+  `source_id`, `evidence_id`, `element_id`, `state`/`claim_state`, `kind`, `phase_code`,
+  `project_id`. Model/project ids are kept only when they match the restricted
+  structural-id alphabet; arbitrary values such as emails are redacted.
 - Integrity hashes: `sha256`, `content_sha256`.
 - Public regulatory references: EGRID, zone designations, article references,
   source titles.

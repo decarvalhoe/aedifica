@@ -106,10 +106,12 @@ function TrustMeta({ trustTier, provenance }: { trustTier?: string; provenance?:
     </div>
   );
 }
-const EVENT: Record<string, string> = { adapter_dry_run: "Aperçu", approval: "Validation", adapter_execution: "Modification", decision: "Décision", brief: "Brief" };
+const EVENT: Record<string, string> = { adapter_dry_run: "Aperçu", adapter_simulation: "Simulation", approval: "Validation", adapter_execution: "Modification", decision: "Décision", brief: "Brief" };
 function human(e: any): string {
   if (e.event_type === "adapter_dry_run") return "Aperçu d'une modification préparé — aucune mutation.";
-  if (e.event_type === "approval") return "Exécution validée par l'architecte.";
+  if (e.event_type === "adapter_simulation") return "Exécution simulée dans Aedifica — aucune écriture Archicad.";
+  if (e.event_type === "approval" && e.approval_scope === "adapter_dry_run") return "Simulation validée par l'architecte.";
+  if (e.event_type === "approval") return "Action validée par l'architecte.";
   if (e.event_type === "adapter_execution") return "Modification appliquée à la maquette — réversible.";
   return e.summary;
 }
@@ -1157,7 +1159,7 @@ function Dashboard({ d, project, go, alerts, onOpenAtelierPlanning }: { d: any; 
   const verify = d.claims.filter((c: any) => c.state === "unknown" || c.state === "assumption").length;
   const blockers = d.permit?.summary?.required_blockers ?? 0;
   const opp = d.opposition?.overall ?? "—";
-  const mut = (d.ledger || []).filter((e: any) => e.mutating).length;
+  const simulations = (d.ledger || []).filter((e: any) => e.event_type === "adapter_simulation").length;
   return (
     <>
       <div className="vh"><div className="row"><h2>{phaseLabel(project.phase_code)}</h2><span className="badge live"><span className="d" />Opérationnel</span></div>
@@ -1239,7 +1241,7 @@ function Dashboard({ d, project, go, alerts, onOpenAtelierPlanning }: { d: any; 
         <button className="kpi click" onClick={() => go("terrain")}><div className="lab">Contraintes terrain</div><div className="num">{sourced}<small> / {sourced + verify}</small></div><div className="sub"><span className="d" style={{ background: "var(--ts-assume)" }} />{verify} à vérifier</div></button>
         <button className="kpi click" onClick={() => go("permis")}><div className="lab">Dossier de permis</div><div className="num">{blockers === 0 ? "Prêt" : blockers}</div><div className="sub">{blockers === 0 ? "aucun blocage" : "pièces manquantes"}</div></button>
         <button className="kpi click" onClick={() => go("opposition")}><div className="lab">Risque d&apos;opposition</div><div className="num" style={{ textTransform: "capitalize", fontSize: 24 }}>{opp}</div><div className="sub">score {d.opposition?.score ?? "—"}</div></button>
-        <button className="kpi click" onClick={() => go("copilote")}><div className="lab">Actions maquette</div><div className="num">{mut}</div><div className="sub">tracées &amp; réversibles</div></button>
+        <button className="kpi click" onClick={() => go("copilote")}><div className="lab">Simulations maquette</div><div className="num">{simulations}</div><div className="sub">tracées, sans écriture live</div></button>
       </div>
       <div className="card"><h3>Activité récente</h3>
         {[...(d.ledger || [])].reverse().slice(0, 5).map((e: any, i: number) => (
@@ -1653,22 +1655,22 @@ function Copilote({ token, pid, ledger, onChange, nomos }: { token: string; pid:
       else if (opKind === "rename") { op.after = propAfter.trim(); }
       else if (opKind === "set_category") { op.category = propAfter.trim(); }
       const r = await api<any>(`/projects/${pid}/adapter/dry-run`, { method: "POST", token, body: { adapter_id: "archicad_json", operations: [op], adapter_endpoint: endpoint.trim() || undefined } });
-      setTxn(r.transaction); setExecuted(false); setApproved(false); setMode(r.mode); setProduct(r.preview?.product);
-      setMsg(r.mode === "live" ? `Aperçu live depuis Archicad ${r.preview?.product?.version || ""} — lecture seule.` : r.mode === "fixture_fallback" ? "Endpoint injoignable — aperçu sur le modèle replay." : "Aperçu prêt (replay). Rien n'a encore changé."); onChange();
+      setTxn(r.transaction); setExecuted(false); setApproved(false); setMode(r.mode); setProduct(r.preview?.product); setBlocked(r.blocked);
+      setMsg(r.mode === "live" ? `Aperçu live depuis Archicad ${r.preview?.product?.version || ""} — lecture seule.` : r.mode === "live_error" ? `Lecture Archicad incomplète — ${r.preview?.error || "aperçu bloqué"}.` : r.mode === "fixture_fallback" ? "Endpoint injoignable — aperçu sur le modèle replay." : "Aperçu prêt (replay). Rien n'a encore changé."); onChange();
     } catch (e: any) { setMsg(e.message); }
   }
-  async function approve() { try { await api(`/projects/${pid}/approvals`, { method: "POST", token, body: { scope: "adapter_execution", basis: "validation architecte" } }); setApproved(true); setBlocked(false); setMsg("Exécution validée par l'architecte."); onChange(); } catch (e: any) { setMsg(e.message); } }
+  async function approve() { try { await api(`/projects/${pid}/approvals`, { method: "POST", token, body: { scope: "adapter_dry_run", basis: "validation de la simulation" } }); setApproved(true); setBlocked(false); setMsg("Simulation validée par l'architecte."); onChange(); } catch (e: any) { setMsg(e.message); } }
   async function execute() {
     if (!txn) { setMsg("Demandez d'abord un aperçu."); return; }
     try { const r = await api<any>(`/projects/${pid}/adapter/execute`, { method: "POST", token, body: { transaction: txn } });
-      if (r.executed) { setExecuted(true); setBlocked(false); setMsg("Modification appliquée et inscrite au journal — réversible."); } else { setBlocked(true); setMsg(r.reason || "Bloqué : validation requise."); } onChange();
+      if (r.simulated) { setExecuted(true); setBlocked(false); setMsg("Exécution simulée et inscrite au journal Aedifica. Aucune écriture n’a été envoyée à Archicad."); } else { setBlocked(true); setMsg(r.reason || "Bloqué : validation requise."); } onChange();
     } catch (e: any) { setMsg(e.message); }
   }
   const s1 = !!txn;
   const hasEndpoint = endpoint.trim().length > 0;
   return (
     <>
-      <div className="vh"><div className="row"><h2>Copilote IA</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>L&apos;IA répond sur la doctrine (sourcé ou abstention) et prépare des modifications de maquette Archicad que <b>vous</b> validez — tracé et réversible. <b>Rien ne change sans votre accord.</b></p></div>
+      <div className="vh"><div className="row"><h2>Copilote IA</h2><span className="badge live"><span className="d" />Opérationnel</span></div><p>L&apos;IA répond sur la doctrine (sourcé ou abstention), inspecte une sélection Archicad en lecture seule et prépare des opérations que <b>vous</b> validez. L&apos;exécution reste simulée dans Aedifica : <b>aucune écriture live n&apos;est envoyée à Archicad.</b></p></div>
       {nomos && <DoctrineQA token={token} pid={pid} />}
       {!hasEndpoint && (
         // W14.B — the previous "Aucun endpoint Archicad" banner was opaque:
@@ -1678,14 +1680,14 @@ function Copilote({ token, pid, ledger, onChange, nomos }: { token: string; pid:
         <div className="card" style={{ marginBottom: 14, borderLeft: "3px solid var(--ts-assume)" }}>
           <h3 style={{ margin: 0 }}>Branchement Archicad — pas encore configuré</h3>
           <p style={{ marginTop: 8 }}>
-            Pour qu&apos;Aedifica modifie réellement votre maquette, il faut un <b>JSON-bridge Archicad</b> : une petite passerelle exposée sur votre poste (ou serveur atelier) qui reçoit les opérations de l&apos;IA et les applique dans Archicad via l&apos;API officielle. Tant que cette passerelle n&apos;est pas connectée :
+            Pour qu&apos;Aedifica inspecte votre maquette, il faut un endpoint JSON Archicad joignable par le backend. La connexion actuelle est strictement en lecture seule :
           </p>
           <ul style={{ margin: "6px 0 10px 18px", padding: 0 }}>
-            <li><b>Mode <i>replay</i></b> : l&apos;IA exécute l&apos;opération sur un modèle de fixture (pour comprendre le flux + valider l&apos;UX). Aucune mutation sur votre vraie maquette.</li>
-            <li><b>Mode <i>live</i></b> : disponible dès qu&apos;une URL est renseignée ci-dessous (ex. <code className="mono">http://localhost:19723/aedifica</code>).</li>
+            <li><b>Mode <i>replay</i></b> : l&apos;inspection et l&apos;opération sont simulées sur une fixture.</li>
+            <li><b>Mode <i>live</i></b> : l&apos;endpoint réel fournit le produit et la sélection ; le diff reste un aperçu sans mutation.</li>
           </ul>
           <p style={{ marginTop: 0 }}>
-            Le bridge n&apos;est pas encore distribué publiquement — c&apos;est un add-on que l&apos;atelier installe sur la machine qui héberge Archicad. Vous pouvez explorer le flux complet sans bridge, sur le modèle replay. <a href="https://github.com/decarvalhoe/aedifica/blob/main/docs/integrations/archicad-bridge.md" target="_blank" rel="noreferrer" style={{ textDecoration: "underline", color: "var(--ink)" }}>Voir la documentation technique du bridge →</a>
+            Un backend hébergé ne peut pas atteindre le <code className="mono">localhost</code> du poste Archicad : utilisez une API Aedifica locale pour ce branchement. Vous pouvez explorer le flux sans siège avec le replay. <a href="https://github.com/decarvalhoe/aedifica/blob/main/docs/integrations/archicad-bridge.md" target="_blank" rel="noreferrer" style={{ textDecoration: "underline", color: "var(--ink)" }}>Voir la documentation technique du bridge →</a>
           </p>
         </div>
       )}
@@ -1722,16 +1724,16 @@ function Copilote({ token, pid, ledger, onChange, nomos }: { token: string; pid:
       <div className="stepper">
         <div className={`step ${executed ? "done" : s1 && !executed ? "act" : ""}`}><div className="idx">Étape 1</div><div className="nm">Aperçu (simulation)</div></div>
         <div className={`step ${approved ? "done" : s1 && !approved ? "act" : ""}`}><div className="idx">Étape 2</div><div className="nm">Votre validation</div></div>
-        <div className={`step ${executed ? "done act" : ""}`}><div className="idx">Étape 3</div><div className="nm">Appliqué &amp; tracé</div></div>
+        <div className={`step ${executed ? "done act" : ""}`}><div className="idx">Étape 3</div><div className="nm">Simulation tracée</div></div>
       </div>
       <div className="actbar">
         <button className="ds-btn" disabled={!target.trim() || !propAfter.trim()} onClick={dryRun}>Demander un aperçu</button>
-        <button className="ds-btn ghost" onClick={approve} disabled={!s1}>Valider l&apos;exécution</button>
-        <button className="ds-btn ghost" onClick={execute} disabled={!s1}>Appliquer à la maquette</button>
+        <button className="ds-btn ghost" onClick={approve} disabled={!s1 || txn?.status === "blocked"}>Valider la simulation</button>
+        <button className="ds-btn ghost" onClick={execute} disabled={!s1 || txn?.status === "blocked"}>Simuler l&apos;exécution</button>
       </div>
       {msg && <div className={`banner ${blocked ? "bad" : executed ? "ok" : ""}`}>{blocked && <b>Garde-fou · </b>}{msg}</div>}
-      <div className="card"><h3>Historique du projet — horodaté, signé, réversible</h3>
-        {[...(ledger || [])].map((e, i) => (<div className="claim" key={i}><Trust state={e.mutating ? "conflict" : e.event_type === "approval" ? "sourced" : "computed"} label={EVENT[e.event_type] || e.event_type} /><div><div className="ttl">{human(e)}</div>{e.mutating && <small>réf. {e.ledger_id} · réversible</small>}</div></div>))}
+      <div className="card"><h3>Historique du projet — horodaté et signé</h3>
+        {[...(ledger || [])].map((e, i) => (<div className="claim" key={i}><Trust state={e.mutating ? "conflict" : e.event_type === "approval" ? "sourced" : "computed"} label={EVENT[e.event_type] || e.event_type} /><div><div className="ttl">{human(e)}</div>{e.event_type === "adapter_simulation" && <small>réf. {e.ledger_id} · simulation interne, aucune écriture Archicad</small>}</div></div>))}
         {(ledger || []).length === 0 && <p className="spin">Aucune action. Connectez Archicad puis composez une opération ci-dessus.</p>}
       </div>
     </>

@@ -39,6 +39,8 @@ SENSITIVE_KEYS = {
     "absolute_path",
     "gps",
     "coordinates",
+    "before",
+    "after",
 }
 
 # Keys that must always be kept verbatim (validation/structure).
@@ -48,6 +50,7 @@ PRESERVED_KEYS = {
     "claim_id",
     "source_id",
     "evidence_id",
+    "element_id",
     "state",
     "claim_state",
     "kind",
@@ -59,6 +62,8 @@ PRESERVED_KEYS = {
 
 _EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 _PHONE_RE = re.compile(r"(?:\+41|0041|0)\s?\d{2}[\s.\-]?\d{3}[\s.\-]?\d{2}[\s.\-]?\d{2}")
+_STRUCTURAL_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+_VALIDATED_ID_KEYS = {"element_id", "project_id"}
 
 
 def redact_text(value: str) -> str:
@@ -75,9 +80,15 @@ def redact_artifact(obj):
         out = {}
         for key, value in obj.items():
             if key in PRESERVED_KEYS:
-                out[key] = value
+                out[key] = (
+                    value
+                    if key not in _VALIDATED_ID_KEYS
+                    or not isinstance(value, str)
+                    or _STRUCTURAL_ID_RE.fullmatch(value)
+                    else REDACTED
+                )
             elif key in SENSITIVE_KEYS:
-                out[key] = REDACTED
+                out[key] = value if value in (None, "", [], {}) else REDACTED
             else:
                 out[key] = redact_artifact(value)
         return out
@@ -100,7 +111,11 @@ def find_sensitive(obj, _key=None) -> list:
         for item in obj:
             findings.extend(find_sensitive(item, _key))
     elif isinstance(obj, str):
+        if obj == REDACTED:
+            return findings
         if _key in PRESERVED_KEYS:
+            if _key in _VALIDATED_ID_KEYS and not _STRUCTURAL_ID_RE.fullmatch(obj):
+                findings.append(f"invalid structural id in '{_key}'")
             return findings
         if _EMAIL_RE.search(obj):
             findings.append("email in text")
