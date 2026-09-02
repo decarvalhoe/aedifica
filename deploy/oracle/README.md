@@ -60,15 +60,26 @@ existing one.
 Point an `A` record at the VM's public IP first — certificates cannot be issued
 before the hostname resolves.
 
+The repository is private, so cloning on the VM would mean putting a GitHub
+credential there. Ship an archive instead — nothing to revoke afterwards:
+
 ```bash
+git archive --format=tar.gz -o /tmp/aedifica.tar.gz <branch>
+scp -i ~/.ssh/aedifica_oracle /tmp/aedifica.tar.gz ubuntu@<vm-ip>:/tmp/
 ssh -i ~/.ssh/aedifica_oracle ubuntu@<vm-ip>
-git clone https://github.com/decarvalhoe/aedifica.git /opt/aedifica
+sudo mkdir -p /opt/aedifica && sudo chown ubuntu:ubuntu /opt/aedifica
+tar -xzf /tmp/aedifica.tar.gz -C /opt/aedifica
 cd /opt/aedifica/deploy/oracle
 cp .env.example .env
-openssl rand -base64 32          # paste into POSTGRES_PASSWORD
+chmod 600 .env
+# Generate the password ON the VM so it never travels anywhere:
+sed -i "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$(openssl rand -base64 32 | tr -d '\n/+=' | head -c 32)|" .env
 nano .env                        # set AEDIFICA_SITE, PUBLIC_ORIGIN, ACME_EMAIL
 docker compose --env-file .env up -d --build
 ```
+
+Before DNS exists, `AEDIFICA_SITE=:80` serves the stack over plain HTTP on the
+public IP. Switch it to the hostname and re-run `up -d` to get the certificate.
 
 Caddy obtains the Let's Encrypt certificate on the first request. To rehearse
 before DNS is ready, set `AEDIFICA_SITE=:80` and browse the IP over plain HTTP.

@@ -25,10 +25,25 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APPLY=0
 [ "${1:-}" = "--apply" ] && APPLY=1
 
-oci() { command oci --profile "$PROFILE" "$@"; }
+# A profile created by `oci session authenticate` is a security-token profile:
+# every call must say so explicitly or the CLI rejects the config as invalid.
+AUTH=()
+[ -d "$HOME/.oci/sessions/$PROFILE" ] && AUTH=(--auth security_token)
+oci() { command oci --profile "$PROFILE" "${AUTH[@]}" "$@"; }
+
+# `--raw-output` prints a JSON *list* as JSON, brackets and all — iterating it in
+# a for loop yields "[" as the first item. Flatten to one plain name per line.
+oci_list() { oci "$@" | python3 -c 'import json,sys; d=sys.stdin.read().strip(); print("\n".join(json.loads(d)) if d else "")'; }
 say() { printf '\n\033[1m%s\033[0m\n' "$*"; }
 run() {
-  if [ "$APPLY" -eq 1 ]; then "$@"; else printf '  would run: %s\n' "$*" >&2; echo ""; fi
+  if [ "$APPLY" -eq 1 ]; then
+    "$@"
+  else
+    printf '  would run: %s\n' "$*" >&2
+    # Return a placeholder so the plan keeps walking the dependency chain
+    # instead of stopping at the first resource that does not exist yet.
+    echo "<created-on-apply>"
+  fi
 }
 
 command -v oci >/dev/null || { echo "oci CLI not found. pip install oci-cli"; exit 1; }
@@ -71,6 +86,7 @@ if [ -n "$VCN_ID" ]; then
   fi
 
   RT_ID="$(oci network vcn get --vcn-id "$VCN_ID" --query 'data."default-route-table-id"' --raw-output 2>/dev/null || true)"
+  [ -z "$RT_ID" ] && [ "$APPLY" -eq 0 ] && RT_ID="<created-on-apply>"
   if [ -n "$RT_ID" ] && [ -n "$IG_ID" ]; then
     say "Routing 0.0.0.0/0 to the internet gateway"
     run oci network route-table update --rt-id "$RT_ID" --force \
@@ -80,6 +96,7 @@ if [ -n "$VCN_ID" ]; then
   # THE step people forget: the VCN security list, separate from the instance
   # firewall. Without 80/443 here a perfectly deployed stack looks dead.
   SL_ID="$(oci network vcn get --vcn-id "$VCN_ID" --query 'data."default-security-list-id"' --raw-output 2>/dev/null || true)"
+  [ -z "$SL_ID" ] && [ "$APPLY" -eq 0 ] && SL_ID="<created-on-apply>"
   if [ -n "$SL_ID" ]; then
     say "Opening 22/80/443 in the VCN security list"
     run oci network security-list update --security-list-id "$SL_ID" --force \
@@ -124,7 +141,7 @@ else
   # failing on the first "Out of host capacity".
   say "Launching ${VM_NAME} (A1.Flex, ${OCPUS} OCPU / ${MEMORY_GB} GB)"
   LAUNCHED=""
-  for AD in $(oci iam availability-domain list --query 'data[].name' --raw-output 2>/dev/null); do
+  for AD in $(oci_list iam availability-domain list --query 'data[].name' 2>/dev/null); do
     echo "  trying availability domain: $AD"
     if [ "$APPLY" -eq 0 ]; then echo "  would launch here"; break; fi
     if LAUNCHED="$(oci compute instance launch -c "$C" \
