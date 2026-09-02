@@ -1,0 +1,19 @@
+# Optional: start the stack on boot without relying on Docker's restart policy
+# alone (survives a `docker compose down`, and gives you journalctl logs).
+#   sudo cp deploy/oracle/aedifica.service /etc/systemd/system/
+#   sudo systemctl enable --now aedifica
+[Unit]
+Description=Aedifica product stack
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/aedifica/deploy/oracle
+ExecStart=/usr/bin/docker compose --env-file .env up -d
+ExecStop=/usr/bin/docker compose --env-file .env down
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

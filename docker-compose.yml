@@ -2,7 +2,10 @@
 #   docker compose up --build
 services:
   db:
-    image: postgres:16-alpine
+    # NOT postgres:16-alpine — migration j4f7a2c9d8e3 runs
+    # `CREATE EXTENSION IF NOT EXISTS vector`, which that image cannot satisfy;
+    # `alembic upgrade head` then fails at API boot.
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: aedifica
       POSTGRES_PASSWORD: aedifica

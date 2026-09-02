@@ -1,0 +1,33 @@
+# Caddy obtains and renews a Let's Encrypt certificate automatically as soon as
+# AEDIFICA_SITE is a public hostname resolving to this VM. Set it to ":80" to run
+# the stack over plain HTTP (local rehearsal, or before DNS is pointed).
+{
+	email {$ACME_EMAIL}
+	admin off
+}
+
+{$AEDIFICA_SITE} {
+	encode zstd gzip
+
+	# Next.js serves the product and proxies /api/* to FastAPI internally, so the
+	# whole application is a single upstream.
+	#
+	# No active health check here: `/` answers 307 (Next.js redirects to the
+	# workspace), which an active check reads as unhealthy and turns into a
+	# blanket 503. Compose already gates web on a healthy api, and with a single
+	# upstream a check can only remove the only backend there is.
+	reverse_proxy web:3000
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}
