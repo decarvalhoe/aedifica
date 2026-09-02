@@ -18,27 +18,50 @@ internet ──443──> caddy ──> web:3000 ──> api:8090 ──> db:543
 
 Only Caddy binds to the host. The API and the database are never published.
 
-## What needs your Oracle account
+## Provisioning the VM
 
-These four steps cannot be automated from here — they need your tenancy.
+[`provision.sh`](provision.sh) creates the whole infrastructure — VCN, internet
+gateway, route, **security list with 80/443 open**, subnet, and the A1.Flex
+instance with the cloud-init above. It is idempotent and walks every availability
+domain rather than giving up on the first "Out of host capacity", which is the
+normal experience with free ARM.
 
-1. **Create the instance.** Compute → Instances → Create.
-   - Shape: `VM.Standard.A1.Flex`, **2 OCPU / 12 GB** (the Always Free ceiling).
-   - Image: Ubuntu 22.04 or Oracle Linux 9 (both ARM).
-   - Add your SSH public key.
-   - Advanced options → paste [`cloud-init.yaml`](cloud-init.yaml).
-   - If capacity is refused ("Out of host capacity"), retry in another
-     availability domain or region — ARM capacity is genuinely scarce.
-2. **Open the ports in the VCN.** The instance firewall is handled by cloud-init,
-   but the *network* security list is separate: Networking → VCN → Security
-   Lists → add ingress `0.0.0.0/0` on TCP **80** and **443**. Missing this is the
-   single most common reason a correct deployment looks dead.
-3. **Point your DNS.** An `A` record for the hostname at the VM's public IP.
-   Certificates cannot be issued before this resolves.
-4. **Deploy.**
+Authenticate first. This opens a browser and stores a short-lived token under
+`~/.oci` — there is no API key file to create or hand around:
 
 ```bash
-ssh ubuntu@<vm-ip>
+pip install oci-cli
+oci session authenticate --region eu-zurich-1 --profile-name aedifica
+```
+
+Then:
+
+```bash
+cd deploy/oracle
+./provision.sh            # prints the plan, creates nothing
+./provision.sh --apply    # creates the resources, prints the public IP
+```
+
+It generates a dedicated `~/.ssh/aedifica_oracle` key rather than reusing an
+existing one.
+
+### If you would rather click
+
+1. Compute → Instances → Create. Shape `VM.Standard.A1.Flex`, **2 OCPU / 12 GB**
+   (the Always Free ceiling). Ubuntu 22.04 ARM. Your SSH public key. Advanced
+   options → paste [`cloud-init.yaml`](cloud-init.yaml).
+2. Networking → VCN → Security Lists → ingress `0.0.0.0/0` on TCP **80** and
+   **443**. The instance firewall is handled by cloud-init, but this network-level
+   list is separate, and missing it is the single most common reason a correct
+   deployment looks dead.
+
+## Deploying onto the VM
+
+Point an `A` record at the VM's public IP first — certificates cannot be issued
+before the hostname resolves.
+
+```bash
+ssh -i ~/.ssh/aedifica_oracle ubuntu@<vm-ip>
 git clone https://github.com/decarvalhoe/aedifica.git /opt/aedifica
 cd /opt/aedifica/deploy/oracle
 cp .env.example .env
