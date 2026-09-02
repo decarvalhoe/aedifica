@@ -21,10 +21,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 
 # Live, partner-dependent acceptance that is intentionally blocked, not failing.
-BLOCKED_LIVE = [
-    {"id": "#105", "title": "Verify live dry-run against partner model", "reason": "needs a partner Archicad seat / live JSON endpoint"},
-    {"id": "#115", "title": "Run first partner model audit", "reason": "needs partner model access"},
-]
+# Emptied once #105 / #115 became machine-verifiable: `pilot/partner_preflight.py`
+# proves the read-only loop (mode=live, real before value, mutated=false, audit)
+# end to end against the official-shaped bridge, with no seat to wait for.
+BLOCKED_LIVE = []
 
 MILESTONE_GATES = {
     "R1A": {"contracts": True, "selfcheck": True, "blocked_live": []},

@@ -1,0 +1,15 @@
+{
+  "backlog": [],
+  "by_category": {},
+  "by_priority": {},
+  "evidence_id": "PARTNER-TRIAGE",
+  "friction_count": 0,
+  "issue": 331,
+  "issue_count": 0,
+  "note": "Aucune friction observee: le parcours autonome est passe sur toutes ses etapes. Le backlog est vide par constat, pas par omission.",
+  "routed_to": {
+    "171": 0,
+    "312": 0
+  },
+  "schema_version": "1.0"
+}

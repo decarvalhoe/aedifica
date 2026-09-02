@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "model_id": "AEDIFICA-PARTNER-REPRESENTATIVE",
+  "title": "Representative read-only Archicad selection for the Partner Pilot",
+  "note": "Synthetic model shaped like a partner selection. Contains no client data, no client model and no identifier. It deliberately mixes populated, empty and non-space elements so the metadata audit can be proven on all three cases instead of a uniformly empty selection.",
+  "selected_elements": [
+    {
+      "element_id": "00000000-0000-0000-0000-000000000101",
+      "type": "Zone",
+      "classification": "IfcSpace",
+      "comment": "Populated usage, missing SIA surface type - carries the real before value of the dry run.",
+      "properties": {
+        "RoomUsage": "meeting",
+        "SIA416SurfaceType": null
+      }
+    },
+    {
+      "element_id": "00000000-0000-0000-0000-000000000102",
+      "type": "Zone",
+      "classification": "IfcSpace",
+      "comment": "Inverse case: surface type known, usage missing.",
+      "properties": {
+        "RoomUsage": null,
+        "SIA416SurfaceType": "HNF"
+      }
+    },
+    {
+      "element_id": "00000000-0000-0000-0000-000000000103",
+      "type": "Zone",
+      "classification": "IfcSpace",
+      "comment": "Fully documented zone - must produce no finding (false-positive control).",
+      "properties": {
+        "RoomUsage": "office",
+        "SIA416SurfaceType": "HNF"
+      }
+    },
+    {
+      "element_id": "00000000-0000-0000-0000-000000000201",
+      "type": "Wall",
+      "classification": "IfcWall",
+      "comment": "Non-space element - must be excluded from the space metadata audit.",
+      "properties": {}
+    }
+  ]
+}

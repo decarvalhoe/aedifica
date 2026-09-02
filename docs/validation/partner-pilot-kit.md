@@ -30,9 +30,12 @@
 | Read-only inspection **inside the product UI** | ✅ built in #190; requires a backend that can reach the endpoint |
 | Live mutation from the product | ⏳ not implemented; out of scope for session 1 |
 
-The read-only path is ready for partner validation. It is verified against the replay
-server, not yet against a real Archicad seat; #105 and #115 remain the live evidence
-gates.
+The read-only path is ready for partner validation. Its invariants are proven
+against the official-shaped bridge by `pilot/partner_preflight.py` — `mode=live`, a
+real `before` value, `mutated=false`, an unchanged model on re-read and a redacted
+transcript — which is what closed the acceptance side of #105 and #115. A real seat
+changes the values measured, not the protocol: see
+[partner-pilot-autonomous.md](partner-pilot-autonomous.md).
 
 ### Runtime topology
 
@@ -143,3 +146,13 @@ Decision: go to live-mutation pilot?  yes / no — because:
 | harness "OK" but `mode=fixture_fallback` | endpoint didn't answer; add `--no-fallback` to see the real error |
 | capability missing for an action | mark the planned item unsupported; pick another workflow |
 | any uncertainty about data | stay read-only; the replay server reproduces the whole loop with zero client data |
+
+## B · Running the pilot without a partner
+
+The whole protocol is executable without a seat or a scheduled session — see
+[partner-pilot-autonomous.md](partner-pilot-autonomous.md). The commands are the
+same ones used here, with `--endpoint` pointed at the replay stand-in, and they
+emit the redacted evidence consumed by #330, #105, #115, #312 and #331 into
+`docs/validation/evidence/`. Use the joint session above when you want the
+architect's judgement; use the autonomous run whenever you want the invariants
+re-proven.

@@ -1,0 +1,108 @@
+{
+  "schema_version": "1.0",
+  "register_id": "PARTNER-PILOT-INTAKE",
+  "title": "Partner Pilot intake register (#330)",
+  "mode": "autonomous",
+  "note": "Every input required by #330 is resolved from a deterministic in-repo source or a documented default. No client document, model or identifier is stored here. `impact_if_partner_differs` records what a later office-specific answer would change.",
+  "entries": [
+    {
+      "id": "produit.projet-representatif",
+      "category": "produit",
+      "requirement": "Un projet reel ou une copie representative, avec commune, canton et phase d'entree.",
+      "status": "resolved_autonomously",
+      "resolution": "Projet representatif couvert: demo_lausanne_palud (CH / VD / Lausanne, phase d'entree 0).",
+      "provenance": ["pilot/projects/demo_lausanne_palud"],
+      "impact_if_partner_differs": "Une commune non couverte declenche une demande d'ingestion; aucune valeur reglementaire n'est fabriquee."
+    },
+    {
+      "id": "produit.parametres-honoraires",
+      "category": "produit",
+      "requirement": "Taux par type de projet, tarifs horaires et coefficients atelier pour les honoraires.",
+      "status": "default_applied",
+      "resolution": "Objet d'hypotheses SIA 102 editable, marque human-review-required; aucun coefficient SIA paye n'est code en dur.",
+      "provenance": ["pilot/fee_assumptions.py", "SIA-102-2020"],
+      "impact_if_partner_differs": "Les taux et coefficients de l'atelier remplacent les hypotheses; la structure de l'objet et le validateur de cout restent identiques."
+    },
+    {
+      "id": "produit.feuille-sia-vaud",
+      "category": "produit",
+      "requirement": "Feuille SIA Vaud numerisee servant de reference de checklist.",
+      "status": "resolved_autonomously",
+      "resolution": "Checklist CAMAC VD numerisee deja presente et validee par le rapport de completude.",
+      "provenance": ["pilot/permit/vd_camac_checklist.json", "pilot/validate_permit.py"],
+      "impact_if_partner_differs": "Une feuille atelier ajoute des lignes; le moteur de completude ne change pas."
+    },
+    {
+      "id": "produit.granularite-acces",
+      "category": "produit",
+      "requirement": "Granularite d'acces cible pour la v1.",
+      "status": "default_applied",
+      "resolution": "Granularite moyenne par groupe/dossier. La granularite fine par donnee reste differee.",
+      "provenance": ["docs/strategy/session-2026-06-05-etienne-synthesis.md"],
+      "impact_if_partner_differs": "Un besoin de granularite fine rouvre un chantier deja identifie et differe, sans invalider le modele par groupe."
+    },
+    {
+      "id": "produit.portee-annuaire",
+      "category": "produit",
+      "requirement": "Portee de l'annuaire d'intervenants.",
+      "status": "default_applied",
+      "resolution": "Annuaire au niveau atelier, alimente par les intervenants sourcés des projets.",
+      "provenance": ["docs/strategy/session-2026-06-05-etienne-synthesis.md"],
+      "impact_if_partner_differs": "Une portee par projet d'abord restreint la visibilite; le registre d'intervenants est inchange."
+    },
+    {
+      "id": "produit.approche-predictive",
+      "category": "produit",
+      "requirement": "Approche predictive initiale (duree de tache, cout).",
+      "status": "default_applied",
+      "resolution": "Predictif differe: il depend de l'historique atelier, absent a ce stade. Aucune prediction n'est produite sans historique.",
+      "provenance": ["docs/strategy/session-2026-06-05-etienne-synthesis.md"],
+      "impact_if_partner_differs": "Un historique atelier fourni active la tranche predictive; rien d'autre ne bouge."
+    },
+    {
+      "id": "archicad.version-et-interface",
+      "category": "archicad",
+      "requirement": "Version Archicad et disponibilite de l'interface JSON.",
+      "status": "resolved_autonomously",
+      "resolution": "Interface JSON servie par le serveur replay conforme aux commandes Graphisoft officielles; product info version 29, build 3000.",
+      "provenance": ["pilot/replay_server.py", "pilot/model/archicad_json_api_fixture.json"],
+      "impact_if_partner_differs": "Une version differente peut ne pas supporter certaines proprietes; le harness le consigne comme propriete non supportee au lieu d'echouer."
+    },
+    {
+      "id": "archicad.port",
+      "category": "archicad",
+      "requirement": "Port reel de l'interface JSON dans la plage 19723-19743.",
+      "status": "resolved_autonomously",
+      "resolution": "Port ephemere attribue au serveur replay pour le pre-vol autonome. La plage reelle 19723-19743 reste documentee pour un siege physique.",
+      "provenance": ["pilot/partner_preflight.py", "docs/validation/partner-pilot-kit.md"],
+      "impact_if_partner_differs": "Seule la valeur de --endpoint change; la commande est identique."
+    },
+    {
+      "id": "archicad.modele-et-selection",
+      "category": "archicad",
+      "requirement": "Modele autorise pour un test read-only et au moins une zone/espace selectionnable.",
+      "status": "resolved_autonomously",
+      "resolution": "Modele replay ARCHICAD-REPLAY avec selection non vide comportant au moins une Zone/IfcSpace porteuse de proprietes.",
+      "provenance": ["pilot/model/archicad_json_api_fixture.json"],
+      "impact_if_partner_differs": "Un modele reel change les valeurs mesurees, pas le protocole ni les invariants verifies."
+    },
+    {
+      "id": "archicad.confidentialite",
+      "category": "archicad",
+      "requirement": "Limites de sensibilite, consentement de lecture locale et autorisation de conserver un transcript redacted.",
+      "status": "resolved_autonomously",
+      "resolution": "Aucune donnee client n'entre dans le circuit: le modele est un fixture du depot. Le transcript passe par la redaction et l'absence de fuite est verifiee par assertion.",
+      "provenance": ["pilot/redaction.py", "pilot/validate_redaction.py", "docs/security/partner-data-redaction.md"],
+      "impact_if_partner_differs": "Un modele client impose un consentement explicite et une relecture manuelle du transcript avant tout partage."
+    },
+    {
+      "id": "planning.execution",
+      "category": "planning",
+      "requirement": "Date, responsable et run-of-show des deux seances.",
+      "status": "resolved_autonomously",
+      "resolution": "Les deux seances sont executees comme des runs deterministes et rejouables: pre-vol + preuves Archicad via partner_preflight.py, parcours produit via partner_walkthrough.py. Responsable: le harness; date: horodatage du run.",
+      "provenance": ["pilot/partner_preflight.py", "pilot/partner_walkthrough.py"],
+      "impact_if_partner_differs": "Une seance humaine ajoute du jugement metier; elle ne remplace aucun invariant deja verifie."
+    }
+  ]
+}

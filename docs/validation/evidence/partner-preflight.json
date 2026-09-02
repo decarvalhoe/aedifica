@@ -1,0 +1,91 @@
+{
+  "checks": [
+    {
+      "detail": "product info running=True error=None",
+      "id": "bridge_live",
+      "ok": true
+    },
+    {
+      "detail": "selection normalized without problem",
+      "id": "selection_readable",
+      "ok": true
+    },
+    {
+      "detail": "selected elements=4",
+      "id": "selection_non_empty",
+      "ok": true
+    },
+    {
+      "detail": "zones/spaces=3",
+      "id": "selection_has_zone",
+      "ok": true
+    },
+    {
+      "detail": "every zone carries a resolved classification",
+      "id": "classifications_resolved",
+      "ok": true
+    },
+    {
+      "detail": "unsupported/ambiguous: none",
+      "id": "expected_properties_resolvable",
+      "ok": true
+    },
+    {
+      "detail": "3 zone(s), every expected property classified present or missing",
+      "id": "audit_traceable",
+      "ok": true
+    },
+    {
+      "detail": "before value read from selected element for RoomUsage",
+      "id": "dry_run_before_from_model",
+      "ok": true
+    },
+    {
+      "detail": "harness returned ok",
+      "id": "harness_ok",
+      "ok": true
+    },
+    {
+      "detail": "mode=live",
+      "id": "mode_live",
+      "ok": true
+    },
+    {
+      "detail": "no fallback to fixtures was used",
+      "id": "no_fixture_fallback",
+      "ok": true
+    },
+    {
+      "detail": "mutated=False",
+      "id": "mutated_false",
+      "ok": true
+    },
+    {
+      "detail": "re-read of the same element returns the same value after the dry run",
+      "id": "model_unchanged_after_dry_run",
+      "ok": true
+    },
+    {
+      "detail": "sensitive findings=[]",
+      "id": "transcript_redacted",
+      "ok": true
+    }
+  ],
+  "endpoint_kind": "replay_stand_in",
+  "mode": "live",
+  "ok": true,
+  "product_info": {
+    "build": 3000,
+    "language": "FRA",
+    "name": "Archicad",
+    "raw": {
+      "buildNumber": 3000,
+      "languageCode": "FRA",
+      "version": 29
+    },
+    "version": 29
+  },
+  "run_id": "PARTNER-PREFLIGHT-2026-09-02T13:38:19.468891+00:00",
+  "schema_version": "1.0",
+  "started_at": "2026-09-02T13:38:19.468891+00:00"
+}

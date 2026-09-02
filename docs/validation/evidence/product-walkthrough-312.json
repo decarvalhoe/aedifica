@@ -1,0 +1,222 @@
+{
+  "completed": true,
+  "evidence_id": "W21-6-WALKTHROUGH",
+  "friction_count": 0,
+  "frictions": [],
+  "issue": 312,
+  "mode": "autonomous",
+  "passed": 27,
+  "project": {
+    "canton": "VD",
+    "commune": "Lausanne",
+    "entry_phase": "31"
+  },
+  "run_id": "PARTNER-WALKTHROUGH-2026-09-02T13:42:50.458454+00:00",
+  "schema_version": "1.0",
+  "step_count": 27,
+  "steps": [
+    {
+      "expectation": "the architect creates the project at its real entry phase and it is stored with that phase",
+      "observed": "HTTP 201 ",
+      "ok": true,
+      "step": "creation.projet",
+      "surface": "projets"
+    },
+    {
+      "expectation": "the stored project keeps the declared entry phase 31",
+      "observed": "phase_code=31",
+      "ok": true,
+      "step": "creation.phase-entree",
+      "surface": "projets"
+    },
+    {
+      "expectation": "seeding at a mid-project entry phase produces a retroactive checklist covering earlier phases",
+      "observed": "HTTP 201 seeded=50",
+      "ok": true,
+      "step": "checklist.retroactive",
+      "surface": "checklist"
+    },
+    {
+      "expectation": "the retroactive checklist carries at least one item from a phase before the entry phase",
+      "observed": "50 items, 12 from earlier phases",
+      "ok": true,
+      "step": "checklist.phases-anterieures",
+      "surface": "checklist"
+    },
+    {
+      "expectation": "the architect can create an intervenant group to organise the project",
+      "observed": "HTTP 201 ",
+      "ok": true,
+      "step": "intervenants.groupes",
+      "surface": "intervenants"
+    },
+    {
+      "expectation": "an intervenant is registered with role, organisation and responsibility",
+      "observed": "HTTP 201 ",
+      "ok": true,
+      "step": "intervenants.registre",
+      "surface": "intervenants"
+    },
+    {
+      "expectation": "the registered intervenant feeds the atelier-level directory (intake default: atelier scope)",
+      "observed": "HTTP 200 entries=1",
+      "ok": true,
+      "step": "intervenants.annuaire-atelier",
+      "surface": "annuaire"
+    },
+    {
+      "expectation": "a document is filed with an official name, a category and a version",
+      "observed": "HTTP 201 ",
+      "ok": true,
+      "step": "documents.depot",
+      "surface": "documents"
+    },
+    {
+      "expectation": "the architect promotes a document to a canonical validation with a citable extract",
+      "observed": "HTTP 200 ",
+      "ok": true,
+      "step": "validation.niveau",
+      "surface": "validation"
+    },
+    {
+      "expectation": "the to-validate surface answers without error so nothing waits invisibly",
+      "observed": "HTTP 200 ",
+      "ok": true,
+      "step": "validation.file-attente",
+      "surface": "validation"
+    },
+    {
+      "expectation": "access is granted at group/dossier granularity (intake default), not per field",
+      "observed": "HTTP 201 ",
+      "ok": true,
+      "step": "acces.par-groupe",
+      "surface": "acces"
+    },
+    {
+      "expectation": "a connected user can read back what they have access to",
+      "observed": "HTTP 200 ",
+      "ok": true,
+      "step": "acces.lisibilite",
+      "surface": "acces"
+    },
+    {
+      "expectation": "a verbal requirement is captured with its channel and its emitter",
+      "observed": "HTTP 201 ",
+      "ok": true,
+      "step": "brs.saisie",
+      "surface": "brs"
+    },
+    {
+      "expectation": "the captured requirement is retrievable with its emitter attached",
+      "observed": "HTTP 200 entries=1",
+      "ok": true,
+      "step": "brs.tracabilite",
+      "surface": "brs"
+    },
+    {
+      "expectation": "the architect turns a requirement into a prioritised task",
+      "observed": "HTTP 201 ",
+      "ok": true,
+      "step": "taches.creation",
+      "surface": "taches"
+    },
+    {
+      "expectation": "with no atelier history the duration prediction returns no fabricated number",
+      "observed": "HTTP 200 samples=0 prediction=None basis=no_history",
+      "ok": true,
+      "step": "taches.predictif-honnete",
+      "surface": "taches"
+    },
+    {
+      "expectation": "an uncovered commune is declared unsupported and unusable, with the official inputs it still needs",
+      "observed": "HTTP 200 state=unsupported usable=False required_inputs=4",
+      "ok": true,
+      "step": "reglementaire.commune-non-couverte",
+      "surface": "reglementaire"
+    },
+    {
+      "expectation": "the uncovered commune opens an ingestion request instead of returning invented rules",
+      "observed": "HTTP 201 ",
+      "ok": true,
+      "step": "reglementaire.demande-ingestion",
+      "surface": "reglementaire"
+    },
+    {
+      "expectation": "a requested but not yet ingested commune stays unusable and exposes no regulatory value",
+      "observed": "HTTP 200 state=seed usable=False pack_id=1",
+      "ok": true,
+      "step": "reglementaire.pas-de-fabrication",
+      "surface": "reglementaire"
+    },
+    {
+      "expectation": "a commune/canton pair contradicting the OFS register is refused with the registered canton named",
+      "observed": "HTTP 422 code=COMMUNE_CANTON_MISMATCH",
+      "ok": true,
+      "step": "reglementaire.paire-registre",
+      "surface": "reglementaire"
+    },
+    {
+      "expectation": "the project compliance surface answers on available data without erroring",
+      "observed": "HTTP 200 ",
+      "ok": true,
+      "step": "reglementaire.surface-projet",
+      "surface": "reglementaire"
+    },
+    {
+      "expectation": "a checklist item turns into a task and the link is readable back",
+      "observed": "HTTP 201 checklist_item_id=1",
+      "ok": true,
+      "step": "liaison.checklist-tache",
+      "surface": "checklist"
+    },
+    {
+      "expectation": "a later decision supersedes an earlier requirement instead of overwriting it",
+      "observed": "HTTP 201 ",
+      "ok": true,
+      "step": "liaison.brs-supersede",
+      "surface": "brs"
+    },
+    {
+      "expectation": "the product proposes a next step for the current phase",
+      "observed": "HTTP 200 ",
+      "ok": true,
+      "step": "liaison.prochaine-etape",
+      "surface": "pilotage"
+    },
+    {
+      "expectation": "the permit completeness surface answers on the data actually available",
+      "observed": "HTTP 200 ",
+      "ok": true,
+      "step": "liaison.permis",
+      "surface": "reglementaire"
+    },
+    {
+      "expectation": "a field photo capture is stored in Memory",
+      "observed": "HTTP 201 ",
+      "ok": true,
+      "step": "memoire.photo",
+      "surface": "memoire"
+    },
+    {
+      "expectation": "every observed friction is captured in Memory with its context",
+      "observed": "HTTP 200 stored=0/0 by_kind={\"photo\": 1}",
+      "ok": true,
+      "step": "memoire.frictions",
+      "surface": "memoire"
+    }
+  ],
+  "surfaces_traversed": [
+    "acces",
+    "annuaire",
+    "brs",
+    "checklist",
+    "documents",
+    "intervenants",
+    "memoire",
+    "pilotage",
+    "projets",
+    "reglementaire",
+    "taches",
+    "validation"
+  ]
+}

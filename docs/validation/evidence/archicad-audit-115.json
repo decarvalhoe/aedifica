@@ -1,0 +1,83 @@
+{
+  "audited_zone_count": 3,
+  "classification_error": null,
+  "elements": [
+    {
+      "classification": "IfcSpace",
+      "element_id": "00000000-0000-0000-0000-000000000101",
+      "expected": [
+        "RoomUsage",
+        "SIA416SurfaceType"
+      ],
+      "missing": [
+        "SIA416SurfaceType"
+      ],
+      "present": [
+        "RoomUsage"
+      ],
+      "property_states": {
+        "RoomUsage": "normal",
+        "SIA416SurfaceType": "userUndefined"
+      }
+    },
+    {
+      "classification": "IfcSpace",
+      "element_id": "00000000-0000-0000-0000-000000000102",
+      "expected": [
+        "RoomUsage",
+        "SIA416SurfaceType"
+      ],
+      "missing": [
+        "RoomUsage"
+      ],
+      "present": [
+        "SIA416SurfaceType"
+      ],
+      "property_states": {
+        "RoomUsage": "userUndefined",
+        "SIA416SurfaceType": "normal"
+      }
+    },
+    {
+      "classification": "IfcSpace",
+      "element_id": "00000000-0000-0000-0000-000000000103",
+      "expected": [
+        "RoomUsage",
+        "SIA416SurfaceType"
+      ],
+      "missing": [],
+      "present": [
+        "RoomUsage",
+        "SIA416SurfaceType"
+      ],
+      "property_states": {
+        "RoomUsage": "normal",
+        "SIA416SurfaceType": "normal"
+      }
+    }
+  ],
+  "endpoint_kind": "replay_stand_in",
+  "evidence_id": "AED-077-AUDIT",
+  "expected_properties": [
+    "RoomUsage",
+    "SIA416SurfaceType"
+  ],
+  "issue": 115,
+  "missing_total": 2,
+  "mode": "live",
+  "product_info": {
+    "build": 3000,
+    "language": "FRA",
+    "name": "Archicad",
+    "raw": {
+      "buildNumber": 3000,
+      "languageCode": "FRA",
+      "version": 29
+    },
+    "version": 29
+  },
+  "run_id": "PARTNER-PREFLIGHT-2026-09-02T13:38:19.468891+00:00",
+  "schema_version": "1.0",
+  "selected_element_count": 4,
+  "unavailable_properties": {}
+}

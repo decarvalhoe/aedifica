@@ -1,0 +1,23 @@
+{
+  "after": "[redacted]",
+  "before_is_null": false,
+  "before_sha256": "0c47a6053a40a27495035eeb5f9d86a9a90a2db418a5ccbc6cb19cf0e8117bd5",
+  "before_source": "live selection read from the bridge",
+  "classification": "IfcSpace",
+  "element_id": "00000000-0000-0000-0000-000000000101",
+  "endpoint_kind": "replay_stand_in",
+  "evidence_id": "AED-067-DRY-RUN",
+  "issue": 105,
+  "mode": "live",
+  "model_unchanged_after_dry_run": true,
+  "mutated": false,
+  "property_name": "RoomUsage",
+  "run_id": "PARTNER-PREFLIGHT-2026-09-02T13:38:19.468891+00:00",
+  "schema_version": "1.0",
+  "shareable_diff": {
+    "after": "[redacted]",
+    "before": "[redacted]",
+    "element_id": "00000000-0000-0000-0000-000000000101",
+    "property_name": "RoomUsage"
+  }
+}
