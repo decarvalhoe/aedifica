@@ -21,6 +21,7 @@ import validate_manifest  # noqa: E402
 import validate_matrix  # noqa: E402
 import validate_memory  # noqa: E402
 import validate_packs  # noqa: E402
+import validate_partner_intake  # noqa: E402
 import validate_permit  # noqa: E402
 import validate_redaction  # noqa: E402
 import validate_research  # noqa: E402
@@ -48,6 +49,7 @@ VALIDATORS = [
     validate_site.validate_all,
     validate_redaction.validate_all,
     validate_adapter_capability.validate_all,
+    validate_partner_intake.validate_all,
 ]
 
 

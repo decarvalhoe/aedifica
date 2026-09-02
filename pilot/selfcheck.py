@@ -855,7 +855,22 @@ _gate_r1b = release_gate.run_gate("R1B")
 check("R1B release gate passes the contract validators", _gate_r1b["contracts_passed"] and _gate_r1b["validator_count"] >= 1)
 check("release gate separates blocked live deps from code failures", _gate_r1b["blocked_live"] == [])
 _gate_r4 = release_gate.run_gate("R4")
-check("R4 release gate lists blocked live deps (#105/#115) as non-failures", {d["id"] for d in _gate_r4["blocked_live"]} == {"#105", "#115"})
+# #105 / #115 left the blocked list once `pilot/partner_preflight.py` made the
+# live read-only acceptance machine-verifiable; the mechanism itself is still
+# exercised above on R1B, so a future blocked dependency stays reportable.
+check("R4 release gate carries no blocked live dependency left", _gate_r4["blocked_live"] == [])
+import partner_preflight  # noqa: E402
+_preflight = partner_preflight.run_preflight()
+check("partner pre-flight is green without an Archicad seat", _preflight["ok"] and _preflight["run"]["mode"] == "live")
+check("partner dry-run evidence proves a real before value and no mutation",
+      _preflight["dry_run_evidence"]["before_is_null"] is False
+      and _preflight["dry_run_evidence"]["mutated"] is False
+      and _preflight["dry_run_evidence"]["model_unchanged_after_dry_run"] is True)
+check("partner metadata audit separates present from missing on real zones",
+      _preflight["audit_evidence"]["audited_zone_count"] >= 1
+      and _preflight["audit_evidence"]["missing_total"] >= 1)
+import validate_partner_intake  # noqa: E402
+check("partner intake register leaves nothing awaiting a partner", validate_partner_intake.validate() == [])
 check("release gate output is pasteable markdown", "Release gate" in release_gate.render_markdown(_gate_r1b))
 check("partner feedback template exists", os.path.exists(os.path.join(os.path.dirname(HERE), "docs", "validation", "partner-feedback-template.md")))
 import demo_cockpit  # noqa: E402
