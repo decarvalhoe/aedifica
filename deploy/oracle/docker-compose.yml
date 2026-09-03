@@ -1,0 +1,84 @@
+# Aedifica — production stack for an Oracle Cloud Always Free VM (ARM64).
+#
+#   docker compose --env-file .env up -d --build
+#
+# Topology: Caddy is the ONLY container bound to the host. It terminates TLS and
+# proxies to Next.js, which proxies /api/* to FastAPI over the compose network.
+# The API and the database are never published to the internet.
+#
+#   internet ──443──> caddy ──> web:3000 ──> api:8090 ──> db:5432
+services:
+  db:
+    # NOT postgres:16-alpine — migration j4f7a2c9d8e3 runs
+    # `CREATE EXTENSION IF NOT EXISTS vector`, which that image cannot satisfy.
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-aedifica}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-aedifica}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aedifica}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      AEDIFICA_ENV: prod
+      AEDIFICA_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-aedifica}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-aedifica}
+      # The browser never talks to the API directly: Next.js proxies it. Only the
+      # public origin needs to be allowed.
+      AEDIFICA_CORS_ORIGINS: ${PUBLIC_ORIGIN}
+      AEDIFICA_NOMOS_ENABLED: ${AEDIFICA_NOMOS_ENABLED:-true}
+      AEDIFICA_SEED_DEMO: ${AEDIFICA_SEED_DEMO:-true}
+      AEDIFICA_RESET_ATELIERS: ${AEDIFICA_RESET_ATELIERS:-true}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8090/api/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  web:
+    build:
+      context: ../../web
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      AEDIFICA_API: http://api:8090
+      NODE_ENV: production
+    depends_on:
+      api:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      AEDIFICA_SITE: ${AEDIFICA_SITE:?set AEDIFICA_SITE in .env}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+
+volumes:
+  pgdata: {}
+  caddy_data: {}
+  caddy_config: {}

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import glob
+import hashlib
 import json
 import os
 
@@ -156,6 +157,26 @@ def list_packs(session) -> list[dict]:
     return out
 
 
+def _pack_version_id(document: dict, source_version: dict) -> str:
+    """A bounded, stable identifier for CommunePack.version.
+
+    `version` is a VARCHAR(40) and part of the (commune, canton, version) unique
+    key — an identifier, not prose. Static packs legitimately carry a full legal
+    validity sentence in `document.version` (Lausanne's runs to 368 characters):
+    SQLite silently accepts it, Postgres raises StringDataRightTruncation and the
+    whole demo seed is skipped. Index on a short digest-backed id and keep the
+    sentence itself in the pack payload, where it is not length-bound.
+    """
+    raw = (document.get("version") or "").strip()
+    verified = (source_version.get("verified_at") or "").strip()
+    if not raw:
+        return f"static-{verified}"[:40] if verified else "static-seed"
+    if len(raw) <= 40:
+        return raw
+    digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:8]
+    return f"static-{verified or 'seed'}-{digest}"[:40]
+
+
 def seed_from_static(session) -> list[str]:
     """Bootstrap CommunePacks from the validated static pilot packs (Lausanne/Pully)."""
     created = []
@@ -165,7 +186,7 @@ def seed_from_static(session) -> list[str]:
         commune = data.get("commune")
         document = data.get("document", {})
         source_version = data.get("source_version", {})
-        version = document.get("version", "static-seed")
+        version = _pack_version_id(document, source_version)
         if session.query(m.CommunePack).filter_by(commune=commune, canton="VD", version=version).first():
             continue
         session.add(
@@ -178,7 +199,12 @@ def seed_from_static(session) -> list[str]:
                 valid_as_of=source_version.get("verified_at"),
                 review_due=source_version.get("review_due"),
                 ingested_at=source_version.get("verified_at"),
-                data={"zones": data.get("zones", {})},
+                data={
+                    "zones": data.get("zones", {}),
+                    # The full legal validity statement, preserved verbatim out of
+                    # the length-bound identifier column.
+                    "document_version": document.get("version"),
+                },
             )
         )
         created.append(commune)

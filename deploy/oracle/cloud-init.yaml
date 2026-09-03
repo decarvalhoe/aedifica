@@ -1,0 +1,47 @@
+#cloud-config
+# Paste into "Advanced options → Cloud-init script" when creating the Oracle VM.
+# Installs Docker, opens 80/443 in the instance firewall (Oracle images ship a
+# restrictive iptables/firewalld that blocks everything but SSH) and prepares the
+# deployment directory. It does NOT clone or start the app — do that over SSH so
+# secrets never travel in instance metadata.
+package_update: true
+package_upgrade: true
+
+packages:
+  - ca-certificates
+  - curl
+  - git
+  - gnupg
+
+runcmd:
+  # Docker CE from the official repository (the distro package lags).
+  - curl -fsSL https://get.docker.com | sh
+  - systemctl enable --now docker
+  - usermod -aG docker ubuntu || usermod -aG docker opc || true
+
+  # Oracle Linux images use firewalld; Ubuntu images ship iptables rules in
+  # /etc/iptables. Open the web ports on whichever is present.
+  - |
+    if command -v firewall-cmd >/dev/null 2>&1; then
+      firewall-cmd --permanent --add-service=http
+      firewall-cmd --permanent --add-service=https
+      firewall-cmd --reload
+    else
+      iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
+      iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT
+      iptables -I INPUT 6 -m state --state NEW -p udp --dport 443 -j ACCEPT
+      netfilter-persistent save || iptables-save > /etc/iptables/rules.v4 || true
+    fi
+
+  # 12 GB of RAM is plenty, but a Next.js build peaks hard; swap keeps a rebuild
+  # on the VM from being OOM-killed.
+  - fallocate -l 4G /swapfile
+  - chmod 600 /swapfile
+  - mkswap /swapfile
+  - swapon /swapfile
+  - sh -c 'echo "/swapfile none swap sw 0 0" >> /etc/fstab'
+
+  - mkdir -p /opt/aedifica
+  - chown ubuntu:ubuntu /opt/aedifica || chown opc:opc /opt/aedifica || true
+
+final_message: "Aedifica VM ready. SSH in, clone the repo into /opt/aedifica, fill deploy/oracle/.env, then: docker compose -f deploy/oracle/docker-compose.yml --env-file deploy/oracle/.env up -d --build"
