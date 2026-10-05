@@ -14932,10 +14932,10 @@
       }
     ]
   },
-  "fetched_at": "2026-06-08T11:44:03Z",
+  "fetched_at": "2026-10-05T14:10:22Z",
   "n_cantons": 26,
   "n_communes": 2110,
   "n_homonym_names": 0,
-  "snapshot_date": "8-6-2026",
+  "snapshot_date": "5-10-2026",
   "source": "https://www.agvchapp.bfs.admin.ch/api/communes/snapshot"
 }
